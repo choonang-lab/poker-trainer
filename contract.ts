@@ -1,0 +1,158 @@
+// Poker Trainer — Interface Contract
+// The shared seam between L1/L2/L4 + L3 (all implemented in engine.ts) and
+// L5/L6/L7 above. Types are the agreement; pillar 1 and pillar 2 both speak this
+// vocabulary so there is ONE engine, not two. engine.ts implements every
+// signature below; contract.conformance.ts proves it at compile time.
+
+// ===========================================================================
+// L1 — cards (implemented, tested)
+// ===========================================================================
+export type Card = number;        // 0..51 = (rank-2)*4 + suit ; rank 2..14, suit 0..3
+export type Score = number[];     // comparable: [category, ...tiebreakers], higher better
+
+export declare function card(rank: number, suit: number): Card;
+export declare function rankOf(c: Card): number;
+export declare function suitOf(c: Card): number;
+export declare function score5(cards: Card[]): Score;     // exactly 5 cards
+export declare function score7(cards: Card[]): Score;     // best 5 of 7
+export declare function cmpScore(a: Score, b: Score): number;  // <0,0,>0
+
+// ===========================================================================
+// L2 — equity by exact enumeration (implemented, tested)
+// ===========================================================================
+export type Board = Card[];                       // length 0 | 3 | 4 | 5
+export type Combo = [Card, Card];                 // a two-card holding
+export type Range = { combo: Combo; weight: number }[];
+
+export declare function equity(hero: Combo, board: Board, villain: Combo): number;        // [0,1]
+export declare function equityVsRange(hero: Combo, board: Board, range: Range): number | null;
+export declare function outs(hero: Combo, board: Board, villain: Combo): number;          // 1 to come
+
+// ===========================================================================
+// L4 — grading primitives (implemented, tested)
+// ===========================================================================
+export declare function breakEven(pot: number, call: number): number;
+export declare function callEV(eq: number, pot: number, call: number): number;
+export declare function regret(evByAction: Record<string, number>, chosen: string): number;
+export declare function decisionRegret(eq: number, pot: number, call: number, chosen: "call" | "fold"): number;
+export declare function estimateError(estimate: number, truth: number): number;
+export declare function withinBand(estimate: number, truth: number, band: number): boolean;
+export declare function brier(samples: { estimate: number; truth: number }[]): number | null;
+
+// ===========================================================================
+// THE UNIFYING TYPES — where pillar 1 and pillar 2 must agree
+// ===========================================================================
+
+// Villain is ONE type for both pillars. Pillar 1 reads only `range`.
+// Pillar 2 also reads `strategy` (declared, fixed) at each tree node.
+export interface Villain {
+  range: Range;
+  strategy?: NodeStrategy;          // undefined ⇒ pillar-1 mode (no betting model)
+}
+
+// Abstraction is set by pillar 2; empty ⇒ pillar-1 mode (pure equity, no tree).
+export interface Abstraction {
+  sizes: number[];                  // pot-relative bet sizes, e.g. [0.33, 0.75, 1.0]
+  streets: ("flop" | "turn" | "river")[];
+  players: number;                  // 2 default; >2 uses the aggregated-field model (P4)
+}
+export declare const NO_ABSTRACTION: Abstraction; // { sizes: [], streets: [], players: 2 }
+
+// The public decision state (a single drill spot). `truth()` / `buildTree()`
+// consume this; abstraction is always present (empty ⇒ pillar 1).
+export interface State {
+  heroHand?: Combo;                 // a specific holding (single-decision drills)
+  heroRange?: Range;                // or a range
+  board: Board;
+  pot: number;
+  toAct: "hero" | "villain" | "chance";
+  villain: Villain;
+  abstraction: Abstraction;
+}
+
+// The leaner state carried INSIDE the tree. A node only needs the board/pot/
+// villain to evaluate; toAct/abstraction/players are informational and optional.
+// (The builder threads `players` here so the showdown leaf can size the field.)
+export interface NodeState {
+  heroHand?: Combo;
+  heroRange?: Range;
+  board: Board;
+  pot: number;
+  villain: Villain;
+  players?: number;
+  abstraction?: Abstraction;
+  toAct?: "hero" | "villain" | "chance";
+}
+
+// Grading output — one schema so L5 (scheduling) and L7 (UI) never branch on pillar.
+export interface Result {
+  regretBb: number;                 // chips/bb left vs best line; 0 = optimal
+  estimateError?: number;           // present for estimation drills
+  leakTag: string;                  // namespaced, e.g. "p1.mispriced_draw", "p2.oop_overfold"
+}
+
+// ===========================================================================
+// L3 — the game tree (implemented in engine.ts). Pillar 1 = depth-0 case.
+// ===========================================================================
+export type Action =
+  | { kind: "fold" }
+  | { kind: "check" }
+  | { kind: "call" }
+  | { kind: "bet"; size: number };   // size is one of Abstraction.sizes
+
+// Villain's declared, fixed strategy: a distribution over legal actions at a node.
+export type NodeStrategy = (state: NodeState, legal: Action[]) => { action: Action; weight: number }[];
+
+// How a TERM node resolves (the reconciliation point the JS reference flagged):
+// a leaf carries its resolution + hero's post-decision investment so the pure
+// walker can price it without re-deriving the line.
+export type Terminal =
+  | { type: "showdown"; heroInvested: number }
+  | { type: "fold"; folder: "hero" | "villain"; heroInvested: number };
+
+export interface TreeNode {
+  state: NodeState;
+  kind: "HERO" | "VILL" | "CHANCE" | "TERM";
+  terminal?: Terminal;                              // present iff kind === "TERM"
+  children?: { action?: Action; node: TreeNode }[];
+}
+
+// The leaf evaluator: hero's raw equity at a (possibly incomplete) board.
+// `fieldEquity` is the multiway aggregated-field APPROXIMATION (P4), reducing to
+// the exact 2-player equity when players <= 2.
+export declare function equityLeaf(state: NodeState): number | null;
+export declare function fieldEquity(state: NodeState): number | null;
+
+// Best-response EV via expectimax (villain fixed). The leaf evaluator IS L2 equity.
+//   HERO   node: max over children
+//   VILL   node: Σ strategy(a)·EV(child)
+//   CHANCE node: mean over dealt cards
+//   TERM   node: fold payoff, or showdown via equity()/equityVsRange()
+export declare function bestResponseEV(node: TreeNode): number;  // in bb
+export declare function bestAction(node: TreeNode): Action;      // argmax at a HERO node
+
+// Tree construction + the authoring-time abstraction budget (cap sizes × streets
+// so a drill can never build an intractable tree at runtime).
+export declare const ABSTRACTION_LIMITS: { maxSizes: number; maxStreets: number; maxSizeStreetProduct: number };
+export declare function validateAbstraction(abstraction: Abstraction, board?: Board): boolean;
+export declare function buildTree(state: State): TreeNode;
+
+// The single ground-truth entry point. UI/grading call ONLY this; it routes:
+//   empty abstraction → equity()/equityVsRange()  (pillar 1)
+//   otherwise         → bestResponseEV()          (pillar 2)
+// Throws on a malformed spot (no villain combo possible) so the failure surfaces
+// at its cause, not as a null deep in grading. The low-level leaves below stay
+// nullable (number | null) — null there means "no data" for a math primitive.
+export declare function truth(state: State): number;
+
+// Equity realization, derived (not hardcoded): tree-EV / raw all-in equity.
+// Throws when the ratio is undefined (no villain combo, or raw all-in equity 0).
+export declare function realizationFactor(state: State): number;
+
+// ===========================================================================
+// Build status
+//   L1, L2, L4   implemented in engine.ts, exact tests + AA/KK benchmark passing
+//   L3           expectimax + multi-street builder + multiway field approx + budget
+//   truth()      router: empty-abstraction path is tree-independent (pillar 1 lives)
+//   L5/L6/L7     scheduling, content, UI — consume Result + truth(); not started
+// ===========================================================================
