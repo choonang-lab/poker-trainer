@@ -22,7 +22,9 @@
     field-aware (`fieldEquity`) so multiway (P4) estimate drills grade against the field, not heads-up.
 - **`cli.ts`** — L7 CLI trainer. Dependency-free (Node readline async-iterator); the IO boundary that
   drives the L6 session loop (present → read → grade → schedule → repeat). Type-checked by `tsc`
-  (minimal ambient `node:readline` decl in `globals.d.ts`); not in the unit suite (it reads stdin).
+  (minimal ambient `node:readline`/`node:fs` decls in `globals.d.ts`); not in the unit suite (it reads stdin).
+  Persists progress to `$POKER_SAVE` (default `.poker-trainer.json`, git-ignored) via the pure engine
+  primitives `serializeSession`/`loadSession`; `now` is a real day-number (override with `$POKER_NOW`).
 - **`engine.test.ts`** — 70 assertions, all passing. Exact/hand-checkable, not approximate:
   - full category ladder (high card → royal), wheel straight, kicker tiebreaks
   - `equity` against exact rationals: straight draw = **6/44**, drawing dead = **0**, chop = **0.5**, made hand = **1.0**
@@ -42,12 +44,10 @@ node cli.ts                     # smoke: printf '0.14\ncall\nbet\n0.35\n0.95\nbe
 ```
 
 ## What Claude Code builds next (in priority order)
-1. **Persistence** — the session loop is pure; a `Session` (with its `reviews`) can be serialized to
-   disk/JSON so progress survives across `cli.ts` runs (currently each run starts fresh at "day 0").
-   NOTE: villain `strategy` is a function, so a `Session` isn't directly JSON-serializable as-is —
-   persist `reviews` (plain data) keyed by drill id and rehydrate against the in-code drill library.
-2. **More L6 drills** — broaden further (e.g. M4 street sequencing, P1 preflop ranges, P5 exploit).
+1. **More L6 drills** — broaden further (e.g. M4 street sequencing, P1 preflop ranges, P5 exploit).
    The taxonomy `LEAK_TABLE` grows alongside. (Watch suite runtime: multi-street drills are ~seconds.)
+2. **Optional web UI** — if a browser front-end is wanted (adds a framework/build step, breaks
+   dependency-free). The CLI already covers L7 end-to-end, now with cross-run persistence.
 3. **Optional web UI** — if a browser front-end is wanted later (would add a framework/build step and
    break the dependency-free property). The CLI (`cli.ts`) already covers L7 end-to-end.
    NOTE: the full vertical slice L1–L7 now runs end-to-end (engine → grading → scheduling → session → CLI).

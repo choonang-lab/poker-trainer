@@ -645,6 +645,31 @@ export function gradeDrill(session: Session, drillId: string, response: Response
   return { result, review, session: { ...session, reviews: { ...session.reviews, [drillId]: review } } };
 }
 
+// Persistence primitives (pure; the CLI does the actual file IO). A Session's
+// drills carry villain `strategy` FUNCTIONS, which aren't JSON-serializable — so
+// only the plain `reviews` data is persisted, then rehydrated against the
+// in-code drill library. Reviews for ids no longer in the library are dropped
+// (drill set changed); malformed/missing input yields a fresh session.
+export function serializeSession(session: Session): string {
+  return JSON.stringify({ version: 1, reviews: session.reviews }, null, 2);
+}
+
+export function loadSession(drills: Drill[], json?: string | null): Session {
+  if (!json) return newSession(drills);
+  let data: unknown;
+  try { data = JSON.parse(json); } catch { return newSession(drills); }
+  const raw = data && typeof data === "object" && "reviews" in data
+    ? (data as { reviews?: unknown }).reviews : undefined;
+  const reviews: Record<string, Review> = {};
+  const ids = new Set(drills.map((d) => d.id));
+  if (raw && typeof raw === "object") {
+    for (const [id, r] of Object.entries(raw as Record<string, Review>)) {
+      if (ids.has(id) && r && typeof r.due === "number" && typeof r.ease === "number") reviews[id] = r;
+    }
+  }
+  return { drills, reviews };
+}
+
 // ---- helpers for authoring tests/drills ----------------------------------
 export const RNAMES: Record<number, string> = { 14: "A", 13: "K", 12: "Q", 11: "J", 10: "T" };
 export const SNAMES = ["s", "h", "d", "c"];

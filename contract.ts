@@ -217,6 +217,13 @@ export declare function gradeDrill(session: Session, drillId: string, response: 
 // leaks via this, falling back to a module-scoped structural tag when unmapped.
 export declare function classifyLeak(drill: Drill, result: Result): string;
 
+// Persistence (pure; IO is the caller's job). Only the plain `reviews` data is
+// serialized — drills carry `strategy` functions and are supplied in-code.
+// loadSession rehydrates reviews against the given library (unknown ids dropped;
+// missing/malformed json → a fresh session).
+export declare function serializeSession(session: Session): string;
+export declare function loadSession(drills: Drill[], json?: string | null): Session;
+
 // ===========================================================================
 // Build status
 //   L1, L2, L4   implemented in engine.ts, exact tests + AA/KK benchmark passing

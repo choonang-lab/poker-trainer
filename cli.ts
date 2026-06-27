@@ -4,8 +4,9 @@
 //   node cli.ts
 // Non-interactive smoke test: pipe answers, e.g.  printf '0.14\ncall\nbet\n' | node cli.ts
 import { createInterface } from "node:readline";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import {
-  STARTER_DRILLS, newSession, nextDrill, gradeDrill, truth, buildTree, actionEVs,
+  STARTER_DRILLS, loadSession, serializeSession, nextDrill, gradeDrill, truth, buildTree, actionEVs,
   rankOf, suitOf, RNAMES, SNAMES,
 } from "./engine.ts";
 import type { Drill, Response, State, Card, GradeOutcome } from "./contract.ts";
@@ -79,9 +80,15 @@ const nextLine = async (): Promise<string | null> => {
   return r.done ? null : r.value;
 };
 
-console.log("Poker Trainer — today's drills (Ctrl-C to quit)");
-let session = newSession(STARTER_DRILLS);
-const now = 0; // a single sitting = "today"; graded drills schedule out to >= day 1
+// Persistence: progress (scheduling state) is saved to a JSON file and reloaded
+// across runs. Path and "today" are overridable via env for scripted/test runs.
+const SAVE = process.env.POKER_SAVE ?? ".poker-trainer.json";
+const now = process.env.POKER_NOW !== undefined
+  ? Number(process.env.POKER_NOW)
+  : Math.floor(Date.now() / 86_400_000); // whole days since the epoch
+
+console.log(`Poker Trainer — day ${now} (Ctrl-C to quit; progress saved to ${SAVE})`);
+let session = loadSession(STARTER_DRILLS, existsSync(SAVE) ? readFileSync(SAVE, "utf8") : null);
 let graded = 0;
 
 while (true) {
@@ -95,11 +102,12 @@ while (true) {
     const out = gradeDrill(session, drill.id, parseResponse(drill, answer), now);
     session = out.session;
     graded++;
+    writeFileSync(SAVE, serializeSession(session)); // persist after each graded drill
     showFeedback(drill, out);
   } catch (e) {
     console.log(`  ! ${(e as Error).message} — try again.`);
   }
 }
 
-console.log(`\nNo more drills due today. Graded ${graded}. Come back tomorrow (next reviews scheduled).`);
+console.log(`\nNo more drills due today. Graded ${graded}. Progress saved — come back tomorrow.`);
 rl.close();

@@ -54,7 +54,11 @@ test red, stop and fix the leak — do NOT edit the test to make it pass.
   session loop end-to-end. Run: `node cli.ts`.
   Smoke: `printf '0.14\ncall\nbet\n0.35\n0.95\nbet\nbet\n0.5\n' | node cli.ts`.
   It is the IO boundary, so it's NOT in the `engine.test.ts` unit suite (importing it would read stdin).
-- NEXT: Session persistence (survive across CLI runs); more L6 drills; optional web UI.
+- DONE: Persistence — pure `serializeSession`/`loadSession` (only the plain `reviews` are persisted;
+  villain `strategy` is a function, so drills are supplied in-code and reviews rehydrate against them).
+  `cli.ts` saves to `$POKER_SAVE` (default `.poker-trainer.json`, git-ignored) and uses a real
+  day-number `now` (override with `$POKER_NOW` for scripted runs). Progress survives across runs.
+- NEXT: more L6 drills (M4/P1/P5…); optional web UI.
 - KNOWN L3 LIMIT: the builder models villain as a fixed call/fold responder (no villain lead/raise,
   so no hero-facing-bet nodes yet). `bestResponseEV` already supports those; extend the builder later.
 

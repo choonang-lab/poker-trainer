@@ -1,0 +1,3 @@
+# Trainer progress files (written by cli.ts; never commit a user's progress)
+.poker-trainer.json
+*.save.json

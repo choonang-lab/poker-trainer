@@ -8,6 +8,7 @@ import {
   actionEVs, grade,
   resultQuality, newReview, scheduleReview, dueReviews, nextReview,
   STARTER_DRILLS, newSession, nextDrill, gradeDrill, classifyLeak,
+  serializeSession, loadSession,
 } from "./engine.ts";
 import type { State, NodeState, Action, TreeNode, Abstraction, Response, Result, Review, Drill } from "./contract.ts";
 
@@ -708,6 +709,37 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
   ok("STARTER_DRILLS now spans 8 drills incl M3.5/P3/P4",
     STARTER_DRILLS.length === 8 &&
     ["M3.5", "P3", "P4"].every((m) => STARTER_DRILLS.some((d) => d.module === m)));
+}
+
+// ---------- Persistence: serializeSession / loadSession ----------
+{
+  const s0 = newSession(STARTER_DRILLS);
+  const s1 = gradeDrill(s0, "m2-kqo-vs-aa", { kind: "estimate", value: truth(STARTER_DRILLS[0].state) }, 0).session;
+  const s2 = gradeDrill(s1, "m3-chop-potodds", { kind: "action", action: { kind: "call" } }, 0).session;
+
+  const json = serializeSession(s2);
+  ok("serialized JSON carries version + reviews", json.includes("\"version\"") && json.includes("\"reviews\""));
+
+  const restored = loadSession(STARTER_DRILLS, json);
+  ok("round-trip preserves both reviews", Object.keys(restored.reviews).length === 2);
+  for (const id of ["m2-kqo-vs-aa", "m3-chop-potodds"]) {
+    const a = s2.reviews[id], b = restored.reviews[id];
+    ok(`round-trip ${id} intact`,
+      b.due === a.due && b.reps === a.reps && b.intervalDays === a.intervalDays &&
+      b.lapses === a.lapses && approx(b.ease, a.ease));
+  }
+  ok("restored session keeps the full drill library", restored.drills.length === STARTER_DRILLS.length);
+
+  // Reviews for drills no longer in the library are dropped on load.
+  const smaller = STARTER_DRILLS.filter((d) => d.id !== "m3-chop-potodds");
+  const pruned = loadSession(smaller, json);
+  ok("unknown drill id dropped on load",
+    pruned.reviews["m2-kqo-vs-aa"] !== undefined && pruned.reviews["m3-chop-potodds"] === undefined);
+
+  // Missing / malformed input -> fresh session (lenient, never throws).
+  ok("no json -> fresh", Object.keys(loadSession(STARTER_DRILLS).reviews).length === 0);
+  ok("empty string -> fresh", Object.keys(loadSession(STARTER_DRILLS, "").reviews).length === 0);
+  ok("garbage -> fresh", Object.keys(loadSession(STARTER_DRILLS, "{not json").reviews).length === 0);
 }
 
 // silence unused-import noise without weakening the public surface
