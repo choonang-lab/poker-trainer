@@ -13,6 +13,8 @@
   - **L4** grading primitives (`breakEven`, `callEV`, `regret`, `decisionRegret`, `estimateError`, `withinBand`, `brier`)
   - **M6 calibration** `calibration(samples)` — Brier + per-bucket reliability over estimate history;
     `gradeDrill` exposes `GradeOutcome.truth` so callers build sample sets without re-enumerating.
+  - **P6 EV calibration** `leakReport(entries)` — aggregates graded results into recurring leaks ranked
+    by total regret (excludes `*.ok`). The decision analogue of M6; CLI prints both at session end.
   - **Grading seam** `grade(state, response) → Result` + `actionEVs` — estimates graded by error,
     decisions by regret, with a structural `leakTag` (refined later by L6 content). This is the
     `Result`-producing glue L5/L6/L7 consume.
@@ -50,12 +52,15 @@ node cli.ts                     # smoke: printf '0.14\ncall\nbet\n0.35\n0.95\nbe
 ```
 
 ## What Claude Code builds next (in priority order)
-1. **More L6 drills** — more P1 preflop ranges (~3s each; keep few in the unit suite); richer P0 IP/OOP
-   spots; M0 needs a new (non-equity) drill type for hand-reading. The taxonomy `LEAK_TABLE` grows
-   alongside. (villainLeads/heroFacesBet roughly double per-street branching — watch multi-street runtime.)
-2. **Optional web UI** — adds a framework/build step (breaks dependency-free). The CLI already covers
-   L7 end-to-end, with cross-run persistence + calibration.
-3. **Richer villain modeling** — villain raises, mixed leading ranges, etc., if deeper P3/P5 spots are wanted.
+Module coverage now spans the full map (M0–M6 + P0–P6); M0 is the only module without a drill.
+1. **M0 drill type** — hand-reading/ranking ("what's your made hand / what beats you"), a new non-equity
+   `ask` kind needing a small `Drill`/`grade` extension. The last uncovered module.
+2. **Richer villain modeling** — villain raises / mixed leading ranges → 3-bet & check-raise lines
+   (deeper P3/P5). The next real betting-tree mechanic.
+3. **More L6 drills** — more P1 preflop ranges (~3s each; keep few in the unit suite); richer P0 IP/OOP
+   spots; M1 blockers, M2 2&4-correction, P2 sizing-choice. (Multi-street drills add ~1s each.)
+4. **Optional web UI** — adds a framework/build step (breaks dependency-free). The CLI already covers
+   L7 end-to-end, with cross-run persistence + M6/P6 reports.
 3. **Optional web UI** — if a browser front-end is wanted later (would add a framework/build step and
    break the dependency-free property). The CLI (`cli.ts`) already covers L7 end-to-end.
    NOTE: the full vertical slice L1–L7 now runs end-to-end (engine → grading → scheduling → session → CLI).

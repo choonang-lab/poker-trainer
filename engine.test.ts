@@ -1,7 +1,7 @@
 // Test suite — every assertion is exact or hand-checkable. Run: node engine.test.ts
 import {
   score5, score7, score7slow, cmpScore, equity, equityVsRange, outs,
-  breakEven, callEV, decisionRegret, regret, estimateError, withinBand, brier, calibration,
+  breakEven, callEV, decisionRegret, regret, estimateError, withinBand, brier, calibration, leakReport,
   hand, parseCard, card, FULL_DECK,
   equityLeaf, bestResponseEV, bestAction, truth, buildTree, realizationFactor,
   fieldEquity, validateAbstraction, ABSTRACTION_LIMITS,
@@ -880,6 +880,31 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
   ok("implied odds: folding leaks -> m56.folds_with_implied_odds",
     m56tFold.result.regretBb > 0 && m56tFold.result.leakTag === "m56.folds_with_implied_odds",
     `${m56tFold.result.regretBb} ${m56tFold.result.leakTag}`);
+}
+
+// ---------- P6: EV calibration / leak-trend report ----------
+{
+  ok("leakReport empty", (() => {
+    const r = leakReport([]); return r.n === 0 && r.totalRegret === 0 && r.meanRegret === 0 && r.leaks.length === 0;
+  })());
+
+  const r = leakReport([
+    { leakTag: "m3.folds_when_priced_in", regretBb: 0.5 },
+    { leakTag: "m3.folds_when_priced_in", regretBb: 0.5 },
+    { leakTag: "p2.misses_thin_value", regretBb: 0.3 },
+    { leakTag: "p2.ok", regretBb: 0 },             // correct decision -> excluded from leaks
+    { leakTag: "m5.overrates_vs_range", regretBb: 0 }, // estimate leak, 0 regret, still listed
+  ]);
+  ok("leakReport counts all results", r.n === 5);
+  ok("leakReport overall regret", approx(r.totalRegret, 1.3) && approx(r.meanRegret, 1.3 / 5));
+  ok("leakReport excludes *.ok from the leaks list",
+    r.leaks.every((l) => !l.leakTag.endsWith(".ok")) && r.leaks.length === 3);
+  // sorted by total regret desc: m3 (1.0) > p2 (0.3) > m5 (0.0)
+  ok("leakReport ranks biggest leak first",
+    r.leaks[0].leakTag === "m3.folds_when_priced_in" && r.leaks[0].count === 2 && approx(r.leaks[0].totalRegret, 1.0));
+  ok("leakReport mean regret per leak", approx(r.leaks[0].meanRegret, 0.5));
+  ok("leakReport keeps zero-regret leaks last",
+    r.leaks[1].leakTag === "p2.misses_thin_value" && r.leaks[2].leakTag === "m5.overrates_vs_range");
 }
 
 // silence unused-import noise without weakening the public surface

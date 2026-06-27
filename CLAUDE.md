@@ -66,12 +66,15 @@ test red, stop and fix the leak — do NOT edit the test to make it pass.
 - DONE: M6 calibration — pure `calibration(samples)` (Brier + per-bucket reliability) over estimate
   drills; `GradeOutcome.truth` exposes the equity so callers build samples without re-enumerating; CLI
   prints a calibration summary at end of session.
+- DONE: P6 EV calibration — pure `leakReport(entries)` aggregates graded results into recurring leaks
+  ranked by total regret (excludes `*.ok`); CLI prints a leak-trend summary at end of session.
 - DONE: hero-faces-a-bet mechanics — `Abstraction.villainLeads` (villain bets after a hero check) and
   `Abstraction.heroFacesBet` (tree roots at hero facing a bet: fold|call -> later streets). Both
   additive & flag-gated; default-off preserves hero-as-aggressor, so no existing drill/test changed.
   Enabled P0 (IP/OOP) and a TRUE multi-street implied-odds drill (villain pays off the turn).
-- NEXT: more drills (more P1 ranges; M0 needs a non-equity drill type). Coverage spans M1–M6 + P0–P5.
-  Optional web UI.
+- Module coverage now spans the full map: M0–M6 + P0–P6 (M0 is the only one without a drill — it needs
+  a non-equity hand-reading drill type). NEXT options: M0 drill type; more P1 ranges; villain raises
+  (richer 3-bet/check-raise lines); optional web UI.
 - KNOWN L3 LIMIT: the builder models villain as a fixed call/fold responder (no villain lead/raise,
   so no hero-facing-bet nodes yet). `bestResponseEV` already supports those; extend the builder later.
 

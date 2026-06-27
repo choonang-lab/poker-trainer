@@ -9,7 +9,7 @@
 import type {
   Card, Score, Board, Combo, Range, Villain, Abstraction, State,
   Action, NodeState, NodeStrategy, Terminal, TreeNode, Response, Result, Review,
-  Drill, Session, GradeOutcome, CalibrationBucket, CalibrationReport,
+  Drill, Session, GradeOutcome, CalibrationBucket, CalibrationReport, LeakStat, LeakReport,
 } from "./contract.ts";
 
 export const RANKS = [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14];
@@ -312,6 +312,25 @@ export function calibration(
     buckets.push({ lo: i / bins, hi: (i + 1) / bins, count: a.count, meanEstimate: me, meanTruth: mt, gap: me - mt });
   }
   return { n: samples.length, brier: brier(samples), buckets };
+}
+
+// P6 EV calibration: aggregate graded results into recurring leaks ranked by total
+// regret. "*.ok" tags (no leak) are excluded from the leaks list but still count
+// toward n and overall regret. Pure; the caller supplies the result history.
+export function leakReport(entries: { leakTag: string; regretBb: number }[]): LeakReport {
+  const n = entries.length;
+  const totalRegret = entries.reduce((s, e) => s + e.regretBb, 0);
+  const byTag = new Map<string, { count: number; total: number }>();
+  for (const e of entries) {
+    if (e.leakTag.endsWith(".ok")) continue;
+    const cur = byTag.get(e.leakTag) ?? { count: 0, total: 0 };
+    cur.count++; cur.total += e.regretBb;
+    byTag.set(e.leakTag, cur);
+  }
+  const leaks: LeakStat[] = [...byTag.entries()]
+    .map(([leakTag, s]) => ({ leakTag, count: s.count, totalRegret: s.total, meanRegret: s.total / s.count }))
+    .sort((a, b) => b.totalRegret - a.totalRegret || b.count - a.count);
+  return { n, totalRegret, meanRegret: n ? totalRegret / n : 0, leaks };
 }
 
 // ---- L3: game tree (expectimax, villain fixed) ---------------------------

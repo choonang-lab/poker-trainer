@@ -7,7 +7,7 @@ import { createInterface } from "node:readline";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import {
   STARTER_DRILLS, loadSession, serializeSession, nextDrill, gradeDrill, truth, buildTree, actionEVs,
-  calibration, rankOf, suitOf, RNAMES, SNAMES,
+  calibration, leakReport, rankOf, suitOf, RNAMES, SNAMES,
 } from "./engine.ts";
 import type { Drill, Response, State, Card, GradeOutcome } from "./contract.ts";
 
@@ -91,6 +91,7 @@ console.log(`Poker Trainer — day ${now} (Ctrl-C to quit; progress saved to ${S
 let session = loadSession(STARTER_DRILLS, existsSync(SAVE) ? readFileSync(SAVE, "utf8") : null);
 let graded = 0;
 const samples: { estimate: number; truth: number }[] = []; // for the M6 calibration summary
+const results: { leakTag: string; regretBb: number }[] = []; // for the P6 leak-trend report
 
 while (true) {
   const drill = nextDrill(session, now);
@@ -106,6 +107,7 @@ while (true) {
     graded++;
     if (response.kind === "estimate" && out.truth !== undefined)
       samples.push({ estimate: response.value, truth: out.truth });
+    results.push({ leakTag: out.result.leakTag, regretBb: out.result.regretBb });
     writeFileSync(SAVE, serializeSession(session)); // persist after each graded drill
     showFeedback(drill, out);
   } catch (e) {
@@ -121,6 +123,14 @@ if (samples.length) {
     const g = `${b.gap >= 0 ? "+" : ""}${b.gap.toFixed(2)}`;
     console.log(`  [${b.lo.toFixed(1)},${b.hi.toFixed(1)}) n=${b.count} you=${b.meanEstimate.toFixed(2)} actual=${b.meanTruth.toFixed(2)} gap=${g}`);
   }
+}
+
+// P6 leak-trend report over this run.
+const lr = leakReport(results);
+if (lr.leaks.length) {
+  console.log(`\nTop leaks (avg regret ${lr.meanRegret.toFixed(3)} bb over ${lr.n} drills):`);
+  for (const l of lr.leaks.slice(0, 5))
+    console.log(`  ${l.leakTag}  x${l.count}  total ${l.totalRegret.toFixed(2)} bb`);
 }
 
 console.log(`\nNo more drills due today. Graded ${graded}. Progress saved — come back tomorrow.`);

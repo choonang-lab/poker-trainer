@@ -253,6 +253,23 @@ export declare function calibration(
   samples: { estimate: number; truth: number }[], bins?: number,
 ): CalibrationReport;
 
+// P6 — EV calibration: the decision analogue of M6. Aggregates graded results
+// (leakTag + regretBb) into recurring leaks ranked by total regret, so a user
+// sees which mistakes cost the most. Pure; the caller supplies the history.
+export interface LeakStat {
+  leakTag: string;
+  count: number;
+  totalRegret: number;   // summed regretBb across occurrences
+  meanRegret: number;
+}
+export interface LeakReport {
+  n: number;             // total graded results fed in
+  totalRegret: number;
+  meanRegret: number;    // average regret per result
+  leaks: LeakStat[];      // non-"*.ok" tags, sorted by totalRegret desc then count desc
+}
+export declare function leakReport(entries: { leakTag: string; regretBb: number }[]): LeakReport;
+
 // ===========================================================================
 // Build status
 //   L1, L2, L4   implemented in engine.ts, exact tests + AA/KK benchmark passing
