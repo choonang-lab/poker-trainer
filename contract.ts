@@ -61,6 +61,8 @@ export interface Abstraction {
   heroFacesBet?: number;            // if set, the tree ROOTS at hero facing a villain bet of this
                                     // pot-relative size (fold | call -> remaining streets). Models a
                                     // call/fold where calling realizes future winnings (true implied odds).
+  villainRaises?: boolean;          // if set, villain may RAISE hero's bet (pot-sized raise, modeled as
+                                    // a villain bet) -> hero faces it (fold | call). Capped at one raise.
 }
 export declare const NO_ABSTRACTION: Abstraction; // { sizes: [], streets: [], players: 2 }
 

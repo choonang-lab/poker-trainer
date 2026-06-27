@@ -731,9 +731,27 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
   ok("M4 check regret == 3 bb", approx(m4check.result.regretBb, 3), `got ${m4check.result.regretBb}`);
   ok("M4 check -> m4.misses_street_sequence", m4check.result.leakTag === "m4.misses_street_sequence");
 
-  ok("STARTER_DRILLS now spans 15 drills incl M0/M3.5/M4/M5.6/P0/P1/P3/P4/P5",
-    STARTER_DRILLS.length === 15 &&
+  ok("STARTER_DRILLS now spans 16 drills incl M0/M3.5/M4/M5.6/P0/P1/P3/P4/P5",
+    STARTER_DRILLS.length === 16 &&
     ["M0", "M3.5", "M4", "M5.6", "P0", "P1", "P3", "P4", "P5"].every((m) => STARTER_DRILLS.some((d) => d.module === m)));
+
+  // Villain raises (flag-gated): facing hero's bet, villain can fold/call/RAISE.
+  const vr = byId("p5-value-vs-raiser");
+  const vrVill = buildTree(vr.state).children!.find((c) => c.action!.kind === "bet")!.node;
+  const p2Vill = buildTree(byId("p2-bet-or-check").state).children!.find((c) => c.action!.kind === "bet")!.node;
+  ok("villainRaises: villain has fold/call/raise (3 options)", (vrVill.children ?? []).length === 3);
+  ok("default: villain only fold/call (2 options)", (p2Vill.children ?? []).length === 2);
+
+  const vrEvs = actionEVs(buildTree(vr.state));
+  ok("villain-raise check EV == 1 (nuts, just showdown)",
+    vrEvs.find((e) => e.action.kind === "check")!.ev === 1);
+  ok("villain-raise bet EV == 5 (raised, hero re-calls the nuts)",
+    vrEvs.find((e) => e.action.kind === "bet")!.ev === 5);
+  ok("villain-raise best action is bet", bestAction(buildTree(vr.state)).kind === "bet");
+  const vrCheck = gradeDrill(session, vr.id, { kind: "action", action: { kind: "check" } }, 0);
+  ok("villain-raise: checking misses value -> regret 4, p5.misses_exploit",
+    vrCheck.result.regretBb === 4 && vrCheck.result.leakTag === "p5.misses_exploit",
+    `${vrCheck.result.regretBb} ${vrCheck.result.leakTag}`);
 
   // P1 preflop drill is well-formed (board empty); equity is validated in the loop above.
   const p1 = STARTER_DRILLS.find((d) => d.module === "P1")!;

@@ -485,6 +485,7 @@ interface Ctx {
   abstraction: Abstraction;
   sizes: number[];
   villainLeads: boolean;
+  villainRaises: boolean;
   heroInvested: number;
 }
 
@@ -570,17 +571,32 @@ function buildStreet(ctx: Ctx, streets: ("flop" | "turn" | "river")[]): TreeNode
     const invAfterBet = ctx.heroInvested + bet;
     const villState = nodeState({ ...ctx, pot: ctx.pot + bet }, { toAct: "villain" });
     const calledCtx: Ctx = { ...ctx, pot: ctx.pot + 2 * bet, heroInvested: invAfterBet };
-    const villNode: TreeNode = {
-      kind: "VILL",
-      state: villState,
-      children: [
-        { action: { kind: "fold" },
-          node: { kind: "TERM", state: villState,
-                  terminal: { type: "fold", folder: "villain", heroInvested: invAfterBet } } },
-        { action: { kind: "call" }, node: advance(calledCtx, rest) },
-      ],
-    };
-    children.push({ action: { kind: "bet", size: s }, node: villNode });
+    const villChildren: { action?: Action; node: TreeNode }[] = [
+      { action: { kind: "fold" },
+        node: { kind: "TERM", state: villState,
+                terminal: { type: "fold", folder: "villain", heroInvested: invAfterBet } } },
+      { action: { kind: "call" }, node: advance(calledCtx, rest) },
+    ];
+    // Villain raise (pot-sized raise-to = pot + 3*bet this street). Hero then faces
+    // it: fold (forfeits the bet) or call. Modeled as a villain bet; capped (no re-raise).
+    if (ctx.villainRaises) {
+      const raisePot = (ctx.pot + bet) + (ctx.pot + 3 * bet); // pot after villain's raise
+      const heroCallExtra = ctx.pot + 2 * bet;                // hero adds this to call the raise
+      const raiseState = nodeState({ ...ctx, pot: raisePot }, { toAct: "hero" });
+      const calledRaiseCtx: Ctx = { ...ctx, pot: raisePot + heroCallExtra, heroInvested: invAfterBet + heroCallExtra };
+      villChildren.push({
+        action: { kind: "bet", size: (ctx.pot + 3 * bet) / ctx.pot }, // raise-to, pot-relative
+        node: {
+          kind: "HERO", state: raiseState,
+          children: [
+            { action: { kind: "fold" },
+              node: { kind: "TERM", state: raiseState, terminal: { type: "fold", folder: "hero", heroInvested: invAfterBet } } },
+            { action: { kind: "call" }, node: advance(calledRaiseCtx, rest) },
+          ],
+        },
+      });
+    }
+    children.push({ action: { kind: "bet", size: s }, node: { kind: "VILL", state: villState, children: villChildren } });
   }
 
   return { kind: "HERO", state: nodeState(ctx, { toAct: "hero" }), children };
@@ -613,6 +629,7 @@ export function buildTree(state: State): TreeNode {
     abstraction: state.abstraction,
     sizes: state.abstraction.sizes,
     villainLeads: state.abstraction.villainLeads ?? false,
+    villainRaises: state.abstraction.villainRaises ?? false,
     heroInvested: 0,
   };
   if (state.abstraction.heroFacesBet !== undefined)
@@ -1119,6 +1136,24 @@ export const STARTER_DRILLS: Drill[] = [
       pot: 1, toAct: "hero",
       villain: { range: [{ combo: hand("Kh", "Ks"), weight: 1 }] },
       abstraction: { sizes: [], streets: [], players: 2 },
+    },
+  },
+  {
+    id: "p5-value-vs-raiser",
+    module: "P5",
+    title: "Exploit a raise-happy villain: bet your nuts to get raised",
+    ask: "action",
+    // villainRaises + a raise-always villain: betting the nuts (EV 5) crushes
+    // checking (EV 1) because hero re-calls the raise. Checking misses the value.
+    state: {
+      heroHand: hand("9s", "8s"), board: hand("7s", "6s", "5s", "2d"), // 9-high straight flush
+      pot: 1, toAct: "hero",
+      villain: {
+        range: [{ combo: hand("Kh", "Kd"), weight: 1 }],
+        strategy: (_s: NodeState, legal: Action[]) =>
+          legal.map((a) => ({ action: a, weight: a.kind === "bet" ? 1 : 0 })),
+      },
+      abstraction: { sizes: [1.0], streets: ["turn"], players: 2, villainRaises: true },
     },
   },
   {
