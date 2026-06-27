@@ -1042,6 +1042,41 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
     approx(equityLeaf(showdown.state) ?? -1, equity(hand("Ks", "Qs"), hand("Ah", "7d", "2c", "3s"), hand("Ac", "Ad"))));
 }
 
+// ---------- Multi-street range narrowing ----------
+{
+  // Villain: AA always calls; KK calls the flop but folds the turn; trash folds.
+  // So flop-call narrows to {AA, KK}, and turn-call narrows further to {AA}.
+  const policy: RangePolicy = (combo, state) => {
+    const r0 = rankOf(combo[0]), r1 = rankOf(combo[1]);
+    const isAA = r0 === 14 && r1 === 14;
+    const isKK = r0 === 13 && r1 === 13;
+    const call = isAA || (isKK && state.board.length === 3); // KK continues only on the flop
+    return [{ action: { kind: "fold" }, weight: call ? 0 : 1 }, { action: { kind: "call" }, weight: call ? 1 : 0 }];
+  };
+  const state: State = {
+    heroHand: hand("Js", "Ts"), board: hand("9h", "8h", "2c"), pot: 1, toAct: "hero",
+    villain: { range: [{ combo: hand("Ac", "Ad"), weight: 1 }, { combo: hand("Kc", "Kd"), weight: 1 },
+                       { combo: hand("7s", "5s"), weight: 1 }], policy },
+    abstraction: { sizes: [1.0], streets: ["flop", "turn"], players: 2 },
+  };
+  const tree = buildTree(state);
+  const flopBet = tree.children!.find((c) => c.action!.kind === "bet")!.node;       // VILL (flop)
+  const flopCall = flopBet.children!.find((c) => c.action!.kind === "call")!.node;  // CHANCE -> turn
+  ok("flop-call narrows the range to {AA, KK} (trash folds)", flopCall.state.villain.range.length === 2);
+
+  const turnHero = flopCall.children![0].node;                                       // HERO (turn)
+  const turnBet = turnHero.children!.find((c) => c.action!.kind === "bet")!.node;    // VILL (turn)
+  const turnCall = turnBet.children!.find((c) => c.action!.kind === "call")!.node;   // showdown
+  ok("turn-call narrows further to {AA} (KK folds the turn)",
+    turnCall.state.villain.range.length === 1 &&
+    rankOf(turnCall.state.villain.range[0].combo[0]) === 14 && rankOf(turnCall.state.villain.range[0].combo[1]) === 14);
+
+  // Checking the turn (villain doesn't act again) shows down vs the flop range {AA, KK}.
+  const turnCheck = turnHero.children!.find((c) => c.action!.kind === "check")!.node; // showdown
+  ok("turn-check shows down vs the flop-narrowed range (no further narrowing on a check)",
+    turnCheck.state.villain.range.length === 2);
+}
+
 // silence unused-import noise without weakening the public surface
 void [parseCard, card, ABSTRACTION_LIMITS];
 

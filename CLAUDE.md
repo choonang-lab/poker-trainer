@@ -82,11 +82,12 @@ test red, stop and fix the leak — do NOT edit the test to make it pass.
   P2 sizing drill and the P3 3-bet drill.
 - DONE: deeper raise trees — recursive `raiseNode` + `raiseCap` (re-raises up to a cap); P3 3-bet drill.
 - DONE: range narrowing — `Villain.policy` (per-combo play); the showdown after a villain action reflects
-  only the combos that took it. Mixed strategies & weighted ranges were already supported. P5
-  thin-value-vs-range drill (check ~0.51 beats betting ~0.10 into an AK-only calling range). 22 drills.
+  only the combos that took it, and it narrows AGAIN on later streets (multi-street: flop-call → {AA,KK},
+  turn-call → {AA}; a check doesn't narrow). Mixed strategies & weighted ranges were already supported.
+  P5 thin-value-vs-range drill. 22 drills.
 - NOTE: tags are module+suffix keyed. Each preflop drill costs ~3s. Raises are pot-sized (raiseCap ≤ 4).
-  Range narrowing is v1: a villain bet-facing node, fold/call, single street.
-- NEXT options: optional web UI; multi-street range narrowing. The trainer is feature-complete.
+  Policy nodes are fold/call (a policy villain doesn't raise).
+- NEXT options: optional web UI; policy villains that also raise. The trainer is feature-complete.
 - KNOWN L3 LIMIT: the builder models villain as a fixed call/fold responder (no villain lead/raise,
   so no hero-facing-bet nodes yet). `bestResponseEV` already supports those; extend the builder later.
 

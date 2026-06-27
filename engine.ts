@@ -532,9 +532,11 @@ function villainPolicyNode(ctx: Ctx, pot: number, facing: number, heroInvested: 
   const legal: Action[] = [{ kind: "fold" }, { kind: "call" }];
   const prob = (dist: { action: Action; weight: number }[], kind: Action["kind"]): number =>
     dist.reduce((w, d) => w + (d.action.kind === kind ? d.weight : 0), 0);
+  const blocked = new Set<Card>([...(ctx.heroHand ?? []), ...ctx.board]);
   let foldW = 0, callW = 0;
   const callRange: { combo: Combo; weight: number }[] = [];
   for (const { combo, weight } of ctx.villain.range) {
+    if (combo.some((c) => blocked.has(c))) continue;          // impossible given hero+board
     const dist = policy(combo, baseState, legal);
     foldW += weight * prob(dist, "fold");
     const pc = prob(dist, "call");
@@ -545,7 +547,8 @@ function villainPolicyNode(ctx: Ctx, pot: number, facing: number, heroInvested: 
   const strat: NodeStrategy = (_s, lg) => lg.map((a) => ({
     action: a, weight: a.kind === "fold" ? foldW / total : a.kind === "call" ? callW / total : 0,
   }));
-  const condVillain: Villain = { range: callRange };          // narrowed; no policy downstream
+  // Keep the policy so the (now-narrowed) range narrows again on later streets.
+  const condVillain: Villain = { range: callRange, policy: ctx.villain.policy };
   const callCtx: Ctx = { ...ctx, pot: pot + facing, heroInvested, villain: condVillain };
   return {
     kind: "VILL",
