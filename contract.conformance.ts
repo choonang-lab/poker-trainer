@@ -12,7 +12,7 @@ import {
   ABSTRACTION_LIMITS, validateAbstraction, buildTree, truth, realizationFactor,
   actionEVs, grade,
   resultQuality, newReview, scheduleReview, dueReviews, nextReview,
-  newSession, nextDrill, gradeDrill,
+  newSession, nextDrill, gradeDrill, classifyLeak,
 } from "./engine.ts";
 
 // L1
@@ -55,6 +55,7 @@ const _nextReview: typeof C.nextReview = nextReview;
 const _newSession: typeof C.newSession = newSession;
 const _nextDrill: typeof C.nextDrill = nextDrill;
 const _gradeDrill: typeof C.gradeDrill = gradeDrill;
+const _classifyLeak: typeof C.classifyLeak = classifyLeak;
 
 void [
   _card, _rankOf, _suitOf, _score5, _score7, _cmpScore,
@@ -64,5 +65,5 @@ void [
   _ABSTRACTION_LIMITS, _validateAbstraction, _buildTree, _truth, _realizationFactor,
   _actionEVs, _grade,
   _resultQuality, _newReview, _scheduleReview, _dueReviews, _nextReview,
-  _newSession, _nextDrill, _gradeDrill,
+  _newSession, _nextDrill, _gradeDrill, _classifyLeak,
 ];

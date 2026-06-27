@@ -15,8 +15,9 @@
   - **L5** scheduling — pure deterministic SM-2 over `Result` (`resultQuality`, `newReview`,
     `scheduleReview`, `dueReviews`, `nextReview`); `now` is an injected day-number for exact tests.
   - **L6** content model + session glue — `Drill`/`Session`/`GradeOutcome`, a `STARTER_DRILLS`
-    set, and a pure `newSession`/`nextDrill`/`gradeDrill` training loop tying content + truth +
-    grade + scheduling together. No UI/IO. (Full curriculum + richer `leakTag` taxonomy still TBD.)
+    set spanning M1/M2/M3/M5/P2, a pure `newSession`/`nextDrill`/`gradeDrill` training loop, and a
+    module-scoped leak taxonomy `classifyLeak` (grade() emits structural tags; gradeDrill refines
+    them into named curriculum leaks, e.g. `m5.overrates_vs_range`, with module-scoped fallbacks).
 - **`cli.ts`** — L7 CLI trainer. Dependency-free (Node readline async-iterator); the IO boundary that
   drives the L6 session loop (present → read → grade → schedule → repeat). Type-checked by `tsc`
   (minimal ambient `node:readline` decl in `globals.d.ts`); not in the unit suite (it reads stdin).
@@ -35,12 +36,12 @@
 node engine.test.ts            # expect: 70 passed, 0 failed (Node strips types at runtime)
 npx -p typescript tsc --noEmit  # expect: exit 0 (type-check; uses npx cache, adds NO repo dependency)
 node bench.ts                   # optional: AA vs KK (~3 min, see perf note)
-node cli.ts                     # the trainer; smoke: printf '0.14\ncall\nbet\n' | node cli.ts
+node cli.ts                     # the trainer; smoke: printf '0.14\ncall\nbet\n0.35\n0.95\n' | node cli.ts
 ```
 
 ## What Claude Code builds next (in priority order)
-1. **Expand L6 content** — a fuller authored curriculum across the M-/P- modules, and a richer
-   `leakTag` taxonomy (current tags are minimal/structural). Pure and exact-testable.
+1. **More L6 drills** — broaden the authored set beyond M1/M2/M3/M5/P2 (e.g. M3.5 fold equity, M4
+   street sequencing, P3 multi-street, P4 multiway). The taxonomy `LEAK_TABLE` can grow alongside.
 2. **Persistence** — the session loop is pure; a `Session` (with its `reviews`) can be serialized to
    disk/JSON so progress survives across `cli.ts` runs (currently each run starts fresh at "day 0").
 3. **Optional web UI** — if a browser front-end is wanted later (would add a framework/build step and

@@ -7,9 +7,9 @@ import {
   fieldEquity, validateAbstraction, ABSTRACTION_LIMITS,
   actionEVs, grade,
   resultQuality, newReview, scheduleReview, dueReviews, nextReview,
-  STARTER_DRILLS, newSession, nextDrill, gradeDrill,
+  STARTER_DRILLS, newSession, nextDrill, gradeDrill, classifyLeak,
 } from "./engine.ts";
-import type { State, NodeState, Action, TreeNode, Abstraction, Response, Result, Review } from "./contract.ts";
+import type { State, NodeState, Action, TreeNode, Abstraction, Response, Result, Review, Drill } from "./contract.ts";
 
 let pass = 0, fail = 0;
 const approx = (a: number | null, b: number, eps = 1e-9): boolean => a !== null && Math.abs(a - b) < eps;
@@ -627,6 +627,56 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
 
   ok("gradeDrill throws on an unknown drill id",
     throws(() => gradeDrill(session0, "no-such-drill", { kind: "estimate", value: 0.5 }, 0)));
+}
+
+// ---------- L6: richer leak taxonomy + expanded content ----------
+{
+  // classifyLeak maps grade()'s structural tag -> a module-specific named leak.
+  const mk = (module: string): Drill =>
+    ({ id: "t", module, title: "", ask: "estimate", state: STARTER_DRILLS[0].state });
+  const tag = (module: string, structural: string): string =>
+    classifyLeak(mk(module), { regretBb: 0, estimateError: 0, leakTag: structural });
+
+  ok("M1 over -> overcounts_outs", tag("M1", "p1.overestimate") === "m1.overcounts_outs");
+  ok("M1 under -> undercounts_outs", tag("M1", "p1.underestimate") === "m1.undercounts_outs");
+  ok("M2 over -> overestimates_equity", tag("M2", "p1.overestimate") === "m2.overestimates_equity");
+  ok("M5 over -> overrates_vs_range", tag("M5", "p1.overestimate") === "m5.overrates_vs_range");
+  ok("M3 overfold -> folds_when_priced_in", tag("M3", "p1.overfold") === "m3.folds_when_priced_in");
+  ok("M3 spew -> calls_when_overpriced", tag("M3", "p1.spew") === "m3.calls_when_overpriced");
+  ok("P2 missed_bet -> misses_thin_value", tag("P2", "p2.missed_bet") === "p2.misses_thin_value");
+  ok("P2 overbet -> bets_without_equity", tag("P2", "p2.overbet") === "p2.bets_without_equity");
+  // Fallbacks: 'ok' and unmapped modules become module-scoped structural tags.
+  ok("M2 ok -> m2.ok (fallback)", tag("M2", "p1.ok") === "m2.ok");
+  ok("unmapped module -> module-scoped structural", tag("P3", "p2.overfold") === "p3.overfold");
+
+  // Expanded content covers M1/M2/M3/M5/P2.
+  const modules = new Set(STARTER_DRILLS.map((d) => d.module));
+  ok("STARTER_DRILLS spans M1,M2,M3,M5,P2",
+    ["M1", "M2", "M3", "M5", "P2"].every((m) => modules.has(m)), [...modules].join(","));
+
+  const byId = (id: string): Drill => STARTER_DRILLS.find((d) => d.id === id)!;
+  const session = newSession(STARTER_DRILLS);
+
+  // gradeDrill emits the refined module tag (not grade()'s raw structural tag).
+  const overM2 = gradeDrill(session, "m2-kqo-vs-aa", { kind: "estimate", value: 0.95 }, 0);
+  ok("gradeDrill M2 overestimate -> m2.overestimates_equity",
+    overM2.result.leakTag === "m2.overestimates_equity", overM2.result.leakTag);
+
+  const overM1 = gradeDrill(session, "m1-flush-draw-outs", { kind: "estimate", value: 0.95 }, 0);
+  ok("gradeDrill M1 overestimate -> m1.overcounts_outs",
+    overM1.result.leakTag === "m1.overcounts_outs", overM1.result.leakTag);
+
+  const overM5 = gradeDrill(session, "m5-overcards-vs-pairs", { kind: "estimate", value: 0.95 }, 0);
+  ok("gradeDrill M5 overestimate -> m5.overrates_vs_range",
+    overM5.result.leakTag === "m5.overrates_vs_range", overM5.result.leakTag);
+
+  const foldM3 = gradeDrill(session, "m3-chop-potodds", { kind: "action", action: { kind: "fold" } }, 0);
+  ok("gradeDrill M3 fold (priced in) -> m3.folds_when_priced_in",
+    foldM3.result.leakTag === "m3.folds_when_priced_in", foldM3.result.leakTag);
+
+  // The new estimate drills have computable, non-null truth (don't throw).
+  ok("m1 drill truth is a number", typeof truth(byId("m1-flush-draw-outs").state) === "number");
+  ok("m5 drill truth is a number", typeof truth(byId("m5-overcards-vs-pairs").state) === "number");
 }
 
 // silence unused-import noise without weakening the public surface

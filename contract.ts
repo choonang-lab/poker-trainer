@@ -212,6 +212,11 @@ export declare function newSession(drills: Drill[]): Session;
 export declare function nextDrill(session: Session, now: number): Drill | null;
 export declare function gradeDrill(session: Session, drillId: string, response: Response, now: number): GradeOutcome;
 
+// Module-aware leak classification. grade() emits structural pillar tags (it has
+// no module context); gradeDrill refines them into named, curriculum-specific
+// leaks via this, falling back to a module-scoped structural tag when unmapped.
+export declare function classifyLeak(drill: Drill, result: Result): string;
+
 // ===========================================================================
 // Build status
 //   L1, L2, L4   implemented in engine.ts, exact tests + AA/KK benchmark passing

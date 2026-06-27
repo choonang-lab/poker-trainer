@@ -46,12 +46,13 @@ test red, stop and fix the leak — do NOT edit the test to make it pass.
   by regret, structural `leakTag`). This is the `Result`-producing glue the upper layers consume.
 - DONE: L5 scheduling — pure SM-2 over `Result` (`resultQuality`, `newReview`, `scheduleReview`,
   `dueReviews`, `nextReview`); injected day-number `now`, no `Date.now()`.
-- DONE: L6 content model + session glue — `Drill`/`Session`/`GradeOutcome`, `STARTER_DRILLS`,
-  pure `newSession`/`nextDrill`/`gradeDrill` loop. (Fuller curriculum + richer `leakTag` taxonomy TBD.)
+- DONE: L6 content model + session glue — `Drill`/`Session`/`GradeOutcome`, `STARTER_DRILLS`
+  (M1/M2/M3/M5/P2), pure `newSession`/`nextDrill`/`gradeDrill` loop, and a module-scoped leak
+  taxonomy `classifyLeak` (grade() emits structural tags; gradeDrill refines them by module).
 - DONE: L7 CLI trainer (`cli.ts`) — dependency-free (Node readline async-iterator); drives the L6
-  session loop end-to-end. Run: `node cli.ts`. Smoke test: `printf '0.14\ncall\nbet\n' | node cli.ts`.
+  session loop end-to-end. Run: `node cli.ts`. Smoke: `printf '0.14\ncall\nbet\n0.35\n0.95\n' | node cli.ts`.
   It is the IO boundary, so it's NOT in the `engine.test.ts` unit suite (importing it would read stdin).
-- NEXT: expand L6 content (fuller M-/P- curriculum) + richer `leakTag` taxonomy; optional web UI.
+- NEXT: more L6 drills; Session persistence (survive across CLI runs); optional web UI.
 - KNOWN L3 LIMIT: the builder models villain as a fixed call/fold responder (no villain lead/raise,
   so no hero-facing-bet nodes yet). `bestResponseEV` already supports those; extend the builder later.
 

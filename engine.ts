@@ -602,11 +602,37 @@ export function nextDrill(session: Session, now: number): Drill | null {
   return due.length ? due[0].d : null;
 }
 
+// Named, module-specific leaks keyed by `${module}:${structural-suffix}`. Where a
+// module isn't mapped, classifyLeak falls back to a module-scoped structural tag.
+const LEAK_TABLE: Record<string, string> = {
+  "M1:overestimate": "m1.overcounts_outs",
+  "M1:underestimate": "m1.undercounts_outs",
+  "M2:overestimate": "m2.overestimates_equity",
+  "M2:underestimate": "m2.underestimates_equity",
+  "M5:overestimate": "m5.overrates_vs_range",
+  "M5:underestimate": "m5.underrates_vs_range",
+  "M3:overfold": "m3.folds_when_priced_in",
+  "M3:spew": "m3.calls_when_overpriced",
+  "P2:missed_bet": "p2.misses_thin_value",
+  "P2:overbet": "p2.bets_without_equity",
+};
+
+// Refine grade()'s structural tag (e.g. "p1.overfold") into a curriculum leak
+// using the drill's module. Unmapped (module, suffix) -> "<module>.<suffix>".
+export function classifyLeak(drill: Drill, result: Result): string {
+  const dot = result.leakTag.indexOf(".");
+  const suffix = dot >= 0 ? result.leakTag.slice(dot + 1) : result.leakTag;
+  return LEAK_TABLE[`${drill.module}:${suffix}`] ?? `${drill.module.toLowerCase()}.${suffix}`;
+}
+
 // Grade a response to a drill and reschedule it. Returns a NEW session (pure).
+// The Result's leakTag is the module-aware (L6) classification, not grade()'s
+// raw structural tag — gradeDrill has the Drill, so it knows the module.
 export function gradeDrill(session: Session, drillId: string, response: Response, now: number): GradeOutcome {
   const drill = session.drills.find((d) => d.id === drillId);
   if (!drill) throw new Error(`gradeDrill: unknown drill ${drillId}`);
-  const result = grade(drill.state, response);
+  const base = grade(drill.state, response);
+  const result: Result = { ...base, leakTag: classifyLeak(drill, base) };
   const prior = session.reviews[drillId] ?? newReview(drillId, now);
   const review = scheduleReview(prior, result, now);
   return { result, review, session: { ...session, reviews: { ...session.reviews, [drillId]: review } } };
@@ -671,6 +697,30 @@ export const STARTER_DRILLS: Drill[] = [
         strategy: (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action: a, weight: 0.5 })),
       },
       abstraction: { sizes: [1.0], streets: ["turn"], players: 2 },
+    },
+  },
+  {
+    id: "m1-flush-draw-outs",
+    module: "M1",
+    title: "Counting outs: a bare flush draw on the flop",
+    ask: "estimate",
+    state: {
+      heroHand: hand("2s", "5s"), board: hand("As", "9s", "7h"),
+      pot: 1, toAct: "hero",
+      villain: { range: [{ combo: hand("Ah", "Kc"), weight: 1 }] },
+      abstraction: { sizes: [], streets: [], players: 2 },
+    },
+  },
+  {
+    id: "m5-overcards-vs-pairs",
+    module: "M5",
+    title: "Equity vs a range: two overcards vs underpairs",
+    ask: "estimate",
+    state: {
+      heroHand: hand("As", "Ks"), board: hand("Qh", "Jd", "2c"),
+      pot: 1, toAct: "hero",
+      villain: { range: [{ combo: hand("Td", "Th"), weight: 1 }, { combo: hand("9c", "9h"), weight: 1 }] },
+      abstraction: { sizes: [], streets: [], players: 2 },
     },
   },
 ];
