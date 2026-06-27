@@ -1,3 +1,6 @@
 # Trainer progress files (written by cli.ts; never commit a user's progress)
 .poker-trainer.json
 *.save.json
+
+# Generated web bundle (build: npx -p esbuild esbuild web/app.ts --bundle --format=esm --outfile=web/dist/app.js)
+web/dist/

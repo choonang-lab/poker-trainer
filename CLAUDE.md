@@ -86,8 +86,14 @@ test red, stop and fix the leak — do NOT edit the test to make it pass.
   fold/call/RAISE: the range splits PER ACTION (call→callers, raise→raisers) and hero faces the raise
   via the raise chain. Mixed strategies & weighted ranges were already supported. P5 thin-value +
   check-raise-range drills showcase it. 31 drills.
+- DONE: L7 web PWA (`web/`) — vanilla-TS front-end over the same pure seam (loadSession → nextDrill →
+  gradeDrill → persist), localStorage persistence, 4-color cards, M6/P6 stats screen, manifest +
+  service worker (installable, offline). Build (no committed deps, via npx cache):
+  `npx -p esbuild esbuild web/app.ts --bundle --format=esm --outfile=web/dist/app.js`; type-check:
+  `npx -p typescript tsc -p web/tsconfig.json`. `web/dist/` is git-ignored (generated).
+  NOTE: the SW is cache-first; bump `CACHE` in `web/sw.js` to ship an update.
 - NOTE: tags are module+suffix keyed. Each preflop drill costs ~3s. Raises are pot-sized (raiseCap ≤ 4).
-- NEXT options: optional web UI; more drills. The engine + curriculum are feature-complete.
+- NEXT options: more drills; deploy (static host); push notifications (iOS-limited). Feature-complete.
 
 ## Known constraints (don't rediscover these)
 - **Preflop is now feasible (~3s for AA vs KK).** The direct rank-count/suit-bitmask `score7` replaced

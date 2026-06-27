@@ -28,6 +28,11 @@
     taxonomy `classifyLeak` (grade() emits structural tags; gradeDrill refines them into named
     curriculum leaks, e.g. `m5.overrates_vs_range`, with module-scoped fallbacks). `truth()` is
     field-aware (`fieldEquity`) so multiway (P4) estimate drills grade against the field, not heads-up.
+- **`web/`** — L7 web PWA. Vanilla-TS UI (`web/app.ts`) over the same pure seam as the CLI
+  (loadSession → nextDrill → render → gradeDrill → persist) with localStorage persistence, 4-color
+  cards, a stats screen (M6 calibration + P6 leaks), and PWA bits (`manifest.webmanifest`, `sw.js`,
+  `icon.svg`) for install + offline. The engine stays clean — `web/` only imports it. Build with esbuild
+  (via npx cache, no committed deps); `web/dist/` is git-ignored. See "Run it" below.
 - **`cli.ts`** — L7 CLI trainer. Dependency-free (Node readline async-iterator); the IO boundary that
   drives the L6 session loop (present → read → grade → schedule → repeat). Type-checked by `tsc`
   (minimal ambient `node:readline`/`node:fs` decls in `globals.d.ts`); not in the unit suite (it reads stdin).
@@ -50,6 +55,11 @@ npx -p typescript tsc --noEmit  # expect: exit 0 (type-check; uses npx cache, ad
 node bench.ts                   # AA vs KK preflop = 82.64% in ~3s (was ~190s pre-fast-evaluator)
 node validate-evaluator.ts      # deep cross-check (500k hands) + fast-vs-slow perf (~70x)
 node cli.ts                     # smoke (grades a few drills, exits at EOF): printf '0.14\ncall\nbet\n' | node cli.ts
+
+# Web PWA (web/):
+npx -p esbuild esbuild web/app.ts --bundle --format=esm --outfile=web/dist/app.js  # build the bundle
+npx -p typescript tsc -p web/tsconfig.json                                          # type-check the UI (DOM lib)
+# then serve web/ over http (e.g. python -m http.server --directory web) and open it; installable + offline.
 ```
 
 ## What Claude Code builds next (in priority order)
