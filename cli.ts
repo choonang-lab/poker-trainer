@@ -7,7 +7,7 @@ import { createInterface } from "node:readline";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import {
   STARTER_DRILLS, loadSession, serializeSession, nextDrill, gradeDrill, truth, buildTree, actionEVs,
-  rankOf, suitOf, RNAMES, SNAMES,
+  calibration, rankOf, suitOf, RNAMES, SNAMES,
 } from "./engine.ts";
 import type { Drill, Response, State, Card, GradeOutcome } from "./contract.ts";
 
@@ -90,6 +90,7 @@ const now = process.env.POKER_NOW !== undefined
 console.log(`Poker Trainer — day ${now} (Ctrl-C to quit; progress saved to ${SAVE})`);
 let session = loadSession(STARTER_DRILLS, existsSync(SAVE) ? readFileSync(SAVE, "utf8") : null);
 let graded = 0;
+const samples: { estimate: number; truth: number }[] = []; // for the M6 calibration summary
 
 while (true) {
   const drill = nextDrill(session, now);
@@ -99,13 +100,26 @@ while (true) {
   const answer = await nextLine();
   if (answer === null) break; // stdin closed
   try {
-    const out = gradeDrill(session, drill.id, parseResponse(drill, answer), now);
+    const response = parseResponse(drill, answer);
+    const out = gradeDrill(session, drill.id, response, now);
     session = out.session;
     graded++;
+    if (response.kind === "estimate" && out.truth !== undefined)
+      samples.push({ estimate: response.value, truth: out.truth });
     writeFileSync(SAVE, serializeSession(session)); // persist after each graded drill
     showFeedback(drill, out);
   } catch (e) {
     console.log(`  ! ${(e as Error).message} — try again.`);
+  }
+}
+
+// M6 calibration summary over this run's estimates.
+if (samples.length) {
+  const cal = calibration(samples);
+  console.log(`\nCalibration over ${cal.n} estimate(s): brier ${cal.brier?.toFixed(3)}`);
+  for (const b of cal.buckets) {
+    const g = `${b.gap >= 0 ? "+" : ""}${b.gap.toFixed(2)}`;
+    console.log(`  [${b.lo.toFixed(1)},${b.hi.toFixed(1)}) n=${b.count} you=${b.meanEstimate.toFixed(2)} actual=${b.meanTruth.toFixed(2)} gap=${g}`);
   }
 }
 

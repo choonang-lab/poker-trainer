@@ -9,7 +9,7 @@
 import type {
   Card, Score, Board, Combo, Range, Villain, Abstraction, State,
   Action, NodeState, NodeStrategy, Terminal, TreeNode, Response, Result, Review,
-  Drill, Session, GradeOutcome,
+  Drill, Session, GradeOutcome, CalibrationBucket, CalibrationReport,
 } from "./contract.ts";
 
 export const RANKS = [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14];
@@ -291,6 +291,27 @@ export const withinBand = (estimate: number, truth: number, band: number): boole
 export function brier(samples: { estimate: number; truth: number }[]): number | null {
   if (samples.length === 0) return null;
   return samples.reduce((s, { estimate, truth }) => s + (estimate - truth) ** 2, 0) / samples.length;
+}
+
+// M6 calibration: Brier score + per-bucket reliability over {estimate, truth}
+// samples. Estimates are binned by predicted value; gap = meanEstimate - meanTruth
+// (>0 overconfident). Pure; the caller supplies the sample history.
+export function calibration(
+  samples: { estimate: number; truth: number }[], bins = 10,
+): CalibrationReport {
+  const acc = Array.from({ length: bins }, () => ({ count: 0, se: 0, st: 0 }));
+  for (const { estimate, truth } of samples) {
+    const idx = Math.min(bins - 1, Math.max(0, Math.floor(estimate * bins)));
+    acc[idx].count++; acc[idx].se += estimate; acc[idx].st += truth;
+  }
+  const buckets: CalibrationBucket[] = [];
+  for (let i = 0; i < bins; i++) {
+    const a = acc[i];
+    if (!a.count) continue;
+    const me = a.se / a.count, mt = a.st / a.count;
+    buckets.push({ lo: i / bins, hi: (i + 1) / bins, count: a.count, meanEstimate: me, meanTruth: mt, gap: me - mt });
+  }
+  return { n: samples.length, brier: brier(samples), buckets };
 }
 
 // ---- L3: game tree (expectimax, villain fixed) ---------------------------
@@ -736,11 +757,26 @@ export function classifyLeak(drill: Drill, result: Result): string {
 export function gradeDrill(session: Session, drillId: string, response: Response, now: number): GradeOutcome {
   const drill = session.drills.find((d) => d.id === drillId);
   if (!drill) throw new Error(`gradeDrill: unknown drill ${drillId}`);
-  const base = grade(drill.state, response);
+  // For estimates, compute the ground truth ONCE (preflop is ~3s) and reuse it
+  // for both the Result and GradeOutcome.truth (so callers can build calibration
+  // sets without re-enumerating). Actions go through the standard grade() path.
+  let base: Result;
+  let truthValue: number | undefined;
+  if (response.kind === "estimate") {
+    const t = truth(drill.state);
+    truthValue = t;
+    const error = response.value - t;
+    base = { regretBb: 0, estimateError: Math.abs(error), leakTag: estimateLeak(error) };
+  } else {
+    base = grade(drill.state, response);
+  }
   const result: Result = { ...base, leakTag: classifyLeak(drill, base) };
   const prior = session.reviews[drillId] ?? newReview(drillId, now);
   const review = scheduleReview(prior, result, now);
-  return { result, review, session: { ...session, reviews: { ...session.reviews, [drillId]: review } } };
+  return {
+    result, review, truth: truthValue,
+    session: { ...session, reviews: { ...session.reviews, [drillId]: review } },
+  };
 }
 
 // Persistence primitives (pure; the CLI does the actual file IO). A Session's

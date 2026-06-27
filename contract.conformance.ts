@@ -13,6 +13,7 @@ import {
   actionEVs, grade,
   resultQuality, newReview, scheduleReview, dueReviews, nextReview,
   newSession, nextDrill, gradeDrill, classifyLeak, serializeSession, loadSession,
+  calibration,
 } from "./engine.ts";
 
 // L1
@@ -58,6 +59,7 @@ const _gradeDrill: typeof C.gradeDrill = gradeDrill;
 const _classifyLeak: typeof C.classifyLeak = classifyLeak;
 const _serializeSession: typeof C.serializeSession = serializeSession;
 const _loadSession: typeof C.loadSession = loadSession;
+const _calibration: typeof C.calibration = calibration;
 
 void [
   _card, _rankOf, _suitOf, _score5, _score7, _cmpScore,
@@ -68,4 +70,5 @@ void [
   _actionEVs, _grade,
   _resultQuality, _newReview, _scheduleReview, _dueReviews, _nextReview,
   _newSession, _nextDrill, _gradeDrill, _classifyLeak, _serializeSession, _loadSession,
+  _calibration,
 ];

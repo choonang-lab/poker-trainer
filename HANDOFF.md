@@ -11,6 +11,8 @@
     multiway `fieldEquity` (labelled aggregated-field approx), `realizationFactor`, multi-street
     `buildTree`, and authoring-time `validateAbstraction` (`ABSTRACTION_LIMITS`)
   - **L4** grading primitives (`breakEven`, `callEV`, `regret`, `decisionRegret`, `estimateError`, `withinBand`, `brier`)
+  - **M6 calibration** `calibration(samples)` — Brier + per-bucket reliability over estimate history;
+    `gradeDrill` exposes `GradeOutcome.truth` so callers build sample sets without re-enumerating.
   - **Grading seam** `grade(state, response) → Result` + `actionEVs` — estimates graded by error,
     decisions by regret, with a structural `leakTag` (refined later by L6 content). This is the
     `Result`-producing glue L5/L6/L7 consume.
@@ -48,10 +50,10 @@ node cli.ts                     # smoke: printf '0.14\ncall\nbet\n0.35\n0.95\nbe
 ```
 
 ## What Claude Code builds next (in priority order)
-1. **More L6 drills** — more P1 preflop ranges (one AA-vs-KK drill exists), M6 calibration, etc. The
+1. **More L6 drills** — more P1 preflop ranges (one AA-vs-KK drill exists), P0 realization, etc. The
    taxonomy `LEAK_TABLE` grows alongside. (Each preflop grade is ~3s; keep few in the unit suite.)
 2. **Optional web UI** — if a browser front-end is wanted (adds a framework/build step, breaks
-   dependency-free). The CLI already covers L7 end-to-end, with cross-run persistence.
+   dependency-free). The CLI already covers L7 end-to-end, with cross-run persistence + calibration.
 3. **Optional web UI** — if a browser front-end is wanted later (would add a framework/build step and
    break the dependency-free property). The CLI (`cli.ts`) already covers L7 end-to-end.
    NOTE: the full vertical slice L1–L7 now runs end-to-end (engine → grading → scheduling → session → CLI).

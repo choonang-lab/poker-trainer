@@ -62,7 +62,10 @@ test red, stop and fix the leak — do NOT edit the test to make it pass.
   day-number `now` (override with `$POKER_NOW` for scripted runs). Progress survives across runs.
 - DONE: fast `score7` (direct evaluator, ~60-70x; preflop now ~3s). `score7slow` kept as oracle.
 - DONE: P1 preflop drill (AA vs KK) — preflop content now in the curriculum.
-- NEXT: more L6 drills (M6 calibration, more P1 ranges); optional web UI.
+- DONE: M6 calibration — pure `calibration(samples)` (Brier + per-bucket reliability) over estimate
+  drills; `GradeOutcome.truth` exposes the equity so callers build samples without re-enumerating; CLI
+  prints a calibration summary at end of session.
+- NEXT: more drills (more P1 ranges, P0 realization, etc.); optional web UI.
 - KNOWN L3 LIMIT: the builder models villain as a fixed call/fold responder (no villain lead/raise,
   so no hero-facing-bet nodes yet). `bestResponseEV` already supports those; extend the builder later.
 

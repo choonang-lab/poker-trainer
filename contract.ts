@@ -207,6 +207,8 @@ export interface GradeOutcome {
   result: Result;
   review: Review;
   session: Session;                 // a NEW session carrying the updated schedule
+  truth?: number;                   // equity graded against (present for estimate drills);
+                                    // lets callers build a calibration set without re-enumerating
 }
 export declare function newSession(drills: Drill[]): Session;
 export declare function nextDrill(session: Session, now: number): Drill | null;
@@ -223,6 +225,27 @@ export declare function classifyLeak(drill: Drill, result: Result): string;
 // missing/malformed json → a fresh session).
 export declare function serializeSession(session: Session): string;
 export declare function loadSession(drills: Drill[], json?: string | null): Session;
+
+// M6 — calibration: are your estimates well-calibrated across many samples?
+// (When you say 30%, do you win ~30%?) Aggregates {estimate, truth} pairs into a
+// Brier score (reuses brier()) plus per-bucket reliability. A cross-cutting
+// report over estimate drills, not a single drill.
+export interface CalibrationBucket {
+  lo: number;            // estimate-range [lo, hi)
+  hi: number;
+  count: number;
+  meanEstimate: number;  // average predicted equity in this bucket
+  meanTruth: number;     // average true equity observed
+  gap: number;           // meanEstimate - meanTruth (>0 overconfident, <0 under)
+}
+export interface CalibrationReport {
+  n: number;
+  brier: number | null;          // mean squared (estimate - truth); null if no samples
+  buckets: CalibrationBucket[];   // only non-empty buckets, ascending
+}
+export declare function calibration(
+  samples: { estimate: number; truth: number }[], bins?: number,
+): CalibrationReport;
 
 // ===========================================================================
 // Build status

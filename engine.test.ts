@@ -1,7 +1,7 @@
 // Test suite — every assertion is exact or hand-checkable. Run: node engine.test.ts
 import {
   score5, score7, score7slow, cmpScore, equity, equityVsRange, outs,
-  breakEven, callEV, decisionRegret, regret, estimateError, withinBand, brier,
+  breakEven, callEV, decisionRegret, regret, estimateError, withinBand, brier, calibration,
   hand, parseCard, card, FULL_DECK,
   equityLeaf, bestResponseEV, bestAction, truth, buildTree, realizationFactor,
   fieldEquity, validateAbstraction, ABSTRACTION_LIMITS,
@@ -796,6 +796,39 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
   ok("edge: full house beats a flush draw", same(["9s", "9h", "9d", "Ks", "Kh", "2s", "3s"]));
   ok("edge: straight (not flush)", same(["9s", "8h", "7d", "6c", "5s", "2h", "2d"]));
   ok("edge: 6-high straight beats the wheel", same(["6s", "5h", "4d", "3c", "2s", "As", "Kd"]));
+}
+
+// ---------- M6: calibration report ----------
+{
+  ok("calibration empty -> n0, brier null, no buckets",
+    (() => { const c = calibration([]); return c.n === 0 && c.brier === null && c.buckets.length === 0; })());
+
+  // Perfectly calibrated: estimate == truth everywhere -> brier 0, every gap 0.
+  const perfect = calibration([{ estimate: 0.3, truth: 0.3 }, { estimate: 0.7, truth: 0.7 }]);
+  ok("calibration perfect -> brier 0", perfect.brier === 0);
+  ok("calibration perfect -> 2 buckets, all gaps 0",
+    perfect.buckets.length === 2 && perfect.buckets.every((b) => b.gap === 0));
+
+  // Overconfident: high estimates, lower truths -> one bucket, positive gap.
+  const over = calibration([{ estimate: 0.80, truth: 0.40 }, { estimate: 0.85, truth: 0.40 }]);
+  ok("calibration overconfident -> one bucket [0.8,0.9)",
+    over.buckets.length === 1 && over.buckets[0].lo === 0.8);
+  ok("calibration gap = meanEstimate - meanTruth",
+    approx(over.buckets[0].gap, (0.80 + 0.85) / 2 - 0.40));
+  ok("calibration brier = mean squared error",
+    approx(over.brier ?? -1, ((0.80 - 0.40) ** 2 + (0.85 - 0.40) ** 2) / 2));
+
+  // Bucket edges: estimate 1.0 -> last bucket [0.9,1.0]; 0.0 -> first [0,0.1).
+  const edge = calibration([{ estimate: 1.0, truth: 0.9 }, { estimate: 0.0, truth: 0.1 }]);
+  ok("calibration bucket edges (0 and 1)",
+    edge.buckets.length === 2 && edge.buckets[0].lo === 0 && edge.buckets[1].hi === 1);
+
+  // gradeDrill exposes the ground truth for estimate drills (for calibration sets).
+  const out = gradeDrill(newSession(STARTER_DRILLS), "m2-kqo-vs-aa", { kind: "estimate", value: 0.2 }, 0);
+  ok("gradeDrill exposes truth for estimates", approx(out.truth ?? -1, 6 / 44), `got ${out.truth}`);
+  // action drills carry no truth value
+  const act = gradeDrill(newSession(STARTER_DRILLS), "m3-chop-potodds", { kind: "action", action: { kind: "call" } }, 0);
+  ok("gradeDrill has no truth for actions", act.truth === undefined);
 }
 
 // silence unused-import noise without weakening the public surface
