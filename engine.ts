@@ -734,6 +734,8 @@ const LEAK_TABLE: Record<string, string> = {
   "M3:spew": "m3.calls_when_overpriced",
   "M3.5:missed_bet": "m35.gives_up_fold_equity",
   "M4:missed_bet": "m4.misses_street_sequence",
+  "M5.6:overfold": "m56.folds_with_implied_odds",
+  "M5.6:spew": "m56.chases_without_odds",
   "P2:missed_bet": "p2.misses_thin_value",
   "P2:overbet": "p2.bets_without_equity",
   "P3:missed_bet": "p3.misses_multistreet_value",
@@ -963,6 +965,23 @@ export const STARTER_DRILLS: Drill[] = [
           legal.map((a) => ({ action: a, weight: a.kind === "call" ? 1 : 0 })),
       },
       abstraction: { sizes: [1.0], streets: ["flop", "turn"], players: 2 },
+    },
+  },
+  {
+    id: "m56-implied-odds-flushdraw",
+    module: "M5.6",
+    title: "Implied odds: call a flush draw the immediate price doesn't justify",
+    ask: "action",
+    // `pot` is the EFFECTIVE pot — current pot plus the winnings hero expects to
+    // collect on later streets when the draw hits. callEV multiplies it by equity,
+    // so this is exactly the implied-odds EV. (A real villain-leads multi-street
+    // tree is a separate future enhancement.) eq ~0.35 > toCall/(pot+toCall),
+    // so calling is +EV; folding is the implied-odds leak.
+    state: {
+      heroHand: hand("8s", "9s"), board: hand("As", "Ks", "4d"),
+      pot: 3, toCall: 1, toAct: "hero",
+      villain: { range: [{ combo: hand("Ah", "Td"), weight: 1 }] },
+      abstraction: { sizes: [], streets: [], players: 2 },
     },
   },
   {

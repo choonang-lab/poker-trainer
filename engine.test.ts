@@ -729,13 +729,21 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
   ok("M4 check regret == 3 bb", approx(m4check.result.regretBb, 3), `got ${m4check.result.regretBb}`);
   ok("M4 check -> m4.misses_street_sequence", m4check.result.leakTag === "m4.misses_street_sequence");
 
-  ok("STARTER_DRILLS now spans 11 drills incl M3.5/M4/P1/P3/P4/P5",
-    STARTER_DRILLS.length === 11 &&
-    ["M3.5", "M4", "P1", "P3", "P4", "P5"].every((m) => STARTER_DRILLS.some((d) => d.module === m)));
+  ok("STARTER_DRILLS now spans 12 drills incl M3.5/M4/M5.6/P1/P3/P4/P5",
+    STARTER_DRILLS.length === 12 &&
+    ["M3.5", "M4", "M5.6", "P1", "P3", "P4", "P5"].every((m) => STARTER_DRILLS.some((d) => d.module === m)));
 
   // P1 preflop drill is well-formed (board empty); equity is validated in the loop above.
   const p1 = STARTER_DRILLS.find((d) => d.module === "P1")!;
   ok("P1 drill is a preflop estimate", p1.ask === "estimate" && p1.state.board.length === 0);
+
+  // M5.6 implied odds: with the effective pot, calling the draw is +EV; folding leaks.
+  const m56 = byId("m56-implied-odds-flushdraw");
+  const m56call = gradeDrill(session, m56.id, { kind: "action", action: { kind: "call" } }, 0);
+  const m56fold = gradeDrill(session, m56.id, { kind: "action", action: { kind: "fold" } }, 0);
+  ok("M5.6 call (implied odds) is optimal", m56call.result.regretBb === 0, `got ${m56call.result.regretBb}`);
+  ok("M5.6 fold leaks implied odds", m56fold.result.regretBb > 0 &&
+    m56fold.result.leakTag === "m56.folds_with_implied_odds", m56fold.result.leakTag);
 }
 
 // ---------- Persistence: serializeSession / loadSession ----------
