@@ -1,6 +1,6 @@
 // Test suite — every assertion is exact or hand-checkable. Run: node engine.test.ts
 import {
-  score5, score7, cmpScore, equity, equityVsRange, outs,
+  score5, score7, score7slow, cmpScore, equity, equityVsRange, outs,
   breakEven, callEV, decisionRegret, regret, estimateError, withinBand, brier,
   hand, parseCard, card, FULL_DECK,
   equityLeaf, bestResponseEV, bestAction, truth, buildTree, realizationFactor,
@@ -10,7 +10,7 @@ import {
   STARTER_DRILLS, newSession, nextDrill, gradeDrill, classifyLeak,
   serializeSession, loadSession,
 } from "./engine.ts";
-import type { State, NodeState, Action, TreeNode, Abstraction, Response, Result, Review, Drill } from "./contract.ts";
+import type { State, NodeState, Action, TreeNode, Abstraction, Response, Result, Review, Drill, Score } from "./contract.ts";
 
 let pass = 0, fail = 0;
 const approx = (a: number | null, b: number, eps = 1e-9): boolean => a !== null && Math.abs(a - b) < eps;
@@ -753,6 +753,35 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
   ok("no json -> fresh", Object.keys(loadSession(STARTER_DRILLS).reviews).length === 0);
   ok("empty string -> fresh", Object.keys(loadSession(STARTER_DRILLS, "").reviews).length === 0);
   ok("garbage -> fresh", Object.keys(loadSession(STARTER_DRILLS, "{not json").reviews).length === 0);
+}
+
+// ---------- Fast 7-card evaluator: cross-validate vs the reference ----------
+{
+  const eqScore = (a: Score, b: Score): boolean => a.length === b.length && a.every((x, i) => x === b[i]);
+  // deterministic LCG (no Math.random) so the cross-check is reproducible
+  let seed = 123456789;
+  const rnd = (): number => (seed = (seed * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff;
+  const N = 4000;
+  let mism = 0;
+  for (let i = 0; i < N; i++) {
+    const picked = new Set<number>();
+    while (picked.size < 7) picked.add(Math.floor(rnd() * 52));
+    const seven = [...picked];
+    if (!eqScore(score7(seven), score7slow(seven))) mism++;
+  }
+  ok(`fast score7 == reference on ${N} random 7-card hands`, mism === 0, `${mism} mismatches`);
+
+  const same = (cs: string[]): boolean => eqScore(score7(hand(...cs)), score7slow(hand(...cs)));
+  ok("edge: wheel straight", same(["As", "2h", "3d", "4c", "5s", "Kd", "Qc"]));
+  ok("edge: wheel straight flush", same(["As", "2s", "3s", "4s", "5s", "Kd", "Qc"]));
+  ok("edge: royal flush + noise", same(["As", "Ks", "Qs", "Js", "Ts", "2h", "2d"]));
+  ok("edge: two trips -> full house", same(["9s", "9h", "9d", "8s", "8h", "8d", "2c"]));
+  ok("edge: three pairs -> two pair", same(["As", "Ah", "Ks", "Kh", "Qs", "Qh", "2c"]));
+  ok("edge: quads + kicker", same(["7s", "7h", "7d", "7c", "Ks", "Qd", "2c"]));
+  ok("edge: flush over a paired board", same(["As", "Js", "8s", "5s", "2s", "Kh", "Kd"]));
+  ok("edge: full house beats a flush draw", same(["9s", "9h", "9d", "Ks", "Kh", "2s", "3s"]));
+  ok("edge: straight (not flush)", same(["9s", "8h", "7d", "6c", "5s", "2h", "2d"]));
+  ok("edge: 6-high straight beats the wheel", same(["6s", "5h", "4d", "3c", "2s", "As", "Kd"]));
 }
 
 // silence unused-import noise without weakening the public surface

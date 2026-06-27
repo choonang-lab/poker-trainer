@@ -50,7 +50,7 @@ test red, stop and fix the leak — do NOT edit the test to make it pass.
   (10 drills: M1/M2/M3/M3.5/M4/M5/P2/P3/P4/P5), pure `newSession`/`nextDrill`/`gradeDrill` loop, and a
   module-scoped leak taxonomy `classifyLeak` (grade() emits structural tags; gradeDrill refines by module).
   `truth()` is field-aware (`fieldEquity`), so multiway (P4) estimate drills grade correctly.
-  NOTE: no preflop (P1) drills — preflop equity is ~190s on the current evaluator; needs a faster one first.
+  (Preflop P1 drills are now viable since the fast evaluator landed — ~3s for full preflop enumeration.)
 - DONE: L7 CLI trainer (`cli.ts`) — dependency-free (Node readline async-iterator); drives the L6
   session loop end-to-end. Run: `node cli.ts`.
   Smoke: `printf '0.14\ncall\nbet\n0.35\n0.95\nbet\nbet\n0.5\nbet\nbet\n' | node cli.ts`.
@@ -59,13 +59,15 @@ test red, stop and fix the leak — do NOT edit the test to make it pass.
   villain `strategy` is a function, so drills are supplied in-code and reviews rehydrate against them).
   `cli.ts` saves to `$POKER_SAVE` (default `.poker-trainer.json`, git-ignored) and uses a real
   day-number `now` (override with `$POKER_NOW` for scripted runs). Progress survives across runs.
-- NEXT: more L6 drills (M6 calibration; P1 preflop once a faster evaluator exists); optional web UI.
+- DONE: fast `score7` (direct evaluator, ~60-70x; preflop now ~3s). `score7slow` kept as oracle.
+- NEXT: more L6 drills (now incl. P1 preflop ranges; M6 calibration); optional web UI.
 - KNOWN L3 LIMIT: the builder models villain as a fixed call/fold responder (no villain lead/raise,
   so no hero-facing-bet nodes yet). `bestResponseEV` already supports those; extend the builder later.
 
 ## Known constraints (don't rediscover these)
-- **Preflop enumeration is slow (~123s).** Postflop is instant and is the actual use case. Don't ship
-  preflop equity on the current 21-combo evaluator — needs a lookup-table evaluator or precompute.
+- **Preflop is now feasible (~3s for AA vs KK).** The direct rank-count/suit-bitmask `score7` replaced
+  the 21-subset scan (~60-70x faster, byte-identical results — see `validate-evaluator.ts`). The old
+  scan is kept as `score7slow` (the cross-validation oracle). Preflop drills are now viable.
 - `outs` is single-card-to-come, single-hand only. Against ranges, use equity, not outs.
 - Multiway (Pillar 2 / P4) is an aggregated-field approximation, not a true N-player tree. Keep it labelled.
 - L3 must enforce an abstraction budget (cap sizes × streets) at authoring time, not runtime.

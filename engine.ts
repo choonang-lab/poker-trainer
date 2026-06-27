@@ -90,13 +90,107 @@ const C75: number[][] = (() => {
   return out;
 })();
 
-export function score7(seven: Card[]): Score {
+// Reference 7-card evaluator: max over C(7,5)=21 five-card subsets. Proven; kept
+// as the cross-validation oracle for the fast evaluator below.
+export function score7slow(seven: Card[]): Score {
   let best: Score | null = null;
   for (const combo of C75) {
     const s = score5([seven[combo[0]], seven[combo[1]], seven[combo[2]], seven[combo[3]], seven[combo[4]]]);
     if (best === null || cmpScore(s, best) > 0) best = s;
   }
   return best!;
+}
+
+// Highest card of a 5-run in a 15-bit rank mask (bits 2..14); handles the wheel.
+function straightTopFromMask(mask: number): number {
+  for (let hi = 14; hi >= 6; hi--) {
+    let run = true;
+    for (let k = 0; k < 5; k++) if (!(mask & (1 << (hi - k)))) { run = false; break; }
+    if (run) return hi;
+  }
+  if ((mask & (1 << 14)) && (mask & (1 << 5)) && (mask & (1 << 4)) && (mask & (1 << 3)) && (mask & (1 << 2)))
+    return 5; // A-2-3-4-5
+  return 0;
+}
+
+// Direct 7-card evaluator: rank counts + per-suit bitmasks, no 21-subset scan.
+// Returns the SAME Score array format as score5/score7slow (cross-validated), so
+// every caller (equity/outs) gets faster with zero behavioral change.
+export function score7(seven: Card[]): Score {
+  const cnt = new Array(15).fill(0);          // count by rank 2..14
+  const suitRanks = [0, 0, 0, 0];             // per-suit rank bitmask
+  const suitCount = [0, 0, 0, 0];
+  let rankMask = 0;
+  for (const c of seven) {
+    const r = rankOf(c), s = suitOf(c);
+    cnt[r]++; rankMask |= (1 << r);
+    suitRanks[s] |= (1 << r); suitCount[s]++;
+  }
+
+  // At most one suit can hold >=5 of 7 cards.
+  let flushSuit = -1;
+  for (let s = 0; s < 4; s++) if (suitCount[s] >= 5) flushSuit = s;
+
+  // straight flush (8)
+  if (flushSuit >= 0) {
+    const sf = straightTopFromMask(suitRanks[flushSuit]);
+    if (sf) return [8, sf];
+  }
+
+  // group ranks by count (all desc, since r runs 14..2)
+  const quads: number[] = [], trips: number[] = [], pairs: number[] = [], distinct: number[] = [];
+  for (let r = 14; r >= 2; r--) {
+    if (cnt[r] === 0) continue;
+    distinct.push(r);
+    if (cnt[r] === 4) quads.push(r);
+    else if (cnt[r] === 3) trips.push(r);
+    else if (cnt[r] === 2) pairs.push(r);
+  }
+
+  // quads (7)
+  if (quads.length) {
+    const q = quads[0];
+    return [7, q, distinct.find((r) => r !== q)!];
+  }
+
+  // full house (6): a trip plus another trip-or-pair
+  if (trips.length && (trips.length >= 2 || pairs.length)) {
+    const t = trips[0];
+    const p = Math.max(trips.length >= 2 ? trips[1] : 0, pairs.length ? pairs[0] : 0);
+    return [6, t, p];
+  }
+
+  // flush (5): top 5 ranks of the flush suit
+  if (flushSuit >= 0) {
+    const fr: number[] = [];
+    for (let r = 14; r >= 2 && fr.length < 5; r--) if (suitRanks[flushSuit] & (1 << r)) fr.push(r);
+    return [5, ...fr];
+  }
+
+  // straight (4)
+  const st = straightTopFromMask(rankMask);
+  if (st) return [4, st];
+
+  // trips (3): trip + top 2 kickers
+  if (trips.length) {
+    const t = trips[0];
+    return [3, t, ...distinct.filter((r) => r !== t).slice(0, 2)];
+  }
+
+  // two pair (2): two highest pairs + highest kicker
+  if (pairs.length >= 2) {
+    const hi = pairs[0], lo = pairs[1];
+    return [2, hi, lo, distinct.find((r) => r !== hi && r !== lo)!];
+  }
+
+  // one pair (1): pair + top 3 kickers
+  if (pairs.length === 1) {
+    const p = pairs[0];
+    return [1, p, ...distinct.filter((r) => r !== p).slice(0, 3)];
+  }
+
+  // high card (0): top 5
+  return [0, ...distinct.slice(0, 5)];
 }
 
 // ---- L2: equity by exact enumeration -------------------------------------

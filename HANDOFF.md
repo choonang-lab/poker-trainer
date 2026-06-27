@@ -3,7 +3,9 @@
 ## What exists and is proven
 - **`engine.ts`** — the engine, ported to TypeScript against `contract.ts` (runs under Node's
   type-stripping; `tsc --noEmit` clean). Every layer whose correctness is pure math:
-  - **L1** card model + 5/7-card hand evaluator (`score5`, `score7`, `cmpScore`)
+  - **L1** card model + 5/7-card hand evaluator (`score5`, `score7`, `cmpScore`). `score7` is a direct
+    rank-count/suit-bitmask evaluator (~60-70x faster than the 21-subset scan, byte-identical results);
+    the scan is retained as `score7slow`, the cross-validation oracle.
   - **L2** exact equity by enumeration (`equity`, `equityVsRange`, `outs`)
   - **L3** game tree: `bestResponseEV` (expectimax), `bestAction`, `truth()` router, `equityLeaf`,
     multiway `fieldEquity` (labelled aggregated-field approx), `realizationFactor`, multi-street
@@ -39,17 +41,15 @@
 ```
 node engine.test.ts            # expect: 70 passed, 0 failed (Node strips types at runtime)
 npx -p typescript tsc --noEmit  # expect: exit 0 (type-check; uses npx cache, adds NO repo dependency)
-node bench.ts                   # optional: AA vs KK (~3 min, see perf note)
+node bench.ts                   # AA vs KK preflop = 82.64% in ~3s (was ~190s pre-fast-evaluator)
+node validate-evaluator.ts      # deep cross-check (500k hands) + fast-vs-slow perf (~70x)
 node cli.ts                     # smoke: printf '0.14\ncall\nbet\n0.35\n0.95\nbet\nbet\n0.5\nbet\nbet\n' | node cli.ts
 ```
 
 ## What Claude Code builds next (in priority order)
-1. **More L6 drills** — e.g. M6 calibration; P1 preflop ranges is BLOCKED until a faster evaluator
-   exists (preflop equity ~190s on the current 21-combo scan). The taxonomy `LEAK_TABLE` grows
-   alongside. (Watch suite runtime: each multi-street drill adds ~1s.)
-2. **Faster evaluator** — a lookup-table 7-card evaluator (or precomputed preflop tables) would unlock
-   preflop content and speed up multi-street trees. Biggest single enabler left.
-3. **Optional web UI** — if a browser front-end is wanted (adds a framework/build step, breaks
+1. **More L6 drills** — now incl. **P1 preflop ranges** (unblocked by the fast evaluator), M6
+   calibration, etc. The taxonomy `LEAK_TABLE` grows alongside.
+2. **Optional web UI** — if a browser front-end is wanted (adds a framework/build step, breaks
    dependency-free). The CLI already covers L7 end-to-end, with cross-run persistence.
 3. **Optional web UI** — if a browser front-end is wanted later (would add a framework/build step and
    break the dependency-free property). The CLI (`cli.ts`) already covers L7 end-to-end.
@@ -61,7 +61,9 @@ node cli.ts                     # smoke: printf '0.14\ncall\nbet\n0.35\n0.95\nbe
    caps this at authoring time. Preflop equity still needs a faster evaluator (see below).
 
 ## Known issues / decisions to make (honest list)
-- **PERFORMANCE: preflop enumeration is slow (~190s for AA vs KK on this machine).** Postflop (flop/turn/river) is instant — that's the trainer's actual use case — but any preflop-equity feature needs either a faster evaluator (lookup-table 7-card evaluator instead of the 21-combo `score5` scan) or precomputed preflop tables. Don't ship preflop equity on the current evaluator.
+- **PERFORMANCE: RESOLVED.** The direct `score7` made preflop feasible — AA vs KK is now ~3s (was
+  ~190s). Cross-validated byte-identical to the old scan (`score7slow`) over 500k hands. Original note:
+  preflop enumeration on the 21-combo scan was ~190s for AA vs KK. Postflop (flop/turn/river) is instant — that's the trainer's actual use case — but any preflop-equity feature needs either a faster evaluator (lookup-table 7-card evaluator instead of the 21-combo `score5` scan) or precomputed preflop tables. Don't ship preflop equity on the current evaluator.
 - **`outs` is single-card-to-come only**, by design (outs blur against ranges / two streets). Don't extend it to ranges — switch to `equity` there, per the pillar-1 spec.
 - **The L3 abstraction budget is enforced at authoring time** — DONE via `validateAbstraction` /
   `ABSTRACTION_LIMITS` (caps sizes ≤ 4, streets ≤ 3, sizes × streets ≤ 9; rejects non-contiguous
