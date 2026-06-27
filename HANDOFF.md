@@ -15,8 +15,8 @@
   - **L5** scheduling — pure deterministic SM-2 over `Result` (`resultQuality`, `newReview`,
     `scheduleReview`, `dueReviews`, `nextReview`); `now` is an injected day-number for exact tests.
   - **L6** content model + session glue — `Drill`/`Session`/`GradeOutcome`, a `STARTER_DRILLS`
-    set spanning M1/M2/M3/M3.5/M5/P2/P3/P4 (estimate + action, pillar 1/2, single- & multi-street,
-    multiway), a pure `newSession`/`nextDrill`/`gradeDrill` training loop, and a module-scoped leak
+    set of 10 spanning M1/M2/M3/M3.5/M4/M5/P2/P3/P4/P5 (estimate + action, pillar 1/2, single- &
+    multi-street, multiway, exploit), a pure `newSession`/`nextDrill`/`gradeDrill` loop, and a module-scoped leak
     taxonomy `classifyLeak` (grade() emits structural tags; gradeDrill refines them into named
     curriculum leaks, e.g. `m5.overrates_vs_range`, with module-scoped fallbacks). `truth()` is
     field-aware (`fieldEquity`) so multiway (P4) estimate drills grade against the field, not heads-up.
@@ -40,14 +40,17 @@
 node engine.test.ts            # expect: 70 passed, 0 failed (Node strips types at runtime)
 npx -p typescript tsc --noEmit  # expect: exit 0 (type-check; uses npx cache, adds NO repo dependency)
 node bench.ts                   # optional: AA vs KK (~3 min, see perf note)
-node cli.ts                     # smoke: printf '0.14\ncall\nbet\n0.35\n0.95\nbet\nbet\n0.5\n' | node cli.ts
+node cli.ts                     # smoke: printf '0.14\ncall\nbet\n0.35\n0.95\nbet\nbet\n0.5\nbet\nbet\n' | node cli.ts
 ```
 
 ## What Claude Code builds next (in priority order)
-1. **More L6 drills** — broaden further (e.g. M4 street sequencing, P1 preflop ranges, P5 exploit).
-   The taxonomy `LEAK_TABLE` grows alongside. (Watch suite runtime: multi-street drills are ~seconds.)
-2. **Optional web UI** — if a browser front-end is wanted (adds a framework/build step, breaks
-   dependency-free). The CLI already covers L7 end-to-end, now with cross-run persistence.
+1. **More L6 drills** — e.g. M6 calibration; P1 preflop ranges is BLOCKED until a faster evaluator
+   exists (preflop equity ~190s on the current 21-combo scan). The taxonomy `LEAK_TABLE` grows
+   alongside. (Watch suite runtime: each multi-street drill adds ~1s.)
+2. **Faster evaluator** — a lookup-table 7-card evaluator (or precomputed preflop tables) would unlock
+   preflop content and speed up multi-street trees. Biggest single enabler left.
+3. **Optional web UI** — if a browser front-end is wanted (adds a framework/build step, breaks
+   dependency-free). The CLI already covers L7 end-to-end, with cross-run persistence.
 3. **Optional web UI** — if a browser front-end is wanted later (would add a framework/build step and
    break the dependency-free property). The CLI (`cli.ts`) already covers L7 end-to-end.
    NOTE: the full vertical slice L1–L7 now runs end-to-end (engine → grading → scheduling → session → CLI).

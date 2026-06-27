@@ -706,9 +706,22 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
   ok("P3 check regret == 3 bb", approx(p3check.result.regretBb, 3), `got ${p3check.result.regretBb}`);
   ok("P3 check -> p3.misses_multistreet_value", p3check.result.leakTag === "p3.misses_multistreet_value");
 
-  ok("STARTER_DRILLS now spans 8 drills incl M3.5/P3/P4",
-    STARTER_DRILLS.length === 8 &&
-    ["M3.5", "P3", "P4"].every((m) => STARTER_DRILLS.some((d) => d.module === m)));
+  // P5 exploit: villain over-folds, so bluffing (bet) is best; checking is the leak.
+  const p5 = byId("p5-exploit-overfolder");
+  ok("P5 best action is bet (exploit overfold)", bestAction(buildTree(p5.state)).kind === "bet");
+  const p5check = gradeDrill(session, p5.id, { kind: "action", action: { kind: "check" } }, 0);
+  ok("P5 check regret == 0.6 bb", approx(p5check.result.regretBb, 0.6), `got ${p5check.result.regretBb}`);
+  ok("P5 check -> p5.misses_exploit", p5check.result.leakTag === "p5.misses_exploit");
+
+  // M4 sequencing: nuts value across flop+turn; checking the flop leaves 3 bb.
+  const m4 = byId("m4-sequence-two-streets");
+  const m4check = gradeDrill(session, m4.id, { kind: "action", action: { kind: "check" } }, 0);
+  ok("M4 check regret == 3 bb", approx(m4check.result.regretBb, 3), `got ${m4check.result.regretBb}`);
+  ok("M4 check -> m4.misses_street_sequence", m4check.result.leakTag === "m4.misses_street_sequence");
+
+  ok("STARTER_DRILLS now spans 10 drills incl M3.5/M4/P3/P4/P5",
+    STARTER_DRILLS.length === 10 &&
+    ["M3.5", "M4", "P3", "P4", "P5"].every((m) => STARTER_DRILLS.some((d) => d.module === m)));
 }
 
 // ---------- Persistence: serializeSession / loadSession ----------

@@ -47,18 +47,19 @@ test red, stop and fix the leak — do NOT edit the test to make it pass.
 - DONE: L5 scheduling — pure SM-2 over `Result` (`resultQuality`, `newReview`, `scheduleReview`,
   `dueReviews`, `nextReview`); injected day-number `now`, no `Date.now()`.
 - DONE: L6 content model + session glue — `Drill`/`Session`/`GradeOutcome`, `STARTER_DRILLS`
-  (M1/M2/M3/M3.5/M5/P2/P3/P4), pure `newSession`/`nextDrill`/`gradeDrill` loop, and a module-scoped
-  leak taxonomy `classifyLeak` (grade() emits structural tags; gradeDrill refines them by module).
+  (10 drills: M1/M2/M3/M3.5/M4/M5/P2/P3/P4/P5), pure `newSession`/`nextDrill`/`gradeDrill` loop, and a
+  module-scoped leak taxonomy `classifyLeak` (grade() emits structural tags; gradeDrill refines by module).
   `truth()` is field-aware (`fieldEquity`), so multiway (P4) estimate drills grade correctly.
+  NOTE: no preflop (P1) drills — preflop equity is ~190s on the current evaluator; needs a faster one first.
 - DONE: L7 CLI trainer (`cli.ts`) — dependency-free (Node readline async-iterator); drives the L6
   session loop end-to-end. Run: `node cli.ts`.
-  Smoke: `printf '0.14\ncall\nbet\n0.35\n0.95\nbet\nbet\n0.5\n' | node cli.ts`.
+  Smoke: `printf '0.14\ncall\nbet\n0.35\n0.95\nbet\nbet\n0.5\nbet\nbet\n' | node cli.ts`.
   It is the IO boundary, so it's NOT in the `engine.test.ts` unit suite (importing it would read stdin).
 - DONE: Persistence — pure `serializeSession`/`loadSession` (only the plain `reviews` are persisted;
   villain `strategy` is a function, so drills are supplied in-code and reviews rehydrate against them).
   `cli.ts` saves to `$POKER_SAVE` (default `.poker-trainer.json`, git-ignored) and uses a real
   day-number `now` (override with `$POKER_NOW` for scripted runs). Progress survives across runs.
-- NEXT: more L6 drills (M4/P1/P5…); optional web UI.
+- NEXT: more L6 drills (M6 calibration; P1 preflop once a faster evaluator exists); optional web UI.
 - KNOWN L3 LIMIT: the builder models villain as a fixed call/fold responder (no villain lead/raise,
   so no hero-facing-bet nodes yet). `bestResponseEV` already supports those; extend the builder later.
 

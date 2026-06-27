@@ -616,12 +616,14 @@ const LEAK_TABLE: Record<string, string> = {
   "M3:overfold": "m3.folds_when_priced_in",
   "M3:spew": "m3.calls_when_overpriced",
   "M3.5:missed_bet": "m35.gives_up_fold_equity",
+  "M4:missed_bet": "m4.misses_street_sequence",
   "P2:missed_bet": "p2.misses_thin_value",
   "P2:overbet": "p2.bets_without_equity",
   "P3:missed_bet": "p3.misses_multistreet_value",
   "P3:overbet": "p3.overbets_multistreet",
   "P4:overestimate": "p4.overrates_field",
   "P4:underestimate": "p4.underrates_field",
+  "P5:missed_bet": "p5.misses_exploit",
 };
 
 // Refine grade()'s structural tag (e.g. "p1.overfold") into a curriculum leak
@@ -797,6 +799,38 @@ export const STARTER_DRILLS: Drill[] = [
       pot: 1, toAct: "hero",
       villain: { range: [{ combo: hand("3c", "4s"), weight: 1 }] },
       abstraction: { sizes: [], streets: [], players: 3 },
+    },
+  },
+  {
+    id: "p5-exploit-overfolder",
+    module: "P5",
+    title: "Exploit: bluffing into a villain who over-folds",
+    ask: "action",
+    state: {
+      heroHand: hand("7h", "2d"), board: hand("As", "Ks", "Qd", "4c"),
+      pot: 1, toAct: "hero",
+      villain: {
+        range: [{ combo: hand("Ah", "Td"), weight: 1 }],
+        strategy: (_s: NodeState, legal: Action[]) =>
+          legal.map((a) => ({ action: a, weight: a.kind === "fold" ? 0.8 : 0.2 })),
+      },
+      abstraction: { sizes: [1.0], streets: ["turn"], players: 2 },
+    },
+  },
+  {
+    id: "m4-sequence-two-streets",
+    module: "M4",
+    title: "Street sequencing: betting a flopped straight flush across streets",
+    ask: "action",
+    state: {
+      heroHand: hand("9s", "8s"), board: hand("7s", "6s", "5s"), // flopped straight flush
+      pot: 1, toAct: "hero",
+      villain: {
+        range: [{ combo: hand("2h", "2d"), weight: 1 }],
+        strategy: (_s: NodeState, legal: Action[]) =>
+          legal.map((a) => ({ action: a, weight: a.kind === "call" ? 1 : 0 })),
+      },
+      abstraction: { sizes: [1.0], streets: ["flop", "turn"], players: 2 },
     },
   },
 ];
