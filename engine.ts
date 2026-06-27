@@ -707,6 +707,8 @@ const LEAK_TABLE: Record<string, string> = {
   "M2:underestimate": "m2.underestimates_equity",
   "M5:overestimate": "m5.overrates_vs_range",
   "M5:underestimate": "m5.underrates_vs_range",
+  "P1:overestimate": "p1.overvalues_holding",
+  "P1:underestimate": "p1.undervalues_holding",
   "M3:overfold": "m3.folds_when_priced_in",
   "M3:spew": "m3.calls_when_overpriced",
   "M3.5:missed_bet": "m35.gives_up_fold_equity",
@@ -925,6 +927,20 @@ export const STARTER_DRILLS: Drill[] = [
           legal.map((a) => ({ action: a, weight: a.kind === "call" ? 1 : 0 })),
       },
       abstraction: { sizes: [1.0], streets: ["flop", "turn"], players: 2 },
+    },
+  },
+  {
+    id: "p1-aa-vs-kk-preflop",
+    module: "P1",
+    title: "Preflop ranges: pocket aces vs pocket kings, all-in",
+    ask: "estimate",
+    // Preflop equity is a full 5-card runout (~3s on the fast evaluator); now
+    // viable as content, but grading it is far slower than a postflop drill.
+    state: {
+      heroHand: hand("Ah", "As"), board: [],
+      pot: 1, toAct: "hero",
+      villain: { range: [{ combo: hand("Kh", "Ks"), weight: 1 }] },
+      abstraction: { sizes: [], streets: [], players: 2 },
     },
   },
 ];

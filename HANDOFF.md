@@ -17,8 +17,9 @@
   - **L5** scheduling — pure deterministic SM-2 over `Result` (`resultQuality`, `newReview`,
     `scheduleReview`, `dueReviews`, `nextReview`); `now` is an injected day-number for exact tests.
   - **L6** content model + session glue — `Drill`/`Session`/`GradeOutcome`, a `STARTER_DRILLS`
-    set of 10 spanning M1/M2/M3/M3.5/M4/M5/P2/P3/P4/P5 (estimate + action, pillar 1/2, single- &
-    multi-street, multiway, exploit), a pure `newSession`/`nextDrill`/`gradeDrill` loop, and a module-scoped leak
+    set of 11 spanning M1/M2/M3/M3.5/M4/M5/P1/P2/P3/P4/P5 (estimate + action, preflop & postflop,
+    pillar 1/2, single- & multi-street, multiway, exploit), a pure `newSession`/`nextDrill`/`gradeDrill`
+    loop, and a module-scoped leak
     taxonomy `classifyLeak` (grade() emits structural tags; gradeDrill refines them into named
     curriculum leaks, e.g. `m5.overrates_vs_range`, with module-scoped fallbacks). `truth()` is
     field-aware (`fieldEquity`) so multiway (P4) estimate drills grade against the field, not heads-up.
@@ -43,12 +44,12 @@ node engine.test.ts            # expect: 70 passed, 0 failed (Node strips types 
 npx -p typescript tsc --noEmit  # expect: exit 0 (type-check; uses npx cache, adds NO repo dependency)
 node bench.ts                   # AA vs KK preflop = 82.64% in ~3s (was ~190s pre-fast-evaluator)
 node validate-evaluator.ts      # deep cross-check (500k hands) + fast-vs-slow perf (~70x)
-node cli.ts                     # smoke: printf '0.14\ncall\nbet\n0.35\n0.95\nbet\nbet\n0.5\nbet\nbet\n' | node cli.ts
+node cli.ts                     # smoke: printf '0.14\ncall\nbet\n0.35\n0.95\nbet\nbet\n0.5\nbet\nbet\n0.83\n' | node cli.ts
 ```
 
 ## What Claude Code builds next (in priority order)
-1. **More L6 drills** — now incl. **P1 preflop ranges** (unblocked by the fast evaluator), M6
-   calibration, etc. The taxonomy `LEAK_TABLE` grows alongside.
+1. **More L6 drills** — more P1 preflop ranges (one AA-vs-KK drill exists), M6 calibration, etc. The
+   taxonomy `LEAK_TABLE` grows alongside. (Each preflop grade is ~3s; keep few in the unit suite.)
 2. **Optional web UI** — if a browser front-end is wanted (adds a framework/build step, breaks
    dependency-free). The CLI already covers L7 end-to-end, with cross-run persistence.
 3. **Optional web UI** — if a browser front-end is wanted later (would add a framework/build step and

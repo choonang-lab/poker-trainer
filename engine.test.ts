@@ -614,17 +614,25 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
     nextDrill(out.session, 0)?.id === STARTER_DRILLS[1].id);
 
   // Run the whole library once at now=0 (any legal response); then nothing is due.
+  // (Grading the preflop drill enumerates a full runout (~3s) — the suite pays it
+  // once here, and we validate AA-vs-KK equity from its estimate error instead of
+  // a second enumeration.)
   let s = session0;
+  let preflopErr = -1;
   for (const d of STARTER_DRILLS) {
     const resp: Response = d.ask === "estimate"
       ? { kind: "estimate", value: 0.5 }
       : d.state.abstraction.sizes.length === 0
         ? { kind: "action", action: { kind: "call" } }   // pillar-1 call/fold
         : { kind: "action", action: { kind: "check" } }; // pillar-2 (legal at root)
-    s = gradeDrill(s, d.id, resp, 0).session;
+    const out = gradeDrill(s, d.id, resp, 0);
+    s = out.session;
+    if (d.state.board.length === 0 && out.result.estimateError !== undefined) preflopErr = out.result.estimateError;
   }
   ok("nothing due immediately after grading the whole library", nextDrill(s, 0) === null);
   ok("drills come due again at now=1", nextDrill(s, 1) !== null);
+  ok("preflop AA vs KK truth ~0.826 (error from a 0.5 estimate)", approx(preflopErr, 0.8264 - 0.5, 0.005),
+    `err ${preflopErr}`);
 
   ok("gradeDrill throws on an unknown drill id",
     throws(() => gradeDrill(session0, "no-such-drill", { kind: "estimate", value: 0.5 }, 0)));
@@ -646,6 +654,8 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
   ok("M3 spew -> calls_when_overpriced", tag("M3", "p1.spew") === "m3.calls_when_overpriced");
   ok("P2 missed_bet -> misses_thin_value", tag("P2", "p2.missed_bet") === "p2.misses_thin_value");
   ok("P2 overbet -> bets_without_equity", tag("P2", "p2.overbet") === "p2.bets_without_equity");
+  ok("P1 over -> overvalues_holding", tag("P1", "p1.overestimate") === "p1.overvalues_holding");
+  ok("P1 under -> undervalues_holding", tag("P1", "p1.underestimate") === "p1.undervalues_holding");
   // Fallbacks: 'ok' and unmapped modules become module-scoped structural tags.
   ok("M2 ok -> m2.ok (fallback)", tag("M2", "p1.ok") === "m2.ok");
   ok("unmapped module -> module-scoped structural", tag("P3", "p2.overfold") === "p3.overfold");
@@ -719,9 +729,13 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
   ok("M4 check regret == 3 bb", approx(m4check.result.regretBb, 3), `got ${m4check.result.regretBb}`);
   ok("M4 check -> m4.misses_street_sequence", m4check.result.leakTag === "m4.misses_street_sequence");
 
-  ok("STARTER_DRILLS now spans 10 drills incl M3.5/M4/P3/P4/P5",
-    STARTER_DRILLS.length === 10 &&
-    ["M3.5", "M4", "P3", "P4", "P5"].every((m) => STARTER_DRILLS.some((d) => d.module === m)));
+  ok("STARTER_DRILLS now spans 11 drills incl M3.5/M4/P1/P3/P4/P5",
+    STARTER_DRILLS.length === 11 &&
+    ["M3.5", "M4", "P1", "P3", "P4", "P5"].every((m) => STARTER_DRILLS.some((d) => d.module === m)));
+
+  // P1 preflop drill is well-formed (board empty); equity is validated in the loop above.
+  const p1 = STARTER_DRILLS.find((d) => d.module === "P1")!;
+  ok("P1 drill is a preflop estimate", p1.ask === "estimate" && p1.state.board.length === 0);
 }
 
 // ---------- Persistence: serializeSession / loadSession ----------

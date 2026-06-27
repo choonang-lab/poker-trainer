@@ -47,20 +47,22 @@ test red, stop and fix the leak — do NOT edit the test to make it pass.
 - DONE: L5 scheduling — pure SM-2 over `Result` (`resultQuality`, `newReview`, `scheduleReview`,
   `dueReviews`, `nextReview`); injected day-number `now`, no `Date.now()`.
 - DONE: L6 content model + session glue — `Drill`/`Session`/`GradeOutcome`, `STARTER_DRILLS`
-  (10 drills: M1/M2/M3/M3.5/M4/M5/P2/P3/P4/P5), pure `newSession`/`nextDrill`/`gradeDrill` loop, and a
-  module-scoped leak taxonomy `classifyLeak` (grade() emits structural tags; gradeDrill refines by module).
-  `truth()` is field-aware (`fieldEquity`), so multiway (P4) estimate drills grade correctly.
-  (Preflop P1 drills are now viable since the fast evaluator landed — ~3s for full preflop enumeration.)
+  (11 drills: M1/M2/M3/M3.5/M4/M5/P1/P2/P3/P4/P5, incl. a P1 preflop estimate), pure
+  `newSession`/`nextDrill`/`gradeDrill` loop, and a module-scoped leak taxonomy `classifyLeak`
+  (grade() emits structural tags; gradeDrill refines by module). `truth()` is field-aware
+  (`fieldEquity`), so multiway (P4) estimate drills grade correctly. (Preflop grades enumerate a full
+  runout ~3s — viable as content; the test suite pays it once, in the session-loop test.)
 - DONE: L7 CLI trainer (`cli.ts`) — dependency-free (Node readline async-iterator); drives the L6
   session loop end-to-end. Run: `node cli.ts`.
-  Smoke: `printf '0.14\ncall\nbet\n0.35\n0.95\nbet\nbet\n0.5\nbet\nbet\n' | node cli.ts`.
+  Smoke: `printf '0.14\ncall\nbet\n0.35\n0.95\nbet\nbet\n0.5\nbet\nbet\n0.83\n' | node cli.ts`.
   It is the IO boundary, so it's NOT in the `engine.test.ts` unit suite (importing it would read stdin).
 - DONE: Persistence — pure `serializeSession`/`loadSession` (only the plain `reviews` are persisted;
   villain `strategy` is a function, so drills are supplied in-code and reviews rehydrate against them).
   `cli.ts` saves to `$POKER_SAVE` (default `.poker-trainer.json`, git-ignored) and uses a real
   day-number `now` (override with `$POKER_NOW` for scripted runs). Progress survives across runs.
 - DONE: fast `score7` (direct evaluator, ~60-70x; preflop now ~3s). `score7slow` kept as oracle.
-- NEXT: more L6 drills (now incl. P1 preflop ranges; M6 calibration); optional web UI.
+- DONE: P1 preflop drill (AA vs KK) — preflop content now in the curriculum.
+- NEXT: more L6 drills (M6 calibration, more P1 ranges); optional web UI.
 - KNOWN L3 LIMIT: the builder models villain as a fixed call/fold responder (no villain lead/raise,
   so no hero-facing-bet nodes yet). `bestResponseEV` already supports those; extend the builder later.
 
