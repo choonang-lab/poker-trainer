@@ -55,6 +55,9 @@ export interface Abstraction {
   sizes: number[];                  // pot-relative bet sizes, e.g. [0.33, 0.75, 1.0]
   streets: ("flop" | "turn" | "river")[];
   players: number;                  // 2 default; >2 uses the aggregated-field model (P4)
+  villainLeads?: boolean;           // if set, villain may bet after hero checks (so hero can
+                                    // FACE a bet) — enables P0 (IP/OOP) & true implied-odds spots.
+                                    // Default off: hero is the sole aggressor (villain only fold/calls).
 }
 export declare const NO_ABSTRACTION: Abstraction; // { sizes: [], streets: [], players: 2 }
 

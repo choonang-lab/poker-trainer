@@ -463,6 +463,7 @@ interface Ctx {
   players: number;
   abstraction: Abstraction;
   sizes: number[];
+  villainLeads: boolean;
   heroInvested: number;
 }
 
@@ -505,13 +506,42 @@ function advance(ctx: Ctx, rest: ("flop" | "turn" | "river")[]): TreeNode {
   return { kind: "CHANCE", state: nodeState(ctx, { toAct: "chance" }), children };
 }
 
+// Villain acts after hero checks (only when villainLeads): check back -> advance,
+// or bet -> hero faces the bet.
+function villainAfterCheck(ctx: Ctx, rest: ("flop" | "turn" | "river")[]): TreeNode {
+  const children: { action?: Action; node: TreeNode }[] = [
+    { action: { kind: "check" }, node: advance(ctx, rest) }, // villain checks back
+  ];
+  for (const s of ctx.sizes) {
+    const bet = s * ctx.pot;
+    const betState = nodeState({ ...ctx, pot: ctx.pot + bet }, { toAct: "hero" });
+    const calledCtx: Ctx = { ...ctx, pot: ctx.pot + 2 * bet, heroInvested: ctx.heroInvested + bet };
+    // Hero faces villain's bet: fold (forfeits what hero already put in) or call.
+    const heroFacing: TreeNode = {
+      kind: "HERO", state: betState,
+      children: [
+        { action: { kind: "fold" },
+          node: { kind: "TERM", state: betState,
+                  terminal: { type: "fold", folder: "hero", heroInvested: ctx.heroInvested } } },
+        { action: { kind: "call" }, node: advance(calledCtx, rest) },
+      ],
+    };
+    children.push({ action: { kind: "bet", size: s }, node: heroFacing });
+  }
+  return { kind: "VILL", state: nodeState(ctx, { toAct: "villain" }), children };
+}
+
 // One hero betting round on streets[0], then advance over streets.slice(1).
 function buildStreet(ctx: Ctx, streets: ("flop" | "turn" | "river")[]): TreeNode {
   const rest = streets.slice(1);
   const children: { action?: Action; node: TreeNode }[] = [];
 
-  // Check line: hero invests nothing; the round closes.
-  children.push({ action: { kind: "check" }, node: advance(ctx, rest) });
+  // Check line: round closes (villain checks behind) unless villainLeads, in which
+  // case villain may bet and hero must respond.
+  children.push({
+    action: { kind: "check" },
+    node: ctx.villainLeads ? villainAfterCheck(ctx, rest) : advance(ctx, rest),
+  });
 
   // Bet lines: one per declared pot-relative size.
   for (const s of ctx.sizes) {
@@ -543,6 +573,7 @@ export function buildTree(state: State): TreeNode {
     players: state.abstraction.players ?? 2,
     abstraction: state.abstraction,
     sizes: state.abstraction.sizes,
+    villainLeads: state.abstraction.villainLeads ?? false,
     heroInvested: 0,
   };
   return buildStreet(ctx, state.abstraction.streets);
@@ -728,6 +759,8 @@ const LEAK_TABLE: Record<string, string> = {
   "M2:underestimate": "m2.underestimates_equity",
   "M5:overestimate": "m5.overrates_vs_range",
   "M5:underestimate": "m5.underrates_vs_range",
+  "P0:overbet": "p0.bets_oop_without_equity",
+  "P0:overfold": "p0.overfolds_in_position",
   "P1:overestimate": "p1.overvalues_holding",
   "P1:underestimate": "p1.undervalues_holding",
   "M3:overfold": "m3.folds_when_priced_in",
@@ -982,6 +1015,24 @@ export const STARTER_DRILLS: Drill[] = [
       pot: 3, toCall: 1, toAct: "hero",
       villain: { range: [{ combo: hand("Ah", "Td"), weight: 1 }] },
       abstraction: { sizes: [], streets: [], players: 2 },
+    },
+  },
+  {
+    id: "p0-oop-no-equity",
+    module: "P0",
+    title: "Position: out of position with no equity, check-fold beats bluffing",
+    ask: "action",
+    // villainLeads: if hero checks, villain bets and hero can check-fold (EV 0);
+    // betting into a calling villain with 0 equity just spews (EV -1).
+    state: {
+      heroHand: hand("7h", "2d"), board: hand("As", "Ah", "Ad", "Kc"),
+      pot: 1, toAct: "hero",
+      villain: {
+        range: [{ combo: hand("Ac", "5s"), weight: 1 }],
+        strategy: (_s: NodeState, legal: Action[]) =>
+          legal.map((a) => ({ action: a, weight: (a.kind === "bet" || a.kind === "call") ? 1 : 0 })),
+      },
+      abstraction: { sizes: [1.0], streets: ["turn"], players: 2, villainLeads: true },
     },
   },
   {

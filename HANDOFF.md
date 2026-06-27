@@ -19,8 +19,8 @@
   - **L5** scheduling — pure deterministic SM-2 over `Result` (`resultQuality`, `newReview`,
     `scheduleReview`, `dueReviews`, `nextReview`); `now` is an injected day-number for exact tests.
   - **L6** content model + session glue — `Drill`/`Session`/`GradeOutcome`, a `STARTER_DRILLS`
-    set of 12 spanning M1/M2/M3/M3.5/M4/M5/M5.6/P1/P2/P3/P4/P5 (estimate + action, preflop & postflop,
-    pillar 1/2, single- & multi-street, multiway, exploit, implied odds), a pure
+    set of 13 spanning M1/M2/M3/M3.5/M4/M5/M5.6/P0/P1/P2/P3/P4/P5 (estimate + action, preflop &
+    postflop, pillar 1/2, single- & multi-street, multiway, exploit, implied odds, IP/OOP), a pure
     `newSession`/`nextDrill`/`gradeDrill` loop, and a module-scoped leak
     taxonomy `classifyLeak` (grade() emits structural tags; gradeDrill refines them into named
     curriculum leaks, e.g. `m5.overrates_vs_range`, with module-scoped fallbacks). `truth()` is
@@ -46,14 +46,13 @@ node engine.test.ts            # expect: 70 passed, 0 failed (Node strips types 
 npx -p typescript tsc --noEmit  # expect: exit 0 (type-check; uses npx cache, adds NO repo dependency)
 node bench.ts                   # AA vs KK preflop = 82.64% in ~3s (was ~190s pre-fast-evaluator)
 node validate-evaluator.ts      # deep cross-check (500k hands) + fast-vs-slow perf (~70x)
-node cli.ts                     # smoke: printf '0.14\ncall\nbet\n0.35\n0.95\nbet\nbet\n0.5\nbet\nbet\ncall\n0.83\n' | node cli.ts
+node cli.ts                     # smoke: printf '0.14\ncall\nbet\n0.35\n0.95\nbet\nbet\n0.5\nbet\nbet\ncall\ncheck\n0.83\n' | node cli.ts
 ```
 
 ## What Claude Code builds next (in priority order)
-1. **Villain-leads builder extension** — lets villain lead/bet so hero can FACE a bet. Unlocks P0
-   realization (IP vs OOP) and a true multi-street implied-odds drill (M5.6 is currently modeled via an
-   effective pot, not a real future-street payoff). This is the biggest remaining mechanic; note it will
-   change the EVs of existing pillar-2 drills (their check line currently goes straight to showdown).
+1. **More drills using villainLeads** — a true multi-street implied-odds spot (hero calls a real bet,
+   pays off later) now that the builder supports it; richer P0 IP/OOP realization spots. (villainLeads
+   roughly doubles per-street branching — watch runtime on multi-street villainLeads drills.)
 2. **More L6 drills** — more P1 preflop ranges (~3s each; keep few in the unit suite); M0 needs a new
    (non-equity) drill type for hand-reading. The taxonomy `LEAK_TABLE` grows alongside.
 3. **Optional web UI** — adds a framework/build step (breaks dependency-free). The CLI already covers

@@ -729,9 +729,9 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
   ok("M4 check regret == 3 bb", approx(m4check.result.regretBb, 3), `got ${m4check.result.regretBb}`);
   ok("M4 check -> m4.misses_street_sequence", m4check.result.leakTag === "m4.misses_street_sequence");
 
-  ok("STARTER_DRILLS now spans 12 drills incl M3.5/M4/M5.6/P1/P3/P4/P5",
-    STARTER_DRILLS.length === 12 &&
-    ["M3.5", "M4", "M5.6", "P1", "P3", "P4", "P5"].every((m) => STARTER_DRILLS.some((d) => d.module === m)));
+  ok("STARTER_DRILLS now spans 13 drills incl M3.5/M4/M5.6/P0/P1/P3/P4/P5",
+    STARTER_DRILLS.length === 13 &&
+    ["M3.5", "M4", "M5.6", "P0", "P1", "P3", "P4", "P5"].every((m) => STARTER_DRILLS.some((d) => d.module === m)));
 
   // P1 preflop drill is well-formed (board empty); equity is validated in the loop above.
   const p1 = STARTER_DRILLS.find((d) => d.module === "P1")!;
@@ -837,6 +837,33 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
   // action drills carry no truth value
   const act = gradeDrill(newSession(STARTER_DRILLS), "m3-chop-potodds", { kind: "action", action: { kind: "call" } }, 0);
   ok("gradeDrill has no truth for actions", act.truth === undefined);
+}
+
+// ---------- Villain-leads builder (flag-gated) + P0 ----------
+{
+  const byId = (id: string): Drill => STARTER_DRILLS.find((d) => d.id === id)!;
+  const session = newSession(STARTER_DRILLS);
+
+  // Flag gating: villainLeads -> hero's check leads to a VILL node (villain may
+  // bet); default -> straight to showdown (villain never leads).
+  const p0 = byId("p0-oop-no-equity");
+  const p2 = byId("p2-bet-or-check");
+  ok("villainLeads: hero-check -> VILL node", buildTree(p0.state).children![0].node.kind === "VILL");
+  ok("default builder: hero-check -> showdown (not VILL)", buildTree(p2.state).children![0].node.kind !== "VILL");
+
+  // P0 exact EVs: with 0 equity OOP, check-fold realizes 0; bluffing into a caller
+  // is -1 (loses the bet). So checking is best; betting is the leak.
+  const evs = actionEVs(buildTree(p0.state));
+  const ck = evs.find((e) => e.action.kind === "check")!;
+  const bt = evs.find((e) => e.action.kind === "bet")!;
+  ok("P0 check EV == 0 (check then fold to the bet)", ck.ev === 0, `got ${ck.ev}`);
+  ok("P0 bet EV == -1 (called while drawing dead)", bt.ev === -1, `got ${bt.ev}`);
+  ok("P0 best action is check", bestAction(buildTree(p0.state)).kind === "check");
+
+  const betGrade = gradeDrill(session, p0.id, { kind: "action", action: { kind: "bet", size: 1.0 } }, 0);
+  ok("P0 bet regret 1 -> p0.bets_oop_without_equity",
+    betGrade.result.regretBb === 1 && betGrade.result.leakTag === "p0.bets_oop_without_equity",
+    `${betGrade.result.regretBb} ${betGrade.result.leakTag}`);
 }
 
 // silence unused-import noise without weakening the public surface
