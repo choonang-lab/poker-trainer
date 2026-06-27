@@ -139,8 +139,8 @@ export declare function validateAbstraction(abstraction: Abstraction, board?: Bo
 export declare function buildTree(state: State): TreeNode;
 
 // The single ground-truth entry point. UI/grading call ONLY this; it routes:
-//   empty abstraction → equity()/equityVsRange()  (pillar 1)
-//   otherwise         → bestResponseEV()          (pillar 2)
+//   empty abstraction → fieldEquity()   (pillar 1; heads-up equity or multiway field approx)
+//   otherwise         → bestResponseEV() (pillar 2)
 // Throws on a malformed spot (no villain combo possible) so the failure surfaces
 // at its cause, not as a null deep in grading. The low-level leaves below stay
 // nullable (number | null) — null there means "no data" for a math primitive.

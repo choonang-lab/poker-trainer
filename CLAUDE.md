@@ -47,12 +47,14 @@ test red, stop and fix the leak — do NOT edit the test to make it pass.
 - DONE: L5 scheduling — pure SM-2 over `Result` (`resultQuality`, `newReview`, `scheduleReview`,
   `dueReviews`, `nextReview`); injected day-number `now`, no `Date.now()`.
 - DONE: L6 content model + session glue — `Drill`/`Session`/`GradeOutcome`, `STARTER_DRILLS`
-  (M1/M2/M3/M5/P2), pure `newSession`/`nextDrill`/`gradeDrill` loop, and a module-scoped leak
-  taxonomy `classifyLeak` (grade() emits structural tags; gradeDrill refines them by module).
+  (M1/M2/M3/M3.5/M5/P2/P3/P4), pure `newSession`/`nextDrill`/`gradeDrill` loop, and a module-scoped
+  leak taxonomy `classifyLeak` (grade() emits structural tags; gradeDrill refines them by module).
+  `truth()` is field-aware (`fieldEquity`), so multiway (P4) estimate drills grade correctly.
 - DONE: L7 CLI trainer (`cli.ts`) — dependency-free (Node readline async-iterator); drives the L6
-  session loop end-to-end. Run: `node cli.ts`. Smoke: `printf '0.14\ncall\nbet\n0.35\n0.95\n' | node cli.ts`.
+  session loop end-to-end. Run: `node cli.ts`.
+  Smoke: `printf '0.14\ncall\nbet\n0.35\n0.95\nbet\nbet\n0.5\n' | node cli.ts`.
   It is the IO boundary, so it's NOT in the `engine.test.ts` unit suite (importing it would read stdin).
-- NEXT: more L6 drills; Session persistence (survive across CLI runs); optional web UI.
+- NEXT: Session persistence (survive across CLI runs); more L6 drills; optional web UI.
 - KNOWN L3 LIMIT: the builder models villain as a fixed call/fold responder (no villain lead/raise,
   so no hero-facing-bet nodes yet). `bestResponseEV` already supports those; extend the builder later.
 

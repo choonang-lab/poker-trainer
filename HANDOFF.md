@@ -15,9 +15,11 @@
   - **L5** scheduling — pure deterministic SM-2 over `Result` (`resultQuality`, `newReview`,
     `scheduleReview`, `dueReviews`, `nextReview`); `now` is an injected day-number for exact tests.
   - **L6** content model + session glue — `Drill`/`Session`/`GradeOutcome`, a `STARTER_DRILLS`
-    set spanning M1/M2/M3/M5/P2, a pure `newSession`/`nextDrill`/`gradeDrill` training loop, and a
-    module-scoped leak taxonomy `classifyLeak` (grade() emits structural tags; gradeDrill refines
-    them into named curriculum leaks, e.g. `m5.overrates_vs_range`, with module-scoped fallbacks).
+    set spanning M1/M2/M3/M3.5/M5/P2/P3/P4 (estimate + action, pillar 1/2, single- & multi-street,
+    multiway), a pure `newSession`/`nextDrill`/`gradeDrill` training loop, and a module-scoped leak
+    taxonomy `classifyLeak` (grade() emits structural tags; gradeDrill refines them into named
+    curriculum leaks, e.g. `m5.overrates_vs_range`, with module-scoped fallbacks). `truth()` is
+    field-aware (`fieldEquity`) so multiway (P4) estimate drills grade against the field, not heads-up.
 - **`cli.ts`** — L7 CLI trainer. Dependency-free (Node readline async-iterator); the IO boundary that
   drives the L6 session loop (present → read → grade → schedule → repeat). Type-checked by `tsc`
   (minimal ambient `node:readline` decl in `globals.d.ts`); not in the unit suite (it reads stdin).
@@ -36,14 +38,16 @@
 node engine.test.ts            # expect: 70 passed, 0 failed (Node strips types at runtime)
 npx -p typescript tsc --noEmit  # expect: exit 0 (type-check; uses npx cache, adds NO repo dependency)
 node bench.ts                   # optional: AA vs KK (~3 min, see perf note)
-node cli.ts                     # the trainer; smoke: printf '0.14\ncall\nbet\n0.35\n0.95\n' | node cli.ts
+node cli.ts                     # smoke: printf '0.14\ncall\nbet\n0.35\n0.95\nbet\nbet\n0.5\n' | node cli.ts
 ```
 
 ## What Claude Code builds next (in priority order)
-1. **More L6 drills** — broaden the authored set beyond M1/M2/M3/M5/P2 (e.g. M3.5 fold equity, M4
-   street sequencing, P3 multi-street, P4 multiway). The taxonomy `LEAK_TABLE` can grow alongside.
-2. **Persistence** — the session loop is pure; a `Session` (with its `reviews`) can be serialized to
+1. **Persistence** — the session loop is pure; a `Session` (with its `reviews`) can be serialized to
    disk/JSON so progress survives across `cli.ts` runs (currently each run starts fresh at "day 0").
+   NOTE: villain `strategy` is a function, so a `Session` isn't directly JSON-serializable as-is —
+   persist `reviews` (plain data) keyed by drill id and rehydrate against the in-code drill library.
+2. **More L6 drills** — broaden further (e.g. M4 street sequencing, P1 preflop ranges, P5 exploit).
+   The taxonomy `LEAK_TABLE` grows alongside. (Watch suite runtime: multi-street drills are ~seconds.)
 3. **Optional web UI** — if a browser front-end is wanted later (would add a framework/build step and
    break the dependency-free property). The CLI (`cli.ts`) already covers L7 end-to-end.
    NOTE: the full vertical slice L1–L7 now runs end-to-end (engine → grading → scheduling → session → CLI).

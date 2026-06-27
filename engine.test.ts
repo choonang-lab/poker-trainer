@@ -679,6 +679,37 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
   ok("m5 drill truth is a number", typeof truth(byId("m5-overcards-vs-pairs").state) === "number");
 }
 
+// ---------- L6 #2: more drills (M3.5 fold equity, P3 multi-street, P4 multiway) ----------
+{
+  const byId = (id: string): Drill => STARTER_DRILLS.find((d) => d.id === id)!;
+  const session = newSession(STARTER_DRILLS);
+
+  // P4 multiway: truth is field-aware (chop 0.5 vs a 2-opponent field = 0.5^2).
+  const p4 = byId("p4-multiway-field");
+  ok("P4 truth = fieldEquity = 0.25", truth(p4.state) === 0.25, `got ${truth(p4.state)}`);
+  ok("P4 overestimate -> p4.overrates_field",
+    gradeDrill(session, p4.id, { kind: "estimate", value: 0.5 }, 0).result.leakTag === "p4.overrates_field");
+  ok("P4 calibrated -> p4.ok",
+    gradeDrill(session, p4.id, { kind: "estimate", value: 0.25 }, 0).result.leakTag === "p4.ok");
+
+  // M3.5 fold equity: betting a semi-bluff is best -> checking is the leak.
+  const m35 = byId("m35-semibluff-flushdraw");
+  ok("M3.5 best action is bet (fold equity)", bestAction(buildTree(m35.state)).kind === "bet");
+  ok("M3.5 check -> m35.gives_up_fold_equity",
+    gradeDrill(session, m35.id, { kind: "action", action: { kind: "check" } }, 0).result.leakTag
+      === "m35.gives_up_fold_equity");
+
+  // P3 multi-street value: nuts value-bet across flop+turn; checking leaves 3 bb.
+  const p3 = byId("p3-value-two-streets");
+  const p3check = gradeDrill(session, p3.id, { kind: "action", action: { kind: "check" } }, 0);
+  ok("P3 check regret == 3 bb", approx(p3check.result.regretBb, 3), `got ${p3check.result.regretBb}`);
+  ok("P3 check -> p3.misses_multistreet_value", p3check.result.leakTag === "p3.misses_multistreet_value");
+
+  ok("STARTER_DRILLS now spans 8 drills incl M3.5/P3/P4",
+    STARTER_DRILLS.length === 8 &&
+    ["M3.5", "P3", "P4"].every((m) => STARTER_DRILLS.some((d) => d.module === m)));
+}
+
 // silence unused-import noise without weakening the public surface
 void [parseCard, card, ABSTRACTION_LIMITS];
 
