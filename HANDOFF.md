@@ -21,9 +21,9 @@
   - **L5** scheduling — pure deterministic SM-2 over `Result` (`resultQuality`, `newReview`,
     `scheduleReview`, `dueReviews`, `nextReview`); `now` is an injected day-number for exact tests.
   - **L6** content model + session glue — `Drill`/`Session`/`GradeOutcome`, a `STARTER_DRILLS`
-    set of 14 across M1–M6 + P0–P5 (estimate + action, preflop & postflop, pillar 1/2, single- &
-    multi-street, multiway, exploit, implied odds [effective-pot + true via `heroFacesBet`], IP/OOP),
-    a pure `newSession`/`nextDrill`/`gradeDrill` loop, and a module-scoped leak
+    set of 15 covering the FULL map M0–M6 + P0–P6 (estimate + action + category, preflop & postflop,
+    pillar 1/2, single- & multi-street, multiway, exploit, implied odds [effective-pot + true via
+    `heroFacesBet`], IP/OOP, hand-reading), a pure `newSession`/`nextDrill`/`gradeDrill` loop, and a module-scoped leak
     taxonomy `classifyLeak` (grade() emits structural tags; gradeDrill refines them into named
     curriculum leaks, e.g. `m5.overrates_vs_range`, with module-scoped fallbacks). `truth()` is
     field-aware (`fieldEquity`) so multiway (P4) estimate drills grade against the field, not heads-up.
@@ -48,18 +48,17 @@ node engine.test.ts            # expect: 70 passed, 0 failed (Node strips types 
 npx -p typescript tsc --noEmit  # expect: exit 0 (type-check; uses npx cache, adds NO repo dependency)
 node bench.ts                   # AA vs KK preflop = 82.64% in ~3s (was ~190s pre-fast-evaluator)
 node validate-evaluator.ts      # deep cross-check (500k hands) + fast-vs-slow perf (~70x)
-node cli.ts                     # smoke: printf '0.14\ncall\nbet\n0.35\n0.95\nbet\nbet\n0.5\nbet\nbet\ncall\ncall\ncheck\n0.83\n' | node cli.ts
+node cli.ts                     # smoke: printf '0.14\ncall\nbet\n0.35\n0.95\nbet\nbet\n0.5\nbet\nbet\ncall\ncall\ncheck\n0.83\n2\n' | node cli.ts
 ```
 
 ## What Claude Code builds next (in priority order)
-Module coverage now spans the full map (M0–M6 + P0–P6); M0 is the only module without a drill.
-1. **M0 drill type** — hand-reading/ranking ("what's your made hand / what beats you"), a new non-equity
-   `ask` kind needing a small `Drill`/`grade` extension. The last uncovered module.
-2. **Richer villain modeling** — villain raises / mixed leading ranges → 3-bet & check-raise lines
+Every module M0–M6 + P0–P6 now has at least one drill; the engine spans the full betting-tree space
+(hero-aggressor, villain-leads, hero-faces-bet, multi-street, multiway).
+1. **Richer villain modeling** — villain raises / mixed leading ranges → 3-bet & check-raise lines
    (deeper P3/P5). The next real betting-tree mechanic.
-3. **More L6 drills** — more P1 preflop ranges (~3s each; keep few in the unit suite); richer P0 IP/OOP
+2. **More L6 drills** — more P1 preflop ranges (~3s each; keep few in the unit suite); richer P0 IP/OOP
    spots; M1 blockers, M2 2&4-correction, P2 sizing-choice. (Multi-street drills add ~1s each.)
-4. **Optional web UI** — adds a framework/build step (breaks dependency-free). The CLI already covers
+3. **Optional web UI** — adds a framework/build step (breaks dependency-free). The CLI already covers
    L7 end-to-end, with cross-run persistence + M6/P6 reports.
 3. **Optional web UI** — if a browser front-end is wanted later (would add a framework/build step and
    break the dependency-free property). The CLI (`cli.ts`) already covers L7 end-to-end.

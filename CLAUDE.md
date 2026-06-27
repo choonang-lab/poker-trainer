@@ -47,15 +47,15 @@ test red, stop and fix the leak — do NOT edit the test to make it pass.
 - DONE: L5 scheduling — pure SM-2 over `Result` (`resultQuality`, `newReview`, `scheduleReview`,
   `dueReviews`, `nextReview`); injected day-number `now`, no `Date.now()`.
 - DONE: L6 content model + session glue — `Drill`/`Session`/`GradeOutcome`, `STARTER_DRILLS`
-  (14 drills across M1–M6 + P0–P5, incl. P1 preflop, both M5.6 implied-odds variants (effective-pot +
-  true multi-street via `heroFacesBet`), and a P0 villain-leads spot), pure
+  (15 drills covering the FULL map M0–M6 + P0–P6, incl. M0 hand-reading [`ask:"category"`], P1 preflop,
+  both M5.6 implied-odds variants, and a P0 villain-leads spot), pure
   `newSession`/`nextDrill`/`gradeDrill` loop, and a module-scoped leak taxonomy `classifyLeak`
   (grade() emits structural tags; gradeDrill refines by module). `truth()` is field-aware
   (`fieldEquity`), so multiway (P4) estimate drills grade correctly. (Preflop grades enumerate a full
   runout ~3s — viable as content; the test suite pays it once, in the session-loop test.)
 - DONE: L7 CLI trainer (`cli.ts`) — dependency-free (Node readline async-iterator); drives the L6
   session loop end-to-end. Run: `node cli.ts`.
-  Smoke: `printf '0.14\ncall\nbet\n0.35\n0.95\nbet\nbet\n0.5\nbet\nbet\ncall\ncall\ncheck\n0.83\n' | node cli.ts`.
+  Smoke: `printf '0.14\ncall\nbet\n0.35\n0.95\nbet\nbet\n0.5\nbet\nbet\ncall\ncall\ncheck\n0.83\n2\n' | node cli.ts`.
   It is the IO boundary, so it's NOT in the `engine.test.ts` unit suite (importing it would read stdin).
 - DONE: Persistence — pure `serializeSession`/`loadSession` (only the plain `reviews` are persisted;
   villain `strategy` is a function, so drills are supplied in-code and reviews rehydrate against them).
@@ -72,9 +72,10 @@ test red, stop and fix the leak — do NOT edit the test to make it pass.
   `Abstraction.heroFacesBet` (tree roots at hero facing a bet: fold|call -> later streets). Both
   additive & flag-gated; default-off preserves hero-as-aggressor, so no existing drill/test changed.
   Enabled P0 (IP/OOP) and a TRUE multi-street implied-odds drill (villain pays off the turn).
-- Module coverage now spans the full map: M0–M6 + P0–P6 (M0 is the only one without a drill — it needs
-  a non-equity hand-reading drill type). NEXT options: M0 drill type; more P1 ranges; villain raises
-  (richer 3-bet/check-raise lines); optional web UI.
+- DONE: M0 hand-reading — new `ask:"category"` response kind, graded by distance to the true made-hand
+  category (`m0.misreads_hand`). Every module M0–M6 + P0–P6 now has at least one drill.
+- NEXT options: villain raises (3-bet/check-raise lines); more drills (P1 ranges, M1 blockers,
+  M2 2&4-correction, P2 sizing-choice); optional web UI.
 - KNOWN L3 LIMIT: the builder models villain as a fixed call/fold responder (no villain lead/raise,
   so no hero-facing-bet nodes yet). `bestResponseEV` already supports those; extend the builder later.
 

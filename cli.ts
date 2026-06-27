@@ -35,7 +35,7 @@ function present(d: Drill): void {
     `Board: ${cards(s.board) || "(preflop)"} | Pot: ${s.pot}` +
     (s.toCall !== undefined ? ` | To call: ${s.toCall}` : ""));
   if (s.heroHand) console.log(`Hero:  ${cards(s.heroHand)}`);
-  console.log(`Vill:  ${villainLabel(s)} | ${s.abstraction.players} player(s)`);
+  if (s.villain.range.length) console.log(`Vill:  ${villainLabel(s)} | ${s.abstraction.players} player(s)`);
   if (d.ask === "action") console.log(`Legal: ${legalLabel(s)}`);
 }
 
@@ -44,6 +44,11 @@ function parseResponse(d: Drill, answer: string): Response {
     const value = Number(answer);
     if (!Number.isFinite(value)) throw new Error(`not a number: "${answer}"`);
     return { kind: "estimate", value };
+  }
+  if (d.ask === "category") {
+    const value = Number(answer);
+    if (!Number.isFinite(value)) throw new Error(`not a number: "${answer}"`);
+    return { kind: "category", value };
   }
   const w = answer.toLowerCase().trim();
   if (w === "fold") return { kind: "action", action: { kind: "fold" } };
@@ -60,8 +65,10 @@ function parseResponse(d: Drill, answer: string): Response {
 
 function showFeedback(d: Drill, out: GradeOutcome): void {
   const r = out.result;
-  if (r.estimateError !== undefined) {
-    console.log(`  -> true equity ${truth(d.state).toFixed(3)} | error ${r.estimateError.toFixed(3)} | ${r.leakTag}`);
+  if (d.ask === "estimate") {
+    console.log(`  -> true equity ${truth(d.state).toFixed(3)} | error ${(r.estimateError ?? 0).toFixed(3)} | ${r.leakTag}`);
+  } else if (d.ask === "category") {
+    console.log(`  -> ${r.estimateError === 0 ? "correct" : `off by ${r.estimateError}`} | ${r.leakTag}`);
   } else {
     console.log(`  -> regret ${r.regretBb.toFixed(3)} bb | ${r.leakTag}`);
   }
@@ -69,7 +76,9 @@ function showFeedback(d: Drill, out: GradeOutcome): void {
 }
 
 const promptFor = (d: Drill): string =>
-  d.ask === "estimate" ? "Your equity estimate (0..1): " : "Your action: ";
+  d.ask === "estimate" ? "Your equity estimate (0..1): "
+    : d.ask === "category" ? "Your hand category (0=high .. 8=straight flush): "
+      : "Your action: ";
 
 // Pull lines from readline's async iterator (correct backpressure for piped or
 // interactive input — unlike repeated question() which races across awaits).

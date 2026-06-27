@@ -622,9 +622,11 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
   for (const d of STARTER_DRILLS) {
     const resp: Response = d.ask === "estimate"
       ? { kind: "estimate", value: 0.5 }
-      : (d.state.abstraction.sizes.length === 0 || d.state.abstraction.heroFacesBet !== undefined)
-        ? { kind: "action", action: { kind: "call" } }   // pillar-1 call/fold OR hero-faces-bet root
-        : { kind: "action", action: { kind: "check" } }; // pillar-2 (legal at root)
+      : d.ask === "category"
+        ? { kind: "category", value: 2 }                 // M0 hand-reading
+        : (d.state.abstraction.sizes.length === 0 || d.state.abstraction.heroFacesBet !== undefined)
+          ? { kind: "action", action: { kind: "call" } } // pillar-1 call/fold OR hero-faces-bet root
+          : { kind: "action", action: { kind: "check" } }; // pillar-2 (legal at root)
     const out = gradeDrill(s, d.id, resp, 0);
     s = out.session;
     if (d.state.board.length === 0 && out.result.estimateError !== undefined) preflopErr = out.result.estimateError;
@@ -729,9 +731,9 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
   ok("M4 check regret == 3 bb", approx(m4check.result.regretBb, 3), `got ${m4check.result.regretBb}`);
   ok("M4 check -> m4.misses_street_sequence", m4check.result.leakTag === "m4.misses_street_sequence");
 
-  ok("STARTER_DRILLS now spans 14 drills incl M3.5/M4/M5.6/P0/P1/P3/P4/P5",
-    STARTER_DRILLS.length === 14 &&
-    ["M3.5", "M4", "M5.6", "P0", "P1", "P3", "P4", "P5"].every((m) => STARTER_DRILLS.some((d) => d.module === m)));
+  ok("STARTER_DRILLS now spans 15 drills incl M0/M3.5/M4/M5.6/P0/P1/P3/P4/P5",
+    STARTER_DRILLS.length === 15 &&
+    ["M0", "M3.5", "M4", "M5.6", "P0", "P1", "P3", "P4", "P5"].every((m) => STARTER_DRILLS.some((d) => d.module === m)));
 
   // P1 preflop drill is well-formed (board empty); equity is validated in the loop above.
   const p1 = STARTER_DRILLS.find((d) => d.module === "P1")!;
@@ -880,6 +882,26 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
   ok("implied odds: folding leaks -> m56.folds_with_implied_odds",
     m56tFold.result.regretBb > 0 && m56tFold.result.leakTag === "m56.folds_with_implied_odds",
     `${m56tFold.result.regretBb} ${m56tFold.result.leakTag}`);
+}
+
+// ---------- M0: hand-reading (category) ----------
+{
+  const m0 = STARTER_DRILLS.find((d) => d.module === "M0")!;
+  // hero AcKd on AhKh7c = two pair (category 2).
+  ok("M0 grade(): true category is two pair (2)",
+    grade(m0.state, { kind: "category", value: 2 }).estimateError === 0);
+  ok("M0 grade(): error is distance from the true category",
+    grade(m0.state, { kind: "category", value: 5 }).estimateError === 3); // guessed flush (5)
+
+  const correct = gradeDrill(newSession(STARTER_DRILLS), m0.id, { kind: "category", value: 2 }, 0);
+  ok("M0 correct read -> error 0, m0.ok",
+    correct.result.estimateError === 0 && correct.result.leakTag === "m0.ok", correct.result.leakTag);
+  const misread = gradeDrill(newSession(STARTER_DRILLS), m0.id, { kind: "category", value: 0 }, 0);
+  ok("M0 misread -> m0.misreads_hand (off by 2)",
+    misread.result.estimateError === 2 && misread.result.leakTag === "m0.misreads_hand",
+    `${misread.result.estimateError} ${misread.result.leakTag}`);
+  ok("M0 carries no truth/regret (not an equity/EV drill)",
+    correct.truth === undefined && correct.result.regretBb === 0);
 }
 
 // ---------- P6: EV calibration / leak-trend report ----------

@@ -706,11 +706,22 @@ function actionLeak(state: State, action: Action, regretBb: number): string {
   return `${p}.${tag[action.kind]}`;
 }
 
+// M0 hand-reading: the category (0..8) of hero's best made hand on the board.
+function handCategory(state: State): number {
+  if (!state.heroHand) throw new Error("category drill requires heroHand");
+  return best([...state.heroHand, ...state.board])[0];
+}
+
 export function grade(state: State, response: Response): Result {
   if (response.kind === "estimate") {
     const t = truth(state); // throws on a malformed spot
     const error = response.value - t;
     return { regretBb: 0, estimateError: Math.abs(error), leakTag: estimateLeak(error) };
+  }
+  if (response.kind === "category") {
+    // Graded by distance to the true category (0 = correct). Not an EV decision.
+    const err = Math.abs(response.value - handCategory(state));
+    return { regretBb: 0, estimateError: err, leakTag: err === 0 ? "p1.ok" : "p1.miscategorized" };
   }
   const evs = decisionEVs(state);
   const chosen = evs.find((e) => sameAction(e.action, response.action));
@@ -800,6 +811,7 @@ const LEAK_TABLE: Record<string, string> = {
   "M2:underestimate": "m2.underestimates_equity",
   "M5:overestimate": "m5.overrates_vs_range",
   "M5:underestimate": "m5.underrates_vs_range",
+  "M0:miscategorized": "m0.misreads_hand",
   "P0:overbet": "p0.bets_oop_without_equity",
   "P0:overfold": "p0.overfolds_in_position",
   "P1:overestimate": "p1.overvalues_holding",
@@ -1106,6 +1118,18 @@ export const STARTER_DRILLS: Drill[] = [
       heroHand: hand("Ah", "As"), board: [],
       pot: 1, toAct: "hero",
       villain: { range: [{ combo: hand("Kh", "Ks"), weight: 1 }] },
+      abstraction: { sizes: [], streets: [], players: 2 },
+    },
+  },
+  {
+    id: "m0-read-two-pair",
+    module: "M0",
+    title: "Hand reading: name your made hand (0=high .. 8=straight flush)",
+    ask: "category",
+    state: {
+      heroHand: hand("Ac", "Kd"), board: hand("Ah", "Kh", "7c"), // two pair, aces & kings
+      pot: 1, toAct: "hero",
+      villain: { range: [] }, // villain irrelevant for hand-reading
       abstraction: { sizes: [], streets: [], players: 2 },
     },
   },
