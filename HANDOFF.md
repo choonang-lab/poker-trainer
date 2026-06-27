@@ -17,6 +17,9 @@
   - **L6** content model + session glue — `Drill`/`Session`/`GradeOutcome`, a `STARTER_DRILLS`
     set, and a pure `newSession`/`nextDrill`/`gradeDrill` training loop tying content + truth +
     grade + scheduling together. No UI/IO. (Full curriculum + richer `leakTag` taxonomy still TBD.)
+- **`cli.ts`** — L7 CLI trainer. Dependency-free (Node readline async-iterator); the IO boundary that
+  drives the L6 session loop (present → read → grade → schedule → repeat). Type-checked by `tsc`
+  (minimal ambient `node:readline` decl in `globals.d.ts`); not in the unit suite (it reads stdin).
 - **`engine.test.ts`** — 70 assertions, all passing. Exact/hand-checkable, not approximate:
   - full category ladder (high card → royal), wheel straight, kicker tiebreaks
   - `equity` against exact rationals: straight draw = **6/44**, drawing dead = **0**, chop = **0.5**, made hand = **1.0**
@@ -32,15 +35,17 @@
 node engine.test.ts            # expect: 70 passed, 0 failed (Node strips types at runtime)
 npx -p typescript tsc --noEmit  # expect: exit 0 (type-check; uses npx cache, adds NO repo dependency)
 node bench.ts                   # optional: AA vs KK (~3 min, see perf note)
+node cli.ts                     # the trainer; smoke: printf '0.14\ncall\nbet\n' | node cli.ts
 ```
 
 ## What Claude Code builds next (in priority order)
-1. **L7 UI** — a product fork: a dependency-free CLI trainer (fits the toolchain) vs a web UI (needs a
-   framework/build, breaks dependency-free). Consume `truth`/`grade`/`nextDrill` only; never branch on pillar.
-2. **Expand L6 content** — a fuller authored curriculum across the M-/P- modules, and a richer
+1. **Expand L6 content** — a fuller authored curriculum across the M-/P- modules, and a richer
    `leakTag` taxonomy (current tags are minimal/structural). Pure and exact-testable.
-   NOTE: the entire deterministic engine + grading + scheduling + session loop (L1–L6) is now done and
-   exact-tested; L7 is the first outward-facing, not-exactly-unit-testable piece.
+2. **Persistence** — the session loop is pure; a `Session` (with its `reviews`) can be serialized to
+   disk/JSON so progress survives across `cli.ts` runs (currently each run starts fresh at "day 0").
+3. **Optional web UI** — if a browser front-end is wanted later (would add a framework/build step and
+   break the dependency-free property). The CLI (`cli.ts`) already covers L7 end-to-end.
+   NOTE: the full vertical slice L1–L7 now runs end-to-end (engine → grading → scheduling → session → CLI).
 2. **Richer L3 builder (optional):** the current `buildTree` models villain as a fixed call/fold
    responder (no villain lead/raise, hence no hero-facing-bet nodes yet). `bestResponseEV` already
    supports HERO fold nodes — extend the builder to emit villain bets + hero responses when needed.

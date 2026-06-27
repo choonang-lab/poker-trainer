@@ -48,7 +48,10 @@ test red, stop and fix the leak — do NOT edit the test to make it pass.
   `dueReviews`, `nextReview`); injected day-number `now`, no `Date.now()`.
 - DONE: L6 content model + session glue — `Drill`/`Session`/`GradeOutcome`, `STARTER_DRILLS`,
   pure `newSession`/`nextDrill`/`gradeDrill` loop. (Fuller curriculum + richer `leakTag` taxonomy TBD.)
-- NEXT: L7 UI (CLI vs web — a product fork) + expand L6 content. Consume `truth`/`grade`/`nextDrill` only.
+- DONE: L7 CLI trainer (`cli.ts`) — dependency-free (Node readline async-iterator); drives the L6
+  session loop end-to-end. Run: `node cli.ts`. Smoke test: `printf '0.14\ncall\nbet\n' | node cli.ts`.
+  It is the IO boundary, so it's NOT in the `engine.test.ts` unit suite (importing it would read stdin).
+- NEXT: expand L6 content (fuller M-/P- curriculum) + richer `leakTag` taxonomy; optional web UI.
 - KNOWN L3 LIMIT: the builder models villain as a fixed call/fold responder (no villain lead/raise,
   so no hero-facing-bet nodes yet). `bestResponseEV` already supports those; extend the builder later.
 
