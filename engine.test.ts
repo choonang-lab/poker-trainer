@@ -5,8 +5,11 @@ import {
   hand, parseCard, card, FULL_DECK,
   equityLeaf, bestResponseEV, bestAction, truth, buildTree, realizationFactor,
   fieldEquity, validateAbstraction, ABSTRACTION_LIMITS,
+  actionEVs, grade,
+  resultQuality, newReview, scheduleReview, dueReviews, nextReview,
+  STARTER_DRILLS, newSession, nextDrill, gradeDrill,
 } from "./engine.ts";
-import type { State, NodeState, Action, TreeNode, Abstraction } from "./contract.ts";
+import type { State, NodeState, Action, TreeNode, Abstraction, Response, Result, Review } from "./contract.ts";
 
 let pass = 0, fail = 0;
 const approx = (a: number | null, b: number, eps = 1e-9): boolean => a !== null && Math.abs(a - b) < eps;
@@ -463,6 +466,167 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
   ok("realizationFactor throws when raw equity is 0", throws(() => realizationFactor(dead)));
   // truth still works on a drawing-dead spot (it's a valid drill): equity 0.
   ok("truth returns 0 on a drawing-dead spot", truth(dead) === 0, `got ${truth(dead)}`);
+}
+
+// ---------- Grading: actionEVs + grade() -> Result ----------
+// actionEVs at a HERO node: the 9/44 tree exposes check=6/44, bet=9/44.
+{
+  const heroH = hand("Ks", "Qd");
+  const board4 = hand("Jh", "Th", "2c", "3s");
+  const splitStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action: a, weight: 0.5 }));
+  const state: State = { heroHand: heroH, board: board4, pot: 1, toAct: "hero",
+    villain: { range: [{ combo: hand("Ah", "Ad"), weight: 1 }], strategy: splitStrat },
+    abstraction: { sizes: [1.0], streets: ["turn"], players: 2 } };
+  const evs = actionEVs(buildTree(state));
+  const check = evs.find((e) => e.action.kind === "check");
+  const bet = evs.find((e) => e.action.kind === "bet");
+  ok("actionEVs check == 6/44", approx(check ? check.ev : null, 6 / 44), `got ${check?.ev}`);
+  ok("actionEVs bet == 9/44", approx(bet ? bet.ev : null, 9 / 44), `got ${bet?.ev}`);
+}
+
+// grade estimate (pillar 1): error vs truth (6/44), regretBb 0, structural tag.
+{
+  const heroH = hand("Ks", "Qd");
+  const board4 = hand("Jh", "Th", "2c", "3s");
+  const state: State = { heroHand: heroH, board: board4, pot: 1, toAct: "hero",
+    villain: { range: [{ combo: hand("Ah", "Ad"), weight: 1 }] },
+    abstraction: { sizes: [], streets: [], players: 2 } };
+  const close: Result = grade(state, { kind: "estimate", value: 0.15 });
+  ok("grade estimate regretBb 0", close.regretBb === 0);
+  ok("grade estimate error == |0.15-6/44|", approx(close.estimateError ?? null, Math.abs(0.15 - 6 / 44)),
+    `got ${close.estimateError}`);
+  ok("grade estimate close -> p1.ok", close.leakTag === "p1.ok", close.leakTag);
+  ok("grade estimate high -> p1.overestimate",
+    grade(state, { kind: "estimate", value: 0.30 }).leakTag === "p1.overestimate");
+  ok("grade estimate low -> p1.underestimate",
+    grade(state, { kind: "estimate", value: 0.05 }).leakTag === "p1.underestimate");
+}
+
+// grade action (pillar 1 call/fold): chop equity 0.5, pot 2, toCall 1.
+//   callEV = 0.5*2 - 0.5*1 = 0.5 ; fold = 0 ; best = 0.5
+{
+  const state: State = { heroHand: hand("3h", "4d"), board: hand("As", "Ks", "Qd", "Jc", "2h"),
+    pot: 2, toCall: 1, toAct: "hero",
+    villain: { range: [{ combo: hand("3c", "4s"), weight: 1 }] },
+    abstraction: { sizes: [], streets: [], players: 2 } };
+  const callR = grade(state, { kind: "action", action: { kind: "call" } });
+  const foldR = grade(state, { kind: "action", action: { kind: "fold" } });
+  ok("grade call (priced in) regret 0", callR.regretBb === 0, `got ${callR.regretBb}`);
+  ok("grade call -> p1.ok", callR.leakTag === "p1.ok", callR.leakTag);
+  ok("grade fold (priced in) regret 0.5", approx(foldR.regretBb, 0.5), `got ${foldR.regretBb}`);
+  ok("grade fold -> p1.overfold", foldR.leakTag === "p1.overfold", foldR.leakTag);
+}
+
+// grade action (pillar 2): 9/44 tree. bet is best (9/44); check costs 3/44.
+{
+  const heroH = hand("Ks", "Qd");
+  const board4 = hand("Jh", "Th", "2c", "3s");
+  const splitStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action: a, weight: 0.5 }));
+  const state: State = { heroHand: heroH, board: board4, pot: 1, toAct: "hero",
+    villain: { range: [{ combo: hand("Ah", "Ad"), weight: 1 }], strategy: splitStrat },
+    abstraction: { sizes: [1.0], streets: ["turn"], players: 2 } };
+  const betR = grade(state, { kind: "action", action: { kind: "bet", size: 1.0 } });
+  const checkR = grade(state, { kind: "action", action: { kind: "check" } });
+  ok("grade bet (optimal) regret 0", approx(betR.regretBb, 0), `got ${betR.regretBb}`);
+  ok("grade bet -> p2.ok", betR.leakTag === "p2.ok", betR.leakTag);
+  ok("grade check regret == 3/44", approx(checkR.regretBb, 3 / 44), `got ${checkR.regretBb}`);
+  ok("grade check -> p2.missed_bet", checkR.leakTag === "p2.missed_bet", checkR.leakTag);
+
+  // illegal action for the spot -> throws
+  const throws = (fn: () => unknown): boolean => { try { fn(); return false; } catch { return true; } };
+  ok("grade throws on illegal action",
+    throws(() => grade(state, { kind: "action", action: { kind: "fold" } })));
+}
+
+// ---------- L5: scheduling (SM-2, exact) ----------
+{
+  const r5e: Result = { regretBb: 0, estimateError: 0, leakTag: "p1.ok" };             // q5 (estimate)
+  const r1e: Result = { regretBb: 0, estimateError: 0.30, leakTag: "p1.overestimate" }; // q1 (estimate)
+  const r5a: Result = { regretBb: 0, leakTag: "p2.ok" };                                // q5 (action)
+  const r2a: Result = { regretBb: 0.80, leakTag: "p2.overbet" };                        // q2 (action)
+
+  ok("resultQuality estimate perfect = 5", resultQuality(r5e) === 5);
+  ok("resultQuality estimate 0.05 = 4", resultQuality({ regretBb: 0, estimateError: 0.05, leakTag: "" }) === 4);
+  ok("resultQuality estimate bad = 1", resultQuality(r1e) === 1);
+  ok("resultQuality action perfect = 5", resultQuality(r5a) === 5);
+  ok("resultQuality action regret 0.8 = 2", resultQuality(r2a) === 2);
+
+  // New item is due immediately, ease 2.5, no reps.
+  const a0 = newReview("draw-eq-01", 0);
+  ok("newReview due now, ease 2.5", a0.due === 0 && a0.reps === 0 && a0.ease === 2.5 && a0.intervalDays === 0);
+
+  // Success chain: 1 -> 6 -> round(6*ease) days; ease climbs +0.1 per q5.
+  const a1 = scheduleReview(a0, r5e, 0);
+  ok("review1 q5 -> reps1 interval1 due1", a1.reps === 1 && a1.intervalDays === 1 && a1.due === 1);
+  ok("review1 ease 2.6", approx(a1.ease, 2.6));
+  const a2 = scheduleReview(a1, r5e, 1);
+  ok("review2 q5 -> reps2 interval6 due7", a2.reps === 2 && a2.intervalDays === 6 && a2.due === 7);
+  ok("review2 ease 2.7", approx(a2.ease, 2.7));
+  const a3 = scheduleReview(a2, r5e, 7);
+  ok("review3 -> interval round(6*2.8)=17, due 24", a3.reps === 3 && a3.intervalDays === 17 && a3.due === 24);
+  ok("review3 ease 2.8", approx(a3.ease, 2.8));
+
+  // Lapse (q1): reps reset, interval 1, lapses++, ease drops by 0.54 to 2.26.
+  const lap = scheduleReview(a3, r1e, 30);
+  ok("lapse -> reps0 interval1 due31 lapses1",
+    lap.reps === 0 && lap.intervalDays === 1 && lap.due === 31 && lap.lapses === 1);
+  ok("lapse ease 2.26", approx(lap.ease, 2.26));
+
+  // Ease floor at 1.3: hammer a low-ease item with lapses.
+  let low: Review = { id: "z", ease: 1.4, reps: 0, intervalDays: 1, lapses: 0, due: 0 };
+  low = scheduleReview(low, r1e, 0);
+  ok("ease clamped to >= 1.3", low.ease === 1.3);
+
+  // Selection: due items, most overdue first.
+  const items: Review[] = [
+    { id: "x", ease: 2.5, reps: 1, intervalDays: 1, lapses: 0, due: 5 },
+    { id: "y", ease: 2.5, reps: 1, intervalDays: 1, lapses: 0, due: 2 },
+    { id: "w", ease: 2.5, reps: 1, intervalDays: 1, lapses: 0, due: 20 },
+  ];
+  const due = dueReviews(items, 10);
+  ok("dueReviews returns the 2 due, sorted by due", due.length === 2 && due[0].id === "y" && due[1].id === "x");
+  ok("nextReview = most overdue", nextReview(items, 10)?.id === "y");
+  ok("nextReview null when none due", nextReview(items, 1) === null);
+}
+
+// ---------- L6: content + session loop ----------
+{
+  const throws = (fn: () => unknown): boolean => { try { fn(); return false; } catch { return true; } };
+
+  ok("STARTER_DRILLS spans >= 3 drills", STARTER_DRILLS.length >= 3);
+  const session0 = newSession(STARTER_DRILLS);
+  ok("newSession starts with no reviews", Object.keys(session0.reviews).length === 0);
+
+  // Fresh session: every drill is due now -> first in library order.
+  ok("nextDrill (fresh) = first drill", nextDrill(session0, 0)?.id === STARTER_DRILLS[0].id);
+
+  // Grade the first drill (an estimate) perfectly: error 0, schedule advances.
+  const d0 = STARTER_DRILLS[0];
+  const out = gradeDrill(session0, d0.id, { kind: "estimate", value: truth(d0.state) }, 0);
+  ok("gradeDrill estimate error 0", out.result.estimateError === 0, `got ${out.result.estimateError}`);
+  ok("gradeDrill schedules reps1 due1", out.review.reps === 1 && out.review.due === 1);
+  ok("gradeDrill returns a NEW session with the review", out.session.reviews[d0.id].due === 1);
+  ok("gradeDrill is pure (input session untouched)", Object.keys(session0.reviews).length === 0);
+
+  // d0 no longer due at now=0 -> loop advances to the next unseen drill.
+  ok("nextDrill advances past the just-scheduled drill",
+    nextDrill(out.session, 0)?.id === STARTER_DRILLS[1].id);
+
+  // Run the whole library once at now=0 (any legal response); then nothing is due.
+  let s = session0;
+  for (const d of STARTER_DRILLS) {
+    const resp: Response = d.ask === "estimate"
+      ? { kind: "estimate", value: 0.5 }
+      : d.state.abstraction.sizes.length === 0
+        ? { kind: "action", action: { kind: "call" } }   // pillar-1 call/fold
+        : { kind: "action", action: { kind: "check" } }; // pillar-2 (legal at root)
+    s = gradeDrill(s, d.id, resp, 0).session;
+  }
+  ok("nothing due immediately after grading the whole library", nextDrill(s, 0) === null);
+  ok("drills come due again at now=1", nextDrill(s, 1) !== null);
+
+  ok("gradeDrill throws on an unknown drill id",
+    throws(() => gradeDrill(session0, "no-such-drill", { kind: "estimate", value: 0.5 }, 0)));
 }
 
 // silence unused-import noise without weakening the public surface

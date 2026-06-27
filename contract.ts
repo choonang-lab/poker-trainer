@@ -65,6 +65,7 @@ export interface State {
   heroRange?: Range;                // or a range
   board: Board;
   pot: number;
+  toCall?: number;                  // amount hero must call (pillar-1 call/fold drills)
   toAct: "hero" | "villain" | "chance";
   villain: Villain;
   abstraction: Abstraction;
@@ -148,6 +149,68 @@ export declare function truth(state: State): number;
 // Equity realization, derived (not hardcoded): tree-EV / raw all-in equity.
 // Throws when the ratio is undefined (no villain combo, or raw all-in equity 0).
 export declare function realizationFactor(state: State): number;
+
+// ===========================================================================
+// GRADING — turn a user's response into a Result (consumed by L5/L6/L7)
+// ===========================================================================
+export type Response =
+  | { kind: "estimate"; value: number }        // an equity estimate in [0,1]
+  | { kind: "action"; action: Action };        // a chosen action
+
+// Per-action EVs at a HERO node — the source bestAction argmaxes and grade()
+// computes regret from.
+export declare function actionEVs(heroNode: TreeNode): { action: Action; ev: number }[];
+
+// Grade a response against ground truth. Estimates → estimateError (regretBb 0);
+// actions → regretBb (best EV − chosen EV). leakTag is a namespaced, structural
+// classification meant to be refined by L6 content. Throws on an illegal action
+// or a malformed spot (same degeneracy guard as truth()).
+export declare function grade(state: State, response: Response): Result;
+
+// ===========================================================================
+// L5 — scheduling: spaced repetition over Result (pure, deterministic)
+// ===========================================================================
+// SM-2 over a continuous grade. `now` is an injected day-number (never
+// Date.now()) so schedules are exactly reproducible. Consumes ONLY Result.
+export interface Review {
+  id: string;
+  ease: number;          // SM-2 ease factor (>= 1.3)
+  reps: number;          // consecutive successful reviews
+  intervalDays: number;
+  lapses: number;
+  due: number;           // day-number, same unit as the injected `now`
+}
+export declare function resultQuality(result: Result): number;   // 0..5
+export declare function newReview(id: string, now?: number): Review;
+export declare function scheduleReview(item: Review, result: Result, now: number): Review;
+export declare function dueReviews(items: Review[], now: number): Review[];
+export declare function nextReview(items: Review[], now: number): Review | null;
+
+// ===========================================================================
+// L6 — content + session: authored drills and the (pure) training loop
+// ===========================================================================
+// A Drill is an authored spot (a State) + presentation metadata + which response
+// the user gives. A Session bundles a drill library with per-drill scheduling
+// state. The loop is pure; persistence/IO is L7's concern.
+export interface Drill {
+  id: string;
+  module: string;                   // curriculum tag, e.g. "M2", "M3", "P2"
+  title: string;                    // human-facing label
+  ask: "estimate" | "action";       // the response kind this drill expects
+  state: State;
+}
+export interface Session {
+  drills: Drill[];
+  reviews: Record<string, Review>;  // scheduling state by drill id
+}
+export interface GradeOutcome {
+  result: Result;
+  review: Review;
+  session: Session;                 // a NEW session carrying the updated schedule
+}
+export declare function newSession(drills: Drill[]): Session;
+export declare function nextDrill(session: Session, now: number): Drill | null;
+export declare function gradeDrill(session: Session, drillId: string, response: Response, now: number): GradeOutcome;
 
 // ===========================================================================
 // Build status

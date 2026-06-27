@@ -8,7 +8,8 @@
 
 import type {
   Card, Score, Board, Combo, Range, Villain, Abstraction, State,
-  Action, NodeState, NodeStrategy, Terminal, TreeNode,
+  Action, NodeState, NodeStrategy, Terminal, TreeNode, Response, Result, Review,
+  Drill, Session, GradeOutcome,
 } from "./contract.ts";
 
 export const RANKS = [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14];
@@ -473,6 +474,144 @@ export function bestAction(node: TreeNode): Action {
   return best!;
 }
 
+// ---- Grading: (state, response) -> Result --------------------------------
+// Estimates are graded by error vs true equity; decisions by regret vs the best
+// line (invariant 4). One seam so L5/L6/L7 never branch on pillar — only on
+// estimate-vs-action. leakTag is a minimal, STRUCTURAL classification; the real
+// taxonomy belongs to L6 content (which can refine these tags).
+
+const GRADE_BAND = 0.05; // equity tolerance for an estimate to count as "ok"
+
+// Per-action EVs at a HERO node (expects a HERO node; children carry actions).
+export function actionEVs(heroNode: TreeNode): { action: Action; ev: number }[] {
+  return (heroNode.children ?? []).map((ch) => ({ action: ch.action!, ev: bestResponseEV(ch.node) }));
+}
+
+// The legal actions + EVs for a decision drill. Pillar 1 (empty abstraction) is
+// a call/fold facing state.toCall; pillar 2 reads them off the built tree's root.
+function decisionEVs(state: State): { action: Action; ev: number }[] {
+  if (state.abstraction.sizes.length === 0) {
+    const eq = equityLeaf(state);
+    if (eq === null) throw new Error("grade: no valid villain combo for this spot");
+    if (state.toCall === undefined)
+      throw new Error("grade: a pillar-1 call/fold drill requires state.toCall");
+    return [
+      { action: { kind: "fold" }, ev: 0 },
+      { action: { kind: "call" }, ev: callEV(eq, state.pot, state.toCall) },
+    ];
+  }
+  return actionEVs(buildTree(state));
+}
+
+function estimateLeak(error: number): string {
+  if (Math.abs(error) <= GRADE_BAND) return "p1.ok";
+  return error > 0 ? "p1.overestimate" : "p1.underestimate";
+}
+
+function actionLeak(state: State, action: Action, regretBb: number): string {
+  const p = state.abstraction.sizes.length === 0 ? "p1" : "p2";
+  if (regretBb <= 1e-9) return `${p}.ok`;
+  const tag: Record<Action["kind"], string> = {
+    fold: "overfold", call: "spew", check: "missed_bet", bet: "overbet",
+  };
+  return `${p}.${tag[action.kind]}`;
+}
+
+export function grade(state: State, response: Response): Result {
+  if (response.kind === "estimate") {
+    const t = truth(state); // throws on a malformed spot
+    const error = response.value - t;
+    return { regretBb: 0, estimateError: Math.abs(error), leakTag: estimateLeak(error) };
+  }
+  const evs = decisionEVs(state);
+  const chosen = evs.find((e) => sameAction(e.action, response.action));
+  if (!chosen) throw new Error(`grade: illegal action ${JSON.stringify(response.action)} for this spot`);
+  const best = Math.max(...evs.map((e) => e.ev));
+  const regretBb = best - chosen.ev;
+  return { regretBb, leakTag: actionLeak(state, response.action, regretBb) };
+}
+
+// ==== L5: scheduling (spaced repetition over Result) ======================
+// Pure, deterministic SM-2 over a continuous grade. `now` is an injected
+// day-number (never Date.now()) so schedules are exactly testable. Consumes ONLY
+// Result (never branches on pillar): estimate drills grade by estimateError,
+// decision drills by regretBb (bb is already a normalized unit).
+
+const EASE_MIN = 1.3;
+const EASE_START = 2.5;
+const Q_ESTIMATE: [number, number][] = [[0.02, 5], [0.05, 4], [0.10, 3], [0.20, 2]]; // err <= k -> q
+const Q_ACTION: [number, number][] = [[0.001, 5], [0.25, 4], [0.5, 3], [1.0, 2]];     // regret <= k -> q
+
+// Map a Result to an SM-2 quality 0..5 (q < 3 is a lapse).
+export function resultQuality(result: Result): number {
+  if (result.estimateError !== undefined) {
+    for (const [k, q] of Q_ESTIMATE) if (result.estimateError <= k) return q;
+    return 1;
+  }
+  for (const [k, q] of Q_ACTION) if (result.regretBb <= k) return q;
+  return 1;
+}
+
+export function newReview(id: string, now = 0): Review {
+  return { id, ease: EASE_START, reps: 0, intervalDays: 0, lapses: 0, due: now };
+}
+
+// SM-2 update. Success (q>=3) expands the interval by the ease factor; a lapse
+// (q<3) resets to 1 day and bumps the lapse count. Ease always re-derives from q.
+export function scheduleReview(item: Review, result: Result, now: number): Review {
+  const q = resultQuality(result);
+  const ease = Math.max(EASE_MIN, item.ease + (0.1 - (5 - q) * (0.08 + (5 - q) * 0.02)));
+  if (q < 3) {
+    return { ...item, ease, reps: 0, intervalDays: 1, lapses: item.lapses + 1, due: now + 1 };
+  }
+  const reps = item.reps + 1;
+  const intervalDays = reps === 1 ? 1 : reps === 2 ? 6 : Math.round(item.intervalDays * ease);
+  return { ...item, ease, reps, intervalDays, due: now + intervalDays };
+}
+
+// Items due at `now`, most overdue first.
+export function dueReviews(items: Review[], now: number): Review[] {
+  return items.filter((i) => i.due <= now).sort((a, b) => a.due - b.due);
+}
+
+export function nextReview(items: Review[], now: number): Review | null {
+  const due = dueReviews(items, now);
+  return due.length ? due[0] : null;
+}
+
+// ==== L6: content model + session glue ====================================
+// A Drill is an authored spot (a State) + presentation metadata + which response
+// the user gives. A Session bundles a drill library with per-drill scheduling
+// state. The loop is pure: nextDrill picks what to show, gradeDrill grades +
+// reschedules and returns a NEW Session. No UI/persistence here (that's L7).
+
+// STARTER_DRILLS is defined at the end of the file (it calls the card-authoring
+// helpers `hand`/`parseCard`, which are declared in the helpers section below).
+
+export function newSession(drills: Drill[]): Session {
+  return { drills, reviews: {} };
+}
+
+// The next drill to show: due reviews first (most overdue), unseen drills treated
+// as due at `now` so new content surfaces once nothing is overdue. null if idle.
+export function nextDrill(session: Session, now: number): Drill | null {
+  const due = session.drills
+    .map((d) => ({ d, due: session.reviews[d.id]?.due ?? now }))
+    .filter((x) => x.due <= now)
+    .sort((a, b) => a.due - b.due);
+  return due.length ? due[0].d : null;
+}
+
+// Grade a response to a drill and reschedule it. Returns a NEW session (pure).
+export function gradeDrill(session: Session, drillId: string, response: Response, now: number): GradeOutcome {
+  const drill = session.drills.find((d) => d.id === drillId);
+  if (!drill) throw new Error(`gradeDrill: unknown drill ${drillId}`);
+  const result = grade(drill.state, response);
+  const prior = session.reviews[drillId] ?? newReview(drillId, now);
+  const review = scheduleReview(prior, result, now);
+  return { result, review, session: { ...session, reviews: { ...session.reviews, [drillId]: review } } };
+}
+
 // ---- helpers for authoring tests/drills ----------------------------------
 export const RNAMES: Record<number, string> = { 14: "A", 13: "K", 12: "Q", 11: "J", 10: "T" };
 export const SNAMES = ["s", "h", "d", "c"];
@@ -490,3 +629,48 @@ export function hand(...strs: string[]): Card[];
 export function hand(...strs: string[]): Card[] {
   return strs.map(parseCard);
 }
+
+// ---- L6 starter content (defined last so the helpers above are initialized) --
+// A small starter set spanning estimate/action and pillar 1/pillar 2. The exact
+// values are the same ones proven elsewhere (6/44 equity, the chop, the 9/44 tree).
+export const STARTER_DRILLS: Drill[] = [
+  {
+    id: "m2-kqo-vs-aa",
+    module: "M2",
+    title: "Open-ender vs an overpair, one card to come",
+    ask: "estimate",
+    state: {
+      heroHand: hand("Ks", "Qd"), board: hand("Jh", "Th", "2c", "3s"),
+      pot: 1, toAct: "hero",
+      villain: { range: [{ combo: hand("Ah", "Ad"), weight: 1 }] },
+      abstraction: { sizes: [], streets: [], players: 2 },
+    },
+  },
+  {
+    id: "m3-chop-potodds",
+    module: "M3",
+    title: "Pot odds facing a bet with a guaranteed chop",
+    ask: "action",
+    state: {
+      heroHand: hand("3h", "4d"), board: hand("As", "Ks", "Qd", "Jc", "2h"),
+      pot: 2, toCall: 1, toAct: "hero",
+      villain: { range: [{ combo: hand("3c", "4s"), weight: 1 }] },
+      abstraction: { sizes: [], streets: [], players: 2 },
+    },
+  },
+  {
+    id: "p2-bet-or-check",
+    module: "P2",
+    title: "Bet sizing with fold equity vs a 50/50 caller",
+    ask: "action",
+    state: {
+      heroHand: hand("Ks", "Qd"), board: hand("Jh", "Th", "2c", "3s"),
+      pot: 1, toAct: "hero",
+      villain: {
+        range: [{ combo: hand("Ah", "Ad"), weight: 1 }],
+        strategy: (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action: a, weight: 0.5 })),
+      },
+      abstraction: { sizes: [1.0], streets: ["turn"], players: 2 },
+    },
+  },
+];

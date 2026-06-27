@@ -9,6 +9,14 @@
     multiway `fieldEquity` (labelled aggregated-field approx), `realizationFactor`, multi-street
     `buildTree`, and authoring-time `validateAbstraction` (`ABSTRACTION_LIMITS`)
   - **L4** grading primitives (`breakEven`, `callEV`, `regret`, `decisionRegret`, `estimateError`, `withinBand`, `brier`)
+  - **Grading seam** `grade(state, response) → Result` + `actionEVs` — estimates graded by error,
+    decisions by regret, with a structural `leakTag` (refined later by L6 content). This is the
+    `Result`-producing glue L5/L6/L7 consume.
+  - **L5** scheduling — pure deterministic SM-2 over `Result` (`resultQuality`, `newReview`,
+    `scheduleReview`, `dueReviews`, `nextReview`); `now` is an injected day-number for exact tests.
+  - **L6** content model + session glue — `Drill`/`Session`/`GradeOutcome`, a `STARTER_DRILLS`
+    set, and a pure `newSession`/`nextDrill`/`gradeDrill` training loop tying content + truth +
+    grade + scheduling together. No UI/IO. (Full curriculum + richer `leakTag` taxonomy still TBD.)
 - **`engine.test.ts`** — 70 assertions, all passing. Exact/hand-checkable, not approximate:
   - full category ladder (high card → royal), wheel straight, kicker tiebreaks
   - `equity` against exact rationals: straight draw = **6/44**, drawing dead = **0**, chop = **0.5**, made hand = **1.0**
@@ -27,7 +35,12 @@ node bench.ts                   # optional: AA vs KK (~3 min, see perf note)
 ```
 
 ## What Claude Code builds next (in priority order)
-1. **L5 scheduling / L6 content / L7 UI** — consume `Result` and `truth()` only; never branch on pillar.
+1. **L7 UI** — a product fork: a dependency-free CLI trainer (fits the toolchain) vs a web UI (needs a
+   framework/build, breaks dependency-free). Consume `truth`/`grade`/`nextDrill` only; never branch on pillar.
+2. **Expand L6 content** — a fuller authored curriculum across the M-/P- modules, and a richer
+   `leakTag` taxonomy (current tags are minimal/structural). Pure and exact-testable.
+   NOTE: the entire deterministic engine + grading + scheduling + session loop (L1–L6) is now done and
+   exact-tested; L7 is the first outward-facing, not-exactly-unit-testable piece.
 2. **Richer L3 builder (optional):** the current `buildTree` models villain as a fixed call/fold
    responder (no villain lead/raise, hence no hero-facing-bet nodes yet). `bestResponseEV` already
    supports HERO fold nodes — extend the builder to emit villain bets + hero responses when needed.

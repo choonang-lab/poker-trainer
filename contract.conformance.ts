@@ -10,6 +10,9 @@ import {
   NO_ABSTRACTION,
   equityLeaf, fieldEquity, bestResponseEV, bestAction,
   ABSTRACTION_LIMITS, validateAbstraction, buildTree, truth, realizationFactor,
+  actionEVs, grade,
+  resultQuality, newReview, scheduleReview, dueReviews, nextReview,
+  newSession, nextDrill, gradeDrill,
 } from "./engine.ts";
 
 // L1
@@ -42,6 +45,16 @@ const _validateAbstraction: typeof C.validateAbstraction = validateAbstraction;
 const _buildTree: typeof C.buildTree = buildTree;
 const _truth: typeof C.truth = truth;
 const _realizationFactor: typeof C.realizationFactor = realizationFactor;
+const _actionEVs: typeof C.actionEVs = actionEVs;
+const _grade: typeof C.grade = grade;
+const _resultQuality: typeof C.resultQuality = resultQuality;
+const _newReview: typeof C.newReview = newReview;
+const _scheduleReview: typeof C.scheduleReview = scheduleReview;
+const _dueReviews: typeof C.dueReviews = dueReviews;
+const _nextReview: typeof C.nextReview = nextReview;
+const _newSession: typeof C.newSession = newSession;
+const _nextDrill: typeof C.nextDrill = nextDrill;
+const _gradeDrill: typeof C.gradeDrill = gradeDrill;
 
 void [
   _card, _rankOf, _suitOf, _score5, _score7, _cmpScore,
@@ -49,4 +62,7 @@ void [
   _breakEven, _callEV, _regret, _decisionRegret, _estimateError, _withinBand, _brier,
   _NO_ABSTRACTION, _equityLeaf, _fieldEquity, _bestResponseEV, _bestAction,
   _ABSTRACTION_LIMITS, _validateAbstraction, _buildTree, _truth, _realizationFactor,
+  _actionEVs, _grade,
+  _resultQuality, _newReview, _scheduleReview, _dueReviews, _nextReview,
+  _newSession, _nextDrill, _gradeDrill,
 ];

@@ -42,7 +42,13 @@ test red, stop and fix the leak — do NOT edit the test to make it pass.
 - DONE, proven: L3 — `bestResponseEV` (expectimax), `bestAction`, `truth()` router, multi-street
   `buildTree`, multiway `fieldEquity` (labelled field approx), authoring-time `validateAbstraction`.
 - DONE: TypeScript port against `contract.ts` (strip-only; `tsc --noEmit` clean; conformance-checked).
-- NEXT: L5 scheduling / L6 content / L7 UI — consume `Result` + `truth()` only; never branch on pillar.
+- DONE: grading seam — `grade(state, response) → Result` + `actionEVs` (estimates by error, decisions
+  by regret, structural `leakTag`). This is the `Result`-producing glue the upper layers consume.
+- DONE: L5 scheduling — pure SM-2 over `Result` (`resultQuality`, `newReview`, `scheduleReview`,
+  `dueReviews`, `nextReview`); injected day-number `now`, no `Date.now()`.
+- DONE: L6 content model + session glue — `Drill`/`Session`/`GradeOutcome`, `STARTER_DRILLS`,
+  pure `newSession`/`nextDrill`/`gradeDrill` loop. (Fuller curriculum + richer `leakTag` taxonomy TBD.)
+- NEXT: L7 UI (CLI vs web — a product fork) + expand L6 content. Consume `truth`/`grade`/`nextDrill` only.
 - KNOWN L3 LIMIT: the builder models villain as a fixed call/fold responder (no villain lead/raise,
   so no hero-facing-bet nodes yet). `bestResponseEV` already supports those; extend the builder later.
 
