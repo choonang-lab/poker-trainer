@@ -731,8 +731,8 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
   ok("M4 check regret == 3 bb", approx(m4check.result.regretBb, 3), `got ${m4check.result.regretBb}`);
   ok("M4 check -> m4.misses_street_sequence", m4check.result.leakTag === "m4.misses_street_sequence");
 
-  ok("STARTER_DRILLS now spans 27 drills incl M0/M3.5/M4/M5.6/P0/P1/P3/P4/P5",
-    STARTER_DRILLS.length === 27 &&
+  ok("STARTER_DRILLS now spans 31 drills incl M0/M3.5/M4/M5.6/P0/P1/P3/P4/P5",
+    STARTER_DRILLS.length === 31 &&
     ["M0", "M3.5", "M4", "M5.6", "P0", "P1", "P3", "P4", "P5"].every((m) => STARTER_DRILLS.some((d) => d.module === m)));
 
   // Check-raise-range drill: villain raises only what beats hero (policy + raise).
@@ -1147,6 +1147,28 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
   const p4g = gradeDrill(session, "p4-strong-multiway", { kind: "estimate", value: 0.99 }, 0);
   ok("P4 strong-multiway overestimate -> p4.overrates_field",
     p4g.result.leakTag === "p4.overrates_field" && (p4g.truth ?? 1) < 0.99, p4g.result.leakTag);
+
+  // M2: a set crushes an overpair (truth is high, ~0.9).
+  const setg = gradeDrill(session, "m2-set-vs-overpair", { kind: "estimate", value: 0.5 }, 0);
+  ok("M2 set underestimate -> m2.underestimates_equity",
+    setg.result.leakTag === "m2.underestimates_equity" && (setg.truth ?? 0) > 0.5, `${setg.result.leakTag} ${setg.truth}`);
+
+  // M3.5: turn semi-bluff (fold equity) -> betting is best; checking gives it up.
+  const m35t = byId("m35-turn-semibluff");
+  ok("M3.5 turn semi-bluff: best action is bet", bestAction(buildTree(m35t.state)).kind === "bet");
+  ok("M3.5 turn semi-bluff: checking -> m35.gives_up_fold_equity",
+    gradeDrill(session, m35t.id, { kind: "action", action: { kind: "check" } }, 0).result.leakTag === "m35.gives_up_fold_equity");
+
+  // P2: thin value vs a worse hand that calls -> betting is best.
+  const tv2 = byId("p2-thin-value");
+  ok("P2 thin value: best action is bet", bestAction(buildTree(tv2.state)).kind === "bet");
+  ok("P2 thin value: checking -> p2.misses_thin_value",
+    gradeDrill(session, tv2.id, { kind: "action", action: { kind: "check" } }, 0).result.leakTag === "p2.misses_thin_value");
+
+  // M5: bluff-catcher vs a polarized range.
+  const m5p = gradeDrill(session, "m5-polarized-range", { kind: "estimate", value: 0.95 }, 0);
+  ok("M5 polarized overestimate -> m5.overrates_vs_range",
+    m5p.result.leakTag === "m5.overrates_vs_range" && (m5p.truth ?? 1) < 0.95, m5p.result.leakTag);
 }
 
 // silence unused-import noise without weakening the public surface

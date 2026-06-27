@@ -23,7 +23,7 @@ game tree (L3). Build once, configure twice.
 
 ## Working discipline
 - The test suite is the guardrail. `node engine.test.ts` must stay green
-  (currently **70 passing, 0 failing**). Run it before changing anything and after every change.
+  (currently **254 passing, 0 failing**). Run it before changing anything and after every change.
 - Types are also enforced: `npx -p typescript tsc --noEmit` must stay clean (exit 0). This uses
   npx's cache — it adds NO dependency to the repo, keeping the engine a dependency-free ES module.
   `contract.conformance.ts` proves engine.ts matches every signature in contract.ts at compile time.
@@ -47,7 +47,7 @@ test red, stop and fix the leak — do NOT edit the test to make it pass.
 - DONE: L5 scheduling — pure SM-2 over `Result` (`resultQuality`, `newReview`, `scheduleReview`,
   `dueReviews`, `nextReview`); injected day-number `now`, no `Date.now()`.
 - DONE: L6 content model + session glue — `Drill`/`Session`/`GradeOutcome`, `STARTER_DRILLS`
-  (27 drills covering the FULL map M0–M6 + P0–P6, incl. M0 hand-reading [`ask:"category"`], P1 preflop,
+  (31 drills covering the FULL map M0–M6 + P0–P6, incl. M0 hand-reading [`ask:"category"`], P1 preflop,
   both M5.6 implied-odds variants, P0 villain-leads, P5 value-vs-raiser / thin-value / check-raise-range,
   P2 sizing, P3 3-bet-the-nuts, and depth across M0/M1/M2/M3/M5/P1/P4), pure
   `newSession`/`nextDrill`/`gradeDrill` loop, and a module-scoped leak taxonomy `classifyLeak`
@@ -85,11 +85,9 @@ test red, stop and fix the leak — do NOT edit the test to make it pass.
   only the combos that took it, narrowing AGAIN on later streets (multi-street). Policy combos can also
   fold/call/RAISE: the range splits PER ACTION (call→callers, raise→raisers) and hero faces the raise
   via the raise chain. Mixed strategies & weighted ranges were already supported. P5 thin-value +
-  check-raise-range drills showcase it. 27 drills.
+  check-raise-range drills showcase it. 31 drills.
 - NOTE: tags are module+suffix keyed. Each preflop drill costs ~3s. Raises are pot-sized (raiseCap ≤ 4).
 - NEXT options: optional web UI; more drills. The engine + curriculum are feature-complete.
-- KNOWN L3 LIMIT: the builder models villain as a fixed call/fold responder (no villain lead/raise,
-  so no hero-facing-bet nodes yet). `bestResponseEV` already supports those; extend the builder later.
 
 ## Known constraints (don't rediscover these)
 - **Preflop is now feasible (~3s for AA vs KK).** The direct rank-count/suit-bitmask `score7` replaced

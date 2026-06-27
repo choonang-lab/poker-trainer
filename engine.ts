@@ -1403,4 +1403,60 @@ export const STARTER_DRILLS: Drill[] = [
       abstraction: { sizes: [], streets: [], players: 3 },
     },
   },
+  {
+    id: "m2-set-vs-overpair",
+    module: "M2",
+    title: "Equity: a set crushes an overpair",
+    ask: "estimate",
+    state: {
+      heroHand: hand("7s", "7h"), board: hand("7d", "Kc", "2s"), // set of sevens
+      pot: 1, toAct: "hero",
+      villain: { range: [{ combo: hand("Ah", "Ad"), weight: 1 }] },
+      abstraction: { sizes: [], streets: [], players: 2 },
+    },
+  },
+  {
+    id: "m35-turn-semibluff",
+    module: "M3.5",
+    title: "Fold equity: semi-bluffing a flush draw on the turn",
+    ask: "action",
+    state: {
+      heroHand: hand("8s", "9s"), board: hand("As", "Ks", "4d", "Jc"), // flush draw, one to come
+      pot: 1, toAct: "hero",
+      villain: {
+        range: [{ combo: hand("Ah", "Td"), weight: 1 }],
+        strategy: (_s: NodeState, legal: Action[]) =>
+          legal.map((a) => ({ action: a, weight: a.kind === "fold" ? 0.6 : 0.4 })),
+      },
+      abstraction: { sizes: [1.0], streets: ["turn"], players: 2 },
+    },
+  },
+  {
+    id: "p2-thin-value",
+    module: "P2",
+    title: "Sizing: bet thin for value when a worse hand calls",
+    ask: "action",
+    state: {
+      heroHand: hand("As", "Js"), board: hand("Ad", "8c", "3h", "2s"), // top pair
+      pot: 1, toAct: "hero",
+      villain: {
+        range: [{ combo: hand("Qh", "Qc"), weight: 1 }], // worse; a station that calls
+        strategy: (_s: NodeState, legal: Action[]) =>
+          legal.map((a) => ({ action: a, weight: a.kind === "call" ? 1 : 0 })),
+      },
+      abstraction: { sizes: [1.0], streets: ["turn"], players: 2 },
+    },
+  },
+  {
+    id: "m5-polarized-range",
+    module: "M5",
+    title: "Equity vs a polarized range: a bluff-catcher vs nuts-or-air",
+    ask: "estimate",
+    state: {
+      heroHand: hand("Ks", "Kd"), board: hand("Qh", "7d", "2c"),
+      pot: 1, toAct: "hero",
+      villain: { range: [{ combo: hand("Ah", "Ad"), weight: 1 }, { combo: hand("Jh", "Th"), weight: 1 }] },
+      abstraction: { sizes: [], streets: [], players: 2 },
+    },
+  },
 ];

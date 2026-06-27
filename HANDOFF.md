@@ -21,7 +21,7 @@
   - **L5** scheduling — pure deterministic SM-2 over `Result` (`resultQuality`, `newReview`,
     `scheduleReview`, `dueReviews`, `nextReview`); `now` is an injected day-number for exact tests.
   - **L6** content model + session glue — `Drill`/`Session`/`GradeOutcome`, a `STARTER_DRILLS`
-    set of 27 covering the FULL map M0–M6 + P0–P6 (estimate + action + category, preflop & postflop,
+    set of 31 covering the FULL map M0–M6 + P0–P6 (estimate + action + category, preflop & postflop,
     pillar 1/2, single- & multi-street, multiway, exploit, implied odds, IP/OOP, hand-reading,
     value-vs-raiser, sizing, 3-bet/re-raise, range-narrowing [multi-street, policy raises], check-raise
     range, plus depth in M2/M5/P1), a pure `newSession`/`nextDrill`/`gradeDrill` loop, and a magnitude-aware module-scoped leak
@@ -33,7 +33,7 @@
   (minimal ambient `node:readline`/`node:fs` decls in `globals.d.ts`); not in the unit suite (it reads stdin).
   Persists progress to `$POKER_SAVE` (default `.poker-trainer.json`, git-ignored) via the pure engine
   primitives `serializeSession`/`loadSession`; `now` is a real day-number (override with `$POKER_NOW`).
-- **`engine.test.ts`** — 70 assertions, all passing. Exact/hand-checkable, not approximate:
+- **`engine.test.ts`** — 254 assertions, all passing. Exact/hand-checkable, not approximate:
   - full category ladder (high card → royal), wheel straight, kicker tiebreaks
   - `equity` against exact rationals: straight draw = **6/44**, drawing dead = **0**, chop = **0.5**, made hand = **1.0**
   - L3 identities: CHANCE-of-showdowns **==** `equity` (one-engine), cross-street tree **==** `equity`,
@@ -45,7 +45,7 @@
 
 ## Run it
 ```
-node engine.test.ts            # expect: 70 passed, 0 failed (Node strips types at runtime)
+node engine.test.ts            # expect: 254 passed, 0 failed (Node strips types at runtime)
 npx -p typescript tsc --noEmit  # expect: exit 0 (type-check; uses npx cache, adds NO repo dependency)
 node bench.ts                   # AA vs KK preflop = 82.64% in ~3s (was ~190s pre-fast-evaluator)
 node validate-evaluator.ts      # deep cross-check (500k hands) + fast-vs-slow perf (~70x)
@@ -60,19 +60,11 @@ range narrowing split per action). The engine is feature-complete.
 1. **More L6 drills** — more P1 preflop ranges (~3s each — keep few in the unit suite). Multi-street ~1s each.
 2. **Optional web UI** — adds a framework/build step (breaks dependency-free). The CLI already covers
    L7 end-to-end, with cross-run persistence + M6/P6 reports.
-3. **Optional web UI** — if a browser front-end is wanted later (would add a framework/build step and
-   break the dependency-free property). The CLI (`cli.ts`) already covers L7 end-to-end.
-   NOTE: the full vertical slice L1–L7 now runs end-to-end (engine → grading → scheduling → session → CLI).
-2. **Richer L3 builder (optional):** the current `buildTree` models villain as a fixed call/fold
-   responder (no villain lead/raise, hence no hero-facing-bet nodes yet). `bestResponseEV` already
-   supports HERO fold nodes — extend the builder to emit villain bets + hero responses when needed.
-3. **Performance:** a 3-street full-betting tree is ~seconds (chance fan-out); the abstraction budget
-   caps this at authoring time. Preflop equity still needs a faster evaluator (see below).
 
 ## Known issues / decisions to make (honest list)
 - **PERFORMANCE: RESOLVED.** The direct `score7` made preflop feasible — AA vs KK is now ~3s (was
-  ~190s). Cross-validated byte-identical to the old scan (`score7slow`) over 500k hands. Original note:
-  preflop enumeration on the 21-combo scan was ~190s for AA vs KK. Postflop (flop/turn/river) is instant — that's the trainer's actual use case — but any preflop-equity feature needs either a faster evaluator (lookup-table 7-card evaluator instead of the 21-combo `score5` scan) or precomputed preflop tables. Don't ship preflop equity on the current evaluator.
+  ~190s on the old 21-subset scan). Cross-validated byte-identical to `score7slow` over 500k hands, so
+  preflop drills now ship. A single preflop grade is still ~3s, so keep few preflop drills in the suite.
 - **`outs` is single-card-to-come only**, by design (outs blur against ranges / two streets). Don't extend it to ranges — switch to `equity` there, per the pillar-1 spec.
 - **The L3 abstraction budget is enforced at authoring time** — DONE via `validateAbstraction` /
   `ABSTRACTION_LIMITS` (caps sizes ≤ 4, streets ≤ 3, sizes × streets ≤ 9; rejects non-contiguous
