@@ -731,9 +731,20 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
   ok("M4 check regret == 3 bb", approx(m4check.result.regretBb, 3), `got ${m4check.result.regretBb}`);
   ok("M4 check -> m4.misses_street_sequence", m4check.result.leakTag === "m4.misses_street_sequence");
 
-  ok("STARTER_DRILLS now spans 22 drills incl M0/M3.5/M4/M5.6/P0/P1/P3/P4/P5",
-    STARTER_DRILLS.length === 22 &&
+  ok("STARTER_DRILLS now spans 23 drills incl M0/M3.5/M4/M5.6/P0/P1/P3/P4/P5",
+    STARTER_DRILLS.length === 23 &&
     ["M0", "M3.5", "M4", "M5.6", "P0", "P1", "P3", "P4", "P5"].every((m) => STARTER_DRILLS.some((d) => d.module === m)));
+
+  // Check-raise-range drill: villain raises only what beats hero (policy + raise).
+  const cr = byId("p5-vs-checkraise-range");
+  const crVill = buildTree(cr.state).children!.find((c) => c.action!.kind === "bet")!.node;
+  ok("check-raise range: villain node offers fold/call/raise", (crVill.children ?? []).length === 3);
+  ok("check-raise range: best action is check", bestAction(buildTree(cr.state)).kind === "check");
+  ok("check-raise range: betting EV ~ -0.2 (raised when behind, folds out the rest)",
+    approx(actionEVs(buildTree(cr.state)).find((e) => e.action.kind === "bet")!.ev, -0.2));
+  const crBet = gradeDrill(session, cr.id, { kind: "action", action: { kind: "bet", size: 1.0 } }, 0);
+  ok("check-raise range: betting -> p5.bets_into_strong_range",
+    crBet.result.regretBb > 0 && crBet.result.leakTag === "p5.bets_into_strong_range", crBet.result.leakTag);
 
   // Range-narrowing drill: betting runs into a strong calling range; check is best.
   const tv = byId("p5-thin-value-vs-range");

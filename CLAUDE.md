@@ -47,9 +47,9 @@ test red, stop and fix the leak — do NOT edit the test to make it pass.
 - DONE: L5 scheduling — pure SM-2 over `Result` (`resultQuality`, `newReview`, `scheduleReview`,
   `dueReviews`, `nextReview`); injected day-number `now`, no `Date.now()`.
 - DONE: L6 content model + session glue — `Drill`/`Session`/`GradeOutcome`, `STARTER_DRILLS`
-  (22 drills covering the FULL map M0–M6 + P0–P6, incl. M0 hand-reading [`ask:"category"`], P1 preflop,
-  both M5.6 implied-odds variants, P0 villain-leads, P5 value-vs-raiser & thin-value-vs-range, P2 sizing,
-  P3 3-bet-the-nuts, and added depth in M2/M5/P1), pure
+  (23 drills covering the FULL map M0–M6 + P0–P6, incl. M0 hand-reading [`ask:"category"`], P1 preflop,
+  both M5.6 implied-odds variants, P0 villain-leads, P5 value-vs-raiser / thin-value / check-raise-range,
+  P2 sizing, P3 3-bet-the-nuts, and added depth in M2/M5/P1), pure
   `newSession`/`nextDrill`/`gradeDrill` loop, and a module-scoped leak taxonomy `classifyLeak`
   (grade() emits structural tags; gradeDrill refines by module). `truth()` is field-aware
   (`fieldEquity`), so multiway (P4) estimate drills grade correctly. (Preflop grades enumerate a full
@@ -84,7 +84,8 @@ test red, stop and fix the leak — do NOT edit the test to make it pass.
 - DONE: range narrowing — `Villain.policy` (per-combo play); the showdown after a villain action reflects
   only the combos that took it, narrowing AGAIN on later streets (multi-street). Policy combos can also
   fold/call/RAISE: the range splits PER ACTION (call→callers, raise→raisers) and hero faces the raise
-  via the raise chain. Mixed strategies & weighted ranges were already supported. P5 thin-value drill. 22 drills.
+  via the raise chain. Mixed strategies & weighted ranges were already supported. P5 thin-value +
+  check-raise-range drills showcase it. 23 drills.
 - NOTE: tags are module+suffix keyed. Each preflop drill costs ~3s. Raises are pot-sized (raiseCap ≤ 4).
 - NEXT options: optional web UI; more drills. The engine + curriculum are feature-complete.
 - KNOWN L3 LIMIT: the builder models villain as a fixed call/fold responder (no villain lead/raise,

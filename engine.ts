@@ -1240,6 +1240,32 @@ export const STARTER_DRILLS: Drill[] = [
     },
   },
   {
+    id: "p5-vs-checkraise-range",
+    module: "P5",
+    title: "Don't bet into a check-raise range: villain raises only what beats you",
+    ask: "action",
+    // Villain raises monsters (sets / AK, all beat AJ) and folds QQ/JT. Betting gets
+    // raised exactly when behind and folds out the hands you beat (EV -0.2);
+    // checking shows down vs the full range (EV ~0.41). Showcases policy + raise.
+    state: {
+      heroHand: hand("As", "Js"), board: hand("Ad", "8c", "3h", "2s"),
+      pot: 1, toAct: "hero",
+      villain: {
+        range: [{ combo: hand("8d", "8h"), weight: 1 }, { combo: hand("3d", "3c"), weight: 1 },
+                { combo: hand("Ah", "Kh"), weight: 1 }, { combo: hand("Qh", "Qc"), weight: 1 },
+                { combo: hand("Jh", "Th"), weight: 1 }],
+        policy: (combo: Combo) => {
+          const a = rankOf(combo[0]), b = rankOf(combo[1]);
+          const monster = (a === b && (a === 8 || a === 3)) || (a === 14 && b === 13) || (a === 13 && b === 14);
+          return [{ action: { kind: "fold" }, weight: monster ? 0 : 1 },
+                  { action: { kind: "call" }, weight: 0 },
+                  { action: { kind: "bet", size: 1 }, weight: monster ? 1 : 0 }];
+        },
+      },
+      abstraction: { sizes: [1.0], streets: ["turn"], players: 2, raiseCap: 1 },
+    },
+  },
+  {
     id: "p5-thin-value-vs-range",
     module: "P5",
     title: "Range narrowing: don't bet thin into a strong calling range",
