@@ -524,17 +524,26 @@ function chanceExclusions(ctx: Ctx): Set<Card> {
 // raise that the opponent then faces. Alternating actors; capped depth. Unifies
 // fold/call (cap 0), villain raise (cap 1), and re-raises (cap >= 2). `facing` is
 // the amount `actor` must call; `pot` is the pot before `actor` acts.
-// Villain faces a bet with a PER-COMBO policy: fold/call, with the showdown range
-// narrowed to the combos that call (range narrowing). v1: fold/call, no raise.
-function villainPolicyNode(ctx: Ctx, pot: number, facing: number, heroInvested: number, rest: ("flop" | "turn" | "river")[]): TreeNode {
+// Villain faces a bet with a PER-COMBO policy: fold/call/raise, with the range
+// narrowed PER ACTION (callers vs raisers) and re-narrowed on later streets. If a
+// combo raises, hero then faces that raise (fold/call/re-raise) against the
+// raise-narrowed range. Policy is kept downstream for multi-street narrowing.
+function villainPolicyNode(
+  ctx: Ctx, pot: number, facing: number, heroInvested: number, raisesLeft: number, rest: ("flop" | "turn" | "river")[],
+): TreeNode {
   const policy = ctx.villain.policy as RangePolicy;
   const baseState = nodeState({ ...ctx, pot }, { toAct: "villain" });
-  const legal: Action[] = [{ kind: "fold" }, { kind: "call" }];
+  const raiseBy = pot + facing;                 // pot-sized raise (the pot after a call)
+  const raiseSize = raiseBy / ctx.pot;
+  const legal: Action[] = raisesLeft > 0
+    ? [{ kind: "fold" }, { kind: "call" }, { kind: "bet", size: raiseSize }]
+    : [{ kind: "fold" }, { kind: "call" }];
   const prob = (dist: { action: Action; weight: number }[], kind: Action["kind"]): number =>
     dist.reduce((w, d) => w + (d.action.kind === kind ? d.weight : 0), 0);
   const blocked = new Set<Card>([...(ctx.heroHand ?? []), ...ctx.board]);
-  let foldW = 0, callW = 0;
+  let foldW = 0, callW = 0, raiseW = 0;
   const callRange: { combo: Combo; weight: number }[] = [];
+  const raiseRange: { combo: Combo; weight: number }[] = [];
   for (const { combo, weight } of ctx.villain.range) {
     if (combo.some((c) => blocked.has(c))) continue;          // impossible given hero+board
     const dist = policy(combo, baseState, legal);
@@ -542,23 +551,29 @@ function villainPolicyNode(ctx: Ctx, pot: number, facing: number, heroInvested: 
     const pc = prob(dist, "call");
     callW += weight * pc;
     if (pc > 0) callRange.push({ combo, weight: weight * pc });
+    const pr = prob(dist, "bet");
+    raiseW += weight * pr;
+    if (pr > 0) raiseRange.push({ combo, weight: weight * pr });
   }
-  const total = foldW + callW || 1;
+  const total = foldW + callW + raiseW || 1;
   const strat: NodeStrategy = (_s, lg) => lg.map((a) => ({
-    action: a, weight: a.kind === "fold" ? foldW / total : a.kind === "call" ? callW / total : 0,
+    action: a,
+    weight: a.kind === "fold" ? foldW / total : a.kind === "call" ? callW / total : a.kind === "bet" ? raiseW / total : 0,
   }));
-  // Keep the policy so the (now-narrowed) range narrows again on later streets.
-  const condVillain: Villain = { range: callRange, policy: ctx.villain.policy };
-  const callCtx: Ctx = { ...ctx, pot: pot + facing, heroInvested, villain: condVillain };
-  return {
-    kind: "VILL",
-    state: { ...baseState, villain: { ...ctx.villain, strategy: strat } },
-    children: [
-      { action: { kind: "fold" },
-        node: { kind: "TERM", state: baseState, terminal: { type: "fold", folder: "villain", heroInvested } } },
-      { action: { kind: "call" }, node: advance(callCtx, rest) },
-    ],
-  };
+  const children: { action?: Action; node: TreeNode }[] = [
+    { action: { kind: "fold" },
+      node: { kind: "TERM", state: baseState, terminal: { type: "fold", folder: "villain", heroInvested } } },
+    { action: { kind: "call" },
+      node: advance({ ...ctx, pot: pot + facing, heroInvested, villain: { range: callRange, policy } }, rest) },
+  ];
+  if (raisesLeft > 0 && raiseW > 0) {
+    // Villain raises (pot-sized) with the raise-narrowed range; hero faces it.
+    const raisePot = pot + facing + raiseBy;
+    const heroFaces = raiseNode("hero", { ...ctx, villain: { range: raiseRange, policy } },
+      raisePot, raiseBy, heroInvested, raisesLeft - 1, rest);
+    children.push({ action: { kind: "bet", size: raiseSize }, node: heroFaces });
+  }
+  return { kind: "VILL", state: { ...baseState, villain: { ...ctx.villain, strategy: strat } }, children };
 }
 
 function raiseNode(
@@ -566,7 +581,7 @@ function raiseNode(
   heroInvested: number, raisesLeft: number, rest: ("flop" | "turn" | "river")[],
 ): TreeNode {
   if (actor === "villain" && ctx.villain.policy)
-    return villainPolicyNode(ctx, pot, facing, heroInvested, rest);
+    return villainPolicyNode(ctx, pot, facing, heroInvested, raisesLeft, rest);
   const state = nodeState({ ...ctx, pot }, { toAct: actor });
   const children: { action?: Action; node: TreeNode }[] = [
     { action: { kind: "fold" },

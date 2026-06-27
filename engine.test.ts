@@ -1077,6 +1077,38 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
     turnCheck.state.villain.range.length === 2);
 }
 
+// ---------- Policy villain that also raises (narrowing + raise chain) ----------
+{
+  // AA raises, KK calls, trash folds -> the range splits by action: call -> {KK},
+  // raise -> {AA}. Hero then faces the raise against {AA}.
+  const policy: RangePolicy = (combo) => {
+    const r0 = rankOf(combo[0]), r1 = rankOf(combo[1]);
+    const isAA = r0 === 14 && r1 === 14;
+    const isKK = r0 === 13 && r1 === 13;
+    return [{ action: { kind: "fold" }, weight: isAA || isKK ? 0 : 1 },
+            { action: { kind: "call" }, weight: isKK ? 1 : 0 },
+            { action: { kind: "bet", size: 1 }, weight: isAA ? 1 : 0 }]; // size ignored (matched by kind)
+  };
+  const state: State = {
+    heroHand: hand("Js", "Ts"), board: hand("9h", "8h", "2c", "3s"), pot: 1, toAct: "hero",
+    villain: { range: [{ combo: hand("Ac", "Ad"), weight: 1 }, { combo: hand("Kc", "Kd"), weight: 1 },
+                       { combo: hand("7s", "5s"), weight: 1 }], policy },
+    abstraction: { sizes: [1.0], streets: ["turn"], players: 2, raiseCap: 1 },
+  };
+  const vill = buildTree(state).children!.find((c) => c.action!.kind === "bet")!.node;
+  ok("policy villain can fold/call/raise (3 actions)", (vill.children ?? []).length === 3);
+
+  const callShow = vill.children!.find((c) => c.action!.kind === "call")!.node; // showdown
+  ok("call line narrows to the callers {KK}",
+    callShow.state.villain.range.length === 1 && rankOf(callShow.state.villain.range[0].combo[0]) === 13);
+
+  const heroFacesRaise = vill.children!.find((c) => c.action!.kind === "bet")!.node; // HERO faces the raise
+  ok("hero faces the raise (fold/call)", heroFacesRaise.kind === "HERO" && (heroFacesRaise.children ?? []).length === 2);
+  const raiseShow = heroFacesRaise.children!.find((c) => c.action!.kind === "call")!.node; // showdown
+  ok("raise line narrows to the raisers {AA}",
+    raiseShow.state.villain.range.length === 1 && rankOf(raiseShow.state.villain.range[0].combo[0]) === 14);
+}
+
 // silence unused-import noise without weakening the public surface
 void [parseCard, card, ABSTRACTION_LIMITS];
 

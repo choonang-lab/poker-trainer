@@ -23,8 +23,8 @@
   - **L6** content model + session glue — `Drill`/`Session`/`GradeOutcome`, a `STARTER_DRILLS`
     set of 22 covering the FULL map M0–M6 + P0–P6 (estimate + action + category, preflop & postflop,
     pillar 1/2, single- & multi-street, multiway, exploit, implied odds, IP/OOP, hand-reading,
-    value-vs-raiser, sizing, 3-bet/re-raise, range-narrowing [now multi-street], plus depth in M2/M5/P1),
-    a pure `newSession`/`nextDrill`/`gradeDrill` loop, and a magnitude-aware module-scoped leak
+    value-vs-raiser, sizing, 3-bet/re-raise, range-narrowing [multi-street, with policy raises], plus
+    depth in M2/M5/P1), a pure `newSession`/`nextDrill`/`gradeDrill` loop, and a magnitude-aware module-scoped leak
     taxonomy `classifyLeak` (grade() emits structural tags; gradeDrill refines them into named
     curriculum leaks, e.g. `m5.overrates_vs_range`, with module-scoped fallbacks). `truth()` is
     field-aware (`fieldEquity`) so multiway (P4) estimate drills grade against the field, not heads-up.
@@ -55,11 +55,11 @@ node cli.ts                     # smoke (grades a few drills, exits at EOF): pri
 ## What Claude Code builds next (in priority order)
 Every module M0–M6 + P0–P6 has a drill; the engine spans the full betting-tree space (hero-aggressor,
 villain-leads, hero-faces-bet, raises with hero re-raises, multi-street, multiway) and villain modeling
-(fixed/mixed strategies, weighted ranges, per-combo policies with MULTI-STREET range narrowing).
-1. **Policy villains that also raise** — `Villain.policy` nodes are fold/call; let policy combos raise
-   (combine range narrowing with the raise chain) for check-raise/3-bet range spots.
-2. **More L6 drills** — more P1 preflop ranges (~3s each — keep few in the unit suite). Multi-street ~1s each.
-3. **Optional web UI** — adds a framework/build step (breaks dependency-free). The CLI already covers
+(fixed/mixed strategies, weighted ranges, per-combo policies that fold/call/raise with multi-street
+range narrowing split per action). The engine is feature-complete.
+1. **More L6 drills** — more P1 preflop ranges (~3s each — keep few in the unit suite). Multi-street ~1s each.
+   A policy-raise (check-raise range) content drill would showcase the latest mechanic.
+2. **Optional web UI** — adds a framework/build step (breaks dependency-free). The CLI already covers
    L7 end-to-end, with cross-run persistence + M6/P6 reports.
 3. **Optional web UI** — if a browser front-end is wanted later (would add a framework/build step and
    break the dependency-free property). The CLI (`cli.ts`) already covers L7 end-to-end.
