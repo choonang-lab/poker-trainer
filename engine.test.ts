@@ -2,7 +2,7 @@
 import {
   score5, score7, score7slow, cmpScore, equity, equityVsRange, outs,
   breakEven, callEV, decisionRegret, regret, estimateError, withinBand, brier, calibration, leakReport,
-  hand, parseCard, card, FULL_DECK,
+  hand, parseCard, card, rankOf, FULL_DECK,
   equityLeaf, bestResponseEV, bestAction, truth, buildTree, realizationFactor,
   fieldEquity, validateAbstraction, ABSTRACTION_LIMITS,
   actionEVs, grade,
@@ -10,7 +10,7 @@ import {
   STARTER_DRILLS, newSession, nextDrill, gradeDrill, classifyLeak,
   serializeSession, loadSession,
 } from "./engine.ts";
-import type { State, NodeState, Action, TreeNode, Abstraction, Response, Result, Review, Drill, Score } from "./contract.ts";
+import type { State, NodeState, Action, TreeNode, Abstraction, Response, Result, Review, Drill, Score, RangePolicy } from "./contract.ts";
 
 let pass = 0, fail = 0;
 const approx = (a: number | null, b: number, eps = 1e-9): boolean => a !== null && Math.abs(a - b) < eps;
@@ -731,9 +731,20 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
   ok("M4 check regret == 3 bb", approx(m4check.result.regretBb, 3), `got ${m4check.result.regretBb}`);
   ok("M4 check -> m4.misses_street_sequence", m4check.result.leakTag === "m4.misses_street_sequence");
 
-  ok("STARTER_DRILLS now spans 21 drills incl M0/M3.5/M4/M5.6/P0/P1/P3/P4/P5",
-    STARTER_DRILLS.length === 21 &&
+  ok("STARTER_DRILLS now spans 22 drills incl M0/M3.5/M4/M5.6/P0/P1/P3/P4/P5",
+    STARTER_DRILLS.length === 22 &&
     ["M0", "M3.5", "M4", "M5.6", "P0", "P1", "P3", "P4", "P5"].every((m) => STARTER_DRILLS.some((d) => d.module === m)));
+
+  // Range-narrowing drill: betting runs into a strong calling range; check is best.
+  const tv = byId("p5-thin-value-vs-range");
+  ok("range narrowing: best action is check", bestAction(buildTree(tv.state)).kind === "check");
+  const betThin = gradeDrill(session, tv.id, { kind: "action", action: { kind: "bet", size: 1.0 } }, 0);
+  ok("range narrowing: betting thin -> p5.bets_into_strong_range",
+    betThin.result.regretBb > 0 && betThin.result.leakTag === "p5.bets_into_strong_range", betThin.result.leakTag);
+  ok("range narrowing: check shows down vs the FULL range (no narrowing on a check)",
+    approx(actionEVs(buildTree(tv.state)).find((e) => e.action.kind === "check")!.ev,
+      equityVsRange(hand("As", "Js"), hand("Ad", "8c", "3h", "2s"),
+        [{ combo: hand("Ah", "Kh"), weight: 1 }, { combo: hand("Qh", "Qc"), weight: 1 }]) ?? -1));
 
   // Deeper raise trees: 3-bet the nuts at the root (heroFacesBet + raiseCap 1).
   const tb = byId("p3-3bet-the-nuts");
@@ -995,6 +1006,40 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
   ok("leakReport mean regret per leak", approx(r.leaks[0].meanRegret, 0.5));
   ok("leakReport keeps zero-regret leaks last",
     r.leaks[1].leakTag === "p2.misses_thin_value" && r.leaks[2].leakTag === "m5.overrates_vs_range");
+}
+
+// ---------- Range narrowing: per-combo villain policy ----------
+{
+  // Villain calls only with aces, folds everything else -> a call means his range
+  // is just the aces (the showdown narrows accordingly).
+  const policy: RangePolicy = (combo) => {
+    const hasAce = rankOf(combo[0]) === 14 || rankOf(combo[1]) === 14;
+    return [{ action: { kind: "fold" }, weight: hasAce ? 0 : 1 },
+            { action: { kind: "call" }, weight: hasAce ? 1 : 0 }];
+  };
+  const state: State = {
+    heroHand: hand("Ks", "Qs"), board: hand("Ah", "7d", "2c", "3s"), pot: 1, toAct: "hero",
+    villain: { range: [{ combo: hand("Ac", "Ad"), weight: 1 }, { combo: hand("7h", "5h"), weight: 1 }], policy },
+    abstraction: { sizes: [1.0], streets: ["turn"], players: 2 },
+  };
+  const tree = buildTree(state);
+  const vill = tree.children!.find((c) => c.action!.kind === "bet")!.node;
+  ok("policy villain -> VILL with fold/call", vill.kind === "VILL" && (vill.children ?? []).length === 2);
+
+  const callChild = vill.children!.find((c) => c.action!.kind === "call")!.node;
+  ok("call line range NARROWS to the calling combos (aces only)",
+    callChild.state.villain.range.length === 1 &&
+    (rankOf(callChild.state.villain.range[0].combo[0]) === 14 || rankOf(callChild.state.villain.range[0].combo[1]) === 14));
+
+  const dist = vill.state.villain.strategy!(vill.state, [{ kind: "fold" }, { kind: "call" }]);
+  ok("policy aggregates to fold 0.5 / call 0.5",
+    approx(dist.find((d) => d.action.kind === "fold")!.weight, 0.5) &&
+    approx(dist.find((d) => d.action.kind === "call")!.weight, 0.5));
+
+  // The call-line showdown uses ONLY the calling range (vs aces), not the full range.
+  const showdown = callChild; // single street -> call leads straight to the showdown leaf
+  ok("call showdown equity = vs the narrowed range (aces), not the full range",
+    approx(equityLeaf(showdown.state) ?? -1, equity(hand("Ks", "Qs"), hand("Ah", "7d", "2c", "3s"), hand("Ac", "Ad"))));
 }
 
 // silence unused-import noise without weakening the public surface

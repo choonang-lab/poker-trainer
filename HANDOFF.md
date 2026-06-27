@@ -21,10 +21,10 @@
   - **L5** scheduling — pure deterministic SM-2 over `Result` (`resultQuality`, `newReview`,
     `scheduleReview`, `dueReviews`, `nextReview`); `now` is an injected day-number for exact tests.
   - **L6** content model + session glue — `Drill`/`Session`/`GradeOutcome`, a `STARTER_DRILLS`
-    set of 21 covering the FULL map M0–M6 + P0–P6 (estimate + action + category, preflop & postflop,
-    pillar 1/2, single- & multi-street, multiway, exploit, implied odds [effective-pot + true via
-    `heroFacesBet`], IP/OOP, hand-reading, value-vs-raiser, sizing, 3-bet/re-raise, plus depth in
-    M2/M5/P1), a pure `newSession`/`nextDrill`/`gradeDrill` loop, and a magnitude-aware module-scoped leak
+    set of 22 covering the FULL map M0–M6 + P0–P6 (estimate + action + category, preflop & postflop,
+    pillar 1/2, single- & multi-street, multiway, exploit, implied odds, IP/OOP, hand-reading,
+    value-vs-raiser, sizing, 3-bet/re-raise, range-narrowing, plus depth in M2/M5/P1), a pure
+    `newSession`/`nextDrill`/`gradeDrill` loop, and a magnitude-aware module-scoped leak
     taxonomy `classifyLeak` (grade() emits structural tags; gradeDrill refines them into named
     curriculum leaks, e.g. `m5.overrates_vs_range`, with module-scoped fallbacks). `truth()` is
     field-aware (`fieldEquity`) so multiway (P4) estimate drills grade against the field, not heads-up.
@@ -53,11 +53,11 @@ node cli.ts                     # smoke (grades a few drills, exits at EOF): pri
 ```
 
 ## What Claude Code builds next (in priority order)
-Every module M0–M6 + P0–P6 now has a drill; the engine spans the full betting-tree space
-(hero-aggressor, villain-leads, hero-faces-bet, raises up to `raiseCap` with hero re-raises,
-multi-street, multiway).
-1. **Mixed villain ranges / strategies** — node-dependent or range-weighted villain play for richer
-   exploit/balance (P5) spots; non-pot-sized raise abstraction.
+Every module M0–M6 + P0–P6 has a drill; the engine spans the full betting-tree space (hero-aggressor,
+villain-leads, hero-faces-bet, raises with hero re-raises, multi-street, multiway) and villain modeling
+(fixed/mixed strategies, weighted ranges, per-combo policies with range narrowing).
+1. **Multi-street range narrowing** — extend `Villain.policy` past the v1 (single villain bet-facing
+   node, fold/call) so narrowed ranges thread through later streets and raises.
 2. **More L6 drills** — more P1 preflop ranges (~3s each — keep few in the unit suite). Multi-street ~1s each.
 3. **Optional web UI** — adds a framework/build step (breaks dependency-free). The CLI already covers
    L7 end-to-end, with cross-run persistence + M6/P6 reports.

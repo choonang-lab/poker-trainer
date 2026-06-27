@@ -47,9 +47,9 @@ test red, stop and fix the leak — do NOT edit the test to make it pass.
 - DONE: L5 scheduling — pure SM-2 over `Result` (`resultQuality`, `newReview`, `scheduleReview`,
   `dueReviews`, `nextReview`); injected day-number `now`, no `Date.now()`.
 - DONE: L6 content model + session glue — `Drill`/`Session`/`GradeOutcome`, `STARTER_DRILLS`
-  (21 drills covering the FULL map M0–M6 + P0–P6, incl. M0 hand-reading [`ask:"category"`], P1 preflop,
-  both M5.6 implied-odds variants, P0 villain-leads, P5 value-vs-raiser, P2 sizing, P3 3-bet-the-nuts,
-  and added depth in M2/M5/P1), pure
+  (22 drills covering the FULL map M0–M6 + P0–P6, incl. M0 hand-reading [`ask:"category"`], P1 preflop,
+  both M5.6 implied-odds variants, P0 villain-leads, P5 value-vs-raiser & thin-value-vs-range, P2 sizing,
+  P3 3-bet-the-nuts, and added depth in M2/M5/P1), pure
   `newSession`/`nextDrill`/`gradeDrill` loop, and a module-scoped leak taxonomy `classifyLeak`
   (grade() emits structural tags; gradeDrill refines by module). `truth()` is field-aware
   (`fieldEquity`), so multiway (P4) estimate drills grade correctly. (Preflop grades enumerate a full
@@ -80,11 +80,13 @@ test red, stop and fix the leak — do NOT edit the test to make it pass.
 - DONE: magnitude-aware leak tagger — the action tag compares the chosen action to the BEST action, so
   a too-small bet tags as `underbet`, and flatting when raising was best tags as `passive`. Unlocked a
   P2 sizing drill and the P3 3-bet drill.
-- DONE: deeper raise trees — recursive `raiseNode` + `raiseCap` (re-raises up to a cap); P3 3-bet drill
-  (raise EV 5 vs flat 2). 21 drills total.
-- NOTE: tags are module+suffix keyed (two drills in a module share a suffix's tag). Each preflop drill
-  costs ~3s in the suite. raises are pot-sized only; raiseCap is capped at 4 to bound the tree.
-- NEXT options: mixed villain ranges; optional web UI. The trainer is feature-complete.
+- DONE: deeper raise trees — recursive `raiseNode` + `raiseCap` (re-raises up to a cap); P3 3-bet drill.
+- DONE: range narrowing — `Villain.policy` (per-combo play); the showdown after a villain action reflects
+  only the combos that took it. Mixed strategies & weighted ranges were already supported. P5
+  thin-value-vs-range drill (check ~0.51 beats betting ~0.10 into an AK-only calling range). 22 drills.
+- NOTE: tags are module+suffix keyed. Each preflop drill costs ~3s. Raises are pot-sized (raiseCap ≤ 4).
+  Range narrowing is v1: a villain bet-facing node, fold/call, single street.
+- NEXT options: optional web UI; multi-street range narrowing. The trainer is feature-complete.
 - KNOWN L3 LIMIT: the builder models villain as a fixed call/fold responder (no villain lead/raise,
   so no hero-facing-bet nodes yet). `bestResponseEV` already supports those; extend the builder later.
 

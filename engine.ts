@@ -10,6 +10,7 @@ import type {
   Card, Score, Board, Combo, Range, Villain, Abstraction, State,
   Action, NodeState, NodeStrategy, Terminal, TreeNode, Response, Result, Review,
   Drill, Session, GradeOutcome, CalibrationBucket, CalibrationReport, LeakStat, LeakReport,
+  RangePolicy,
 } from "./contract.ts";
 
 export const RANKS = [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14];
@@ -523,10 +524,46 @@ function chanceExclusions(ctx: Ctx): Set<Card> {
 // raise that the opponent then faces. Alternating actors; capped depth. Unifies
 // fold/call (cap 0), villain raise (cap 1), and re-raises (cap >= 2). `facing` is
 // the amount `actor` must call; `pot` is the pot before `actor` acts.
+// Villain faces a bet with a PER-COMBO policy: fold/call, with the showdown range
+// narrowed to the combos that call (range narrowing). v1: fold/call, no raise.
+function villainPolicyNode(ctx: Ctx, pot: number, facing: number, heroInvested: number, rest: ("flop" | "turn" | "river")[]): TreeNode {
+  const policy = ctx.villain.policy as RangePolicy;
+  const baseState = nodeState({ ...ctx, pot }, { toAct: "villain" });
+  const legal: Action[] = [{ kind: "fold" }, { kind: "call" }];
+  const prob = (dist: { action: Action; weight: number }[], kind: Action["kind"]): number =>
+    dist.reduce((w, d) => w + (d.action.kind === kind ? d.weight : 0), 0);
+  let foldW = 0, callW = 0;
+  const callRange: { combo: Combo; weight: number }[] = [];
+  for (const { combo, weight } of ctx.villain.range) {
+    const dist = policy(combo, baseState, legal);
+    foldW += weight * prob(dist, "fold");
+    const pc = prob(dist, "call");
+    callW += weight * pc;
+    if (pc > 0) callRange.push({ combo, weight: weight * pc });
+  }
+  const total = foldW + callW || 1;
+  const strat: NodeStrategy = (_s, lg) => lg.map((a) => ({
+    action: a, weight: a.kind === "fold" ? foldW / total : a.kind === "call" ? callW / total : 0,
+  }));
+  const condVillain: Villain = { range: callRange };          // narrowed; no policy downstream
+  const callCtx: Ctx = { ...ctx, pot: pot + facing, heroInvested, villain: condVillain };
+  return {
+    kind: "VILL",
+    state: { ...baseState, villain: { ...ctx.villain, strategy: strat } },
+    children: [
+      { action: { kind: "fold" },
+        node: { kind: "TERM", state: baseState, terminal: { type: "fold", folder: "villain", heroInvested } } },
+      { action: { kind: "call" }, node: advance(callCtx, rest) },
+    ],
+  };
+}
+
 function raiseNode(
   actor: "hero" | "villain", ctx: Ctx, pot: number, facing: number,
   heroInvested: number, raisesLeft: number, rest: ("flop" | "turn" | "river")[],
 ): TreeNode {
+  if (actor === "villain" && ctx.villain.policy)
+    return villainPolicyNode(ctx, pot, facing, heroInvested, rest);
   const state = nodeState({ ...ctx, pot }, { toAct: actor });
   const children: { action?: Action; node: TreeNode }[] = [
     { action: { kind: "fold" },
@@ -855,6 +892,7 @@ const LEAK_TABLE: Record<string, string> = {
   "P4:overestimate": "p4.overrates_field",
   "P4:underestimate": "p4.underrates_field",
   "P5:missed_bet": "p5.misses_exploit",
+  "P5:overbet": "p5.bets_into_strong_range",
 };
 
 // Refine grade()'s structural tag (e.g. "p1.overfold") into a curriculum leak
@@ -1181,6 +1219,28 @@ export const STARTER_DRILLS: Drill[] = [
           legal.map((a) => ({ action: a, weight: a.kind === "call" ? 1 : 0 })),
       },
       abstraction: { sizes: [0.5, 1.0], streets: ["turn"], players: 2 },
+    },
+  },
+  {
+    id: "p5-thin-value-vs-range",
+    module: "P5",
+    title: "Range narrowing: don't bet thin into a strong calling range",
+    ask: "action",
+    // Villain calls only with AK (which beats AJ) and folds QQ. So betting gets
+    // called only when behind (range narrows); checking shows down vs the full
+    // range and wins vs QQ. Check (EV ~0.51) beats betting (~0.10).
+    state: {
+      heroHand: hand("As", "Js"), board: hand("Ad", "8c", "3h", "2s"),
+      pot: 1, toAct: "hero",
+      villain: {
+        range: [{ combo: hand("Ah", "Kh"), weight: 1 }, { combo: hand("Qh", "Qc"), weight: 1 }],
+        policy: (combo: Combo) => {
+          const hasKing = rankOf(combo[0]) === 13 || rankOf(combo[1]) === 13;
+          return [{ action: { kind: "fold" }, weight: hasKing ? 0 : 1 },
+                  { action: { kind: "call" }, weight: hasKing ? 1 : 0 }];
+        },
+      },
+      abstraction: { sizes: [1.0], streets: ["turn"], players: 2 },
     },
   },
   {

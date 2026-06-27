@@ -48,7 +48,15 @@ export declare function brier(samples: { estimate: number; truth: number }[]): n
 export interface Villain {
   range: Range;
   strategy?: NodeStrategy;          // undefined ⇒ pillar-1 mode (no betting model)
+  policy?: RangePolicy;             // per-combo play ⇒ the showdown range NARROWS by action
+                                    // (e.g. villain calls AA / folds 72 ⇒ a call means AA). v1:
+                                    // applied at a villain bet-facing node (fold/call), single street.
 }
+
+// How a SPECIFIC villain combo plays at a node. Drives range narrowing: the EV
+// weight of an action is Σ combo.weight·policy(combo)→a, and that action's child
+// carries only the combos that took it.
+export type RangePolicy = (combo: Combo, state: NodeState, legal: Action[]) => { action: Action; weight: number }[];
 
 // Abstraction is set by pillar 2; empty ⇒ pillar-1 mode (pure equity, no tree).
 export interface Abstraction {
