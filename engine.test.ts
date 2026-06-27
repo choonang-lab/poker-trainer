@@ -731,9 +731,25 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
   ok("M4 check regret == 3 bb", approx(m4check.result.regretBb, 3), `got ${m4check.result.regretBb}`);
   ok("M4 check -> m4.misses_street_sequence", m4check.result.leakTag === "m4.misses_street_sequence");
 
-  ok("STARTER_DRILLS now spans 19 drills incl M0/M3.5/M4/M5.6/P0/P1/P3/P4/P5",
-    STARTER_DRILLS.length === 19 &&
+  ok("STARTER_DRILLS now spans 20 drills incl M0/M3.5/M4/M5.6/P0/P1/P3/P4/P5",
+    STARTER_DRILLS.length === 20 &&
     ["M0", "M3.5", "M4", "M5.6", "P0", "P1", "P3", "P4", "P5"].every((m) => STARTER_DRILLS.some((d) => d.module === m)));
+
+  // Magnitude-aware tagger: a sizing drill distinguishes under- from over-betting.
+  const sz = byId("p2-size-up-nuts");
+  const szEvs = actionEVs(buildTree(sz.state));
+  ok("sizing: bigger bet is best (EV 2 > 1.5 > check 1)",
+    szEvs.find((e) => e.action.kind === "bet" && e.action.size === 1.0)!.ev === 2 &&
+    szEvs.find((e) => e.action.kind === "bet" && e.action.size === 0.5)!.ev === 1.5 &&
+    szEvs.find((e) => e.action.kind === "check")!.ev === 1);
+  const small = gradeDrill(session, sz.id, { kind: "action", action: { kind: "bet", size: 0.5 } }, 0);
+  ok("sizing: under-bet -> p2.bets_too_small (regret 0.5)",
+    small.result.regretBb === 0.5 && small.result.leakTag === "p2.bets_too_small",
+    `${small.result.regretBb} ${small.result.leakTag}`);
+  const big = gradeDrill(session, sz.id, { kind: "action", action: { kind: "bet", size: 1.0 } }, 0);
+  ok("sizing: best size -> regret 0, p2.ok", big.result.regretBb === 0 && big.result.leakTag === "p2.ok");
+  const chk = gradeDrill(session, sz.id, { kind: "action", action: { kind: "check" } }, 0);
+  ok("sizing: checking the nuts -> p2.misses_thin_value", chk.result.leakTag === "p2.misses_thin_value");
 
   // Added module depth: M2 big-draw, M5 wider range (cheap), P1 race (preflop).
   const m2c = gradeDrill(session, "m2-combo-draw", { kind: "estimate", value: 0.95 }, 0);

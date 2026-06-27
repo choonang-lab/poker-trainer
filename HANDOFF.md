@@ -21,10 +21,10 @@
   - **L5** scheduling — pure deterministic SM-2 over `Result` (`resultQuality`, `newReview`,
     `scheduleReview`, `dueReviews`, `nextReview`); `now` is an injected day-number for exact tests.
   - **L6** content model + session glue — `Drill`/`Session`/`GradeOutcome`, a `STARTER_DRILLS`
-    set of 19 covering the FULL map M0–M6 + P0–P6 (estimate + action + category, preflop & postflop,
+    set of 20 covering the FULL map M0–M6 + P0–P6 (estimate + action + category, preflop & postflop,
     pillar 1/2, single- & multi-street, multiway, exploit, implied odds [effective-pot + true via
-    `heroFacesBet`], IP/OOP, hand-reading, value-vs-raiser, plus depth in M2/M5/P1), a pure
-    `newSession`/`nextDrill`/`gradeDrill` loop, and a module-scoped leak
+    `heroFacesBet`], IP/OOP, hand-reading, value-vs-raiser, sizing, plus depth in M2/M5/P1), a pure
+    `newSession`/`nextDrill`/`gradeDrill` loop, and a magnitude-aware module-scoped leak
     taxonomy `classifyLeak` (grade() emits structural tags; gradeDrill refines them into named
     curriculum leaks, e.g. `m5.overrates_vs_range`, with module-scoped fallbacks). `truth()` is
     field-aware (`fieldEquity`) so multiway (P4) estimate drills grade against the field, not heads-up.
@@ -55,13 +55,11 @@ node cli.ts                     # smoke (grades a few drills, exits at EOF): pri
 ## What Claude Code builds next (in priority order)
 Every module M0–M6 + P0–P6 now has a drill; the engine spans the full betting-tree space
 (hero-aggressor, villain-leads, hero-faces-bet, villain-raises [one raise], multi-street, multiway).
-1. **Magnitude-aware leak tagger** — the taxonomy is module-level (classifyLeak keys on
-   module+structural-suffix), so two drills in a module share its tags and under-/over-sizing both tag
-   as "overbet". A direction/magnitude-aware tagger would unlock clean P2 sizing-choice & M1 blocker drills.
-2. **Deeper raise trees** — hero re-raise / multi-raise wars (currently capped at one villain raise);
+1. **Deeper raise trees** — hero re-raise / multi-raise wars (currently capped at one villain raise);
    mixed villain leading ranges. For deeper P3/P5 spots.
-3. **More L6 drills** — more P1 preflop ranges (~3s each — keep few in the unit suite). Multi-street ~1s each.
-4. **Optional web UI** — adds a framework/build step (breaks dependency-free). The CLI already covers
+2. **More L6 drills** — more P1 preflop ranges (~3s each — keep few in the unit suite). Multi-street ~1s each.
+   (The tagger is now magnitude-aware, so sizing/blocker drills tag cleanly.)
+3. **Optional web UI** — adds a framework/build step (breaks dependency-free). The CLI already covers
    L7 end-to-end, with cross-run persistence + M6/P6 reports.
 3. **Optional web UI** — if a browser front-end is wanted later (would add a framework/build step and
    break the dependency-free property). The CLI (`cli.ts`) already covers L7 end-to-end.

@@ -714,13 +714,23 @@ function estimateLeak(error: number): string {
   return error > 0 ? "p1.overestimate" : "p1.underestimate";
 }
 
-function actionLeak(state: State, action: Action, regretBb: number): string {
+// Characterize an action leak by comparing the chosen action to the BEST action,
+// so size errors are distinguished: a bet smaller than the best bet is an
+// "underbet", larger (or a bet when checking/passing was best) is an "overbet".
+function actionSuffix(chosen: Action, best: Action): string {
+  switch (chosen.kind) {
+    case "fold": return "overfold";    // folded when something better existed
+    case "check": return "missed_bet"; // checked when betting/acting was better
+    case "call": return "spew";        // called when folding was better
+    case "bet":
+      return best.kind === "bet" ? (chosen.size > best.size ? "overbet" : "underbet") : "overbet";
+  }
+}
+
+function actionLeak(state: State, chosen: Action, best: Action, regretBb: number): string {
   const p = state.abstraction.sizes.length === 0 ? "p1" : "p2";
   if (regretBb <= 1e-9) return `${p}.ok`;
-  const tag: Record<Action["kind"], string> = {
-    fold: "overfold", call: "spew", check: "missed_bet", bet: "overbet",
-  };
-  return `${p}.${tag[action.kind]}`;
+  return `${p}.${actionSuffix(chosen, best)}`;
 }
 
 // M0 hand-reading: the category (0..8) of hero's best made hand on the board.
@@ -743,9 +753,9 @@ export function grade(state: State, response: Response): Result {
   const evs = decisionEVs(state);
   const chosen = evs.find((e) => sameAction(e.action, response.action));
   if (!chosen) throw new Error(`grade: illegal action ${JSON.stringify(response.action)} for this spot`);
-  const best = Math.max(...evs.map((e) => e.ev));
-  const regretBb = best - chosen.ev;
-  return { regretBb, leakTag: actionLeak(state, response.action, regretBb) };
+  const bestEntry = evs.reduce((a, b) => (b.ev > a.ev ? b : a));
+  const regretBb = bestEntry.ev - chosen.ev;
+  return { regretBb, leakTag: actionLeak(state, response.action, bestEntry.action, regretBb) };
 }
 
 // ==== L5: scheduling (spaced repetition over Result) ======================
@@ -840,6 +850,7 @@ const LEAK_TABLE: Record<string, string> = {
   "M5.6:overfold": "m56.folds_with_implied_odds",
   "M5.6:spew": "m56.chases_without_odds",
   "P2:missed_bet": "p2.misses_thin_value",
+  "P2:underbet": "p2.bets_too_small",
   "P2:overbet": "p2.bets_without_equity",
   "P3:missed_bet": "p3.misses_multistreet_value",
   "P3:overbet": "p3.overbets_multistreet",
@@ -1154,6 +1165,24 @@ export const STARTER_DRILLS: Drill[] = [
           legal.map((a) => ({ action: a, weight: a.kind === "bet" ? 1 : 0 })),
       },
       abstraction: { sizes: [1.0], streets: ["turn"], players: 2, villainRaises: true },
+    },
+  },
+  {
+    id: "p2-size-up-nuts",
+    module: "P2",
+    title: "Sizing: size up with the nuts (bet big for value)",
+    ask: "action",
+    // Two sizes; a calling villain. The nuts wants the BIGGER bet (EV 2 vs 1.5);
+    // betting small is now tagged distinctly as an underbet (p2.bets_too_small).
+    state: {
+      heroHand: hand("As", "Ks"), board: hand("Qs", "Js", "Ts", "2d"), // royal flush
+      pot: 1, toAct: "hero",
+      villain: {
+        range: [{ combo: hand("2h", "2c"), weight: 1 }],
+        strategy: (_s: NodeState, legal: Action[]) =>
+          legal.map((a) => ({ action: a, weight: a.kind === "call" ? 1 : 0 })),
+      },
+      abstraction: { sizes: [0.5, 1.0], streets: ["turn"], players: 2 },
     },
   },
   {
