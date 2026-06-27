@@ -731,9 +731,33 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
   ok("M4 check regret == 3 bb", approx(m4check.result.regretBb, 3), `got ${m4check.result.regretBb}`);
   ok("M4 check -> m4.misses_street_sequence", m4check.result.leakTag === "m4.misses_street_sequence");
 
-  ok("STARTER_DRILLS now spans 20 drills incl M0/M3.5/M4/M5.6/P0/P1/P3/P4/P5",
-    STARTER_DRILLS.length === 20 &&
+  ok("STARTER_DRILLS now spans 21 drills incl M0/M3.5/M4/M5.6/P0/P1/P3/P4/P5",
+    STARTER_DRILLS.length === 21 &&
     ["M0", "M3.5", "M4", "M5.6", "P0", "P1", "P3", "P4", "P5"].every((m) => STARTER_DRILLS.some((d) => d.module === m)));
+
+  // Deeper raise trees: 3-bet the nuts at the root (heroFacesBet + raiseCap 1).
+  const tb = byId("p3-3bet-the-nuts");
+  const tbEvs = actionEVs(buildTree(tb.state));
+  ok("3-bet: root offers fold/call/raise", tbEvs.length === 3);
+  ok("3-bet: raise EV 5 > call EV 2 (nuts re-raised, paid off)",
+    tbEvs.find((e) => e.action.kind === "bet")!.ev === 5 && tbEvs.find((e) => e.action.kind === "call")!.ev === 2);
+  ok("3-bet: best action is the raise", bestAction(buildTree(tb.state)).kind === "bet");
+  const flat = gradeDrill(session, tb.id, { kind: "action", action: { kind: "call" } }, 0);
+  ok("3-bet: flatting the nuts -> p3.flats_instead_of_raising (regret 3)",
+    flat.result.regretBb === 3 && flat.result.leakTag === "p3.flats_instead_of_raising",
+    `${flat.result.regretBb} ${flat.result.leakTag}`);
+
+  // raiseCap 2 builds & evaluates a re-raise chain (hero re-raises villain's raise).
+  const deep: State = {
+    heroHand: hand("9s", "8s"), board: hand("7s", "6s", "5s", "2d"), pot: 1, toAct: "hero",
+    villain: {
+      range: [{ combo: hand("Kh", "Kd"), weight: 1 }],
+      strategy: (_s: NodeState, legal: Action[]) =>
+        legal.map((a) => ({ action: a, weight: a.kind === "bet" || a.kind === "call" ? 1 : 0 })),
+    },
+    abstraction: { sizes: [1.0], streets: ["turn"], players: 2, raiseCap: 2 },
+  };
+  ok("raiseCap 2 builds & evaluates a deeper raise chain", Number.isFinite(bestResponseEV(buildTree(deep))));
 
   // Magnitude-aware tagger: a sizing drill distinguishes under- from over-betting.
   const sz = byId("p2-size-up-nuts");

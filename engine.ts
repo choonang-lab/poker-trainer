@@ -472,6 +472,8 @@ export function validateAbstraction(abstraction: Abstraction, board: Board = [])
       `first street ${streets[0]} expects board length ${STREET_LEN[streets[0]]}, got ${board.length}`);
   if (abstraction.heroFacesBet !== undefined && !(abstraction.heroFacesBet > 0))
     throw new Error(`heroFacesBet must be > 0 (got ${abstraction.heroFacesBet})`);
+  if (abstraction.raiseCap !== undefined && !(Number.isInteger(abstraction.raiseCap) && abstraction.raiseCap >= 0 && abstraction.raiseCap <= 4))
+    throw new Error(`raiseCap must be an integer in 0..4 (got ${abstraction.raiseCap})`);
   return true;
 }
 
@@ -485,7 +487,7 @@ interface Ctx {
   abstraction: Abstraction;
   sizes: number[];
   villainLeads: boolean;
-  villainRaises: boolean;
+  raiseCap: number;
   heroInvested: number;
 }
 
@@ -515,6 +517,35 @@ function chanceExclusions(ctx: Ctx): Set<Card> {
   if (ctx.villain.range && ctx.villain.range.length === 1)
     for (const c of ctx.villain.range[0].combo) ex.add(c);
   return ex;
+}
+
+// A bet/raise faced by `actor`: fold, call, or (if raises remain) a pot-sized
+// raise that the opponent then faces. Alternating actors; capped depth. Unifies
+// fold/call (cap 0), villain raise (cap 1), and re-raises (cap >= 2). `facing` is
+// the amount `actor` must call; `pot` is the pot before `actor` acts.
+function raiseNode(
+  actor: "hero" | "villain", ctx: Ctx, pot: number, facing: number,
+  heroInvested: number, raisesLeft: number, rest: ("flop" | "turn" | "river")[],
+): TreeNode {
+  const state = nodeState({ ...ctx, pot }, { toAct: actor });
+  const children: { action?: Action; node: TreeNode }[] = [
+    { action: { kind: "fold" },
+      node: { kind: "TERM", state, terminal: { type: "fold", folder: actor, heroInvested } } },
+    { action: { kind: "call" },
+      node: advance({ ...ctx, pot: pot + facing, heroInvested: heroInvested + (actor === "hero" ? facing : 0) }, rest) },
+  ];
+  if (raisesLeft > 0) {
+    const raiseBy = pot + facing;          // pot-sized raise (the pot after a call)
+    const addNow = facing + raiseBy;        // actor calls, then raises by the pot
+    const raisePot = pot + addNow;
+    const raiseHeroInv = heroInvested + (actor === "hero" ? addNow : 0);
+    const opp = actor === "hero" ? "villain" : "hero";
+    children.push({
+      action: { kind: "bet", size: raiseBy / ctx.pot },   // raise-to, relative to the street pot
+      node: raiseNode(opp, ctx, raisePot, raiseBy, raiseHeroInv, raisesLeft - 1, rest),
+    });
+  }
+  return { kind: actor === "hero" ? "HERO" : "VILL", state, children };
 }
 
 // After a betting round closes: deal the next street (CHANCE) or show down.
@@ -565,38 +596,12 @@ function buildStreet(ctx: Ctx, streets: ("flop" | "turn" | "river")[]): TreeNode
     node: ctx.villainLeads ? villainAfterCheck(ctx, rest) : advance(ctx, rest),
   });
 
-  // Bet lines: one per declared pot-relative size.
+  // Bet lines: one per declared pot-relative size. Villain faces hero's bet via the
+  // unified raise chain (fold/call, or raises up to ctx.raiseCap).
   for (const s of ctx.sizes) {
     const bet = s * ctx.pot;
-    const invAfterBet = ctx.heroInvested + bet;
-    const villState = nodeState({ ...ctx, pot: ctx.pot + bet }, { toAct: "villain" });
-    const calledCtx: Ctx = { ...ctx, pot: ctx.pot + 2 * bet, heroInvested: invAfterBet };
-    const villChildren: { action?: Action; node: TreeNode }[] = [
-      { action: { kind: "fold" },
-        node: { kind: "TERM", state: villState,
-                terminal: { type: "fold", folder: "villain", heroInvested: invAfterBet } } },
-      { action: { kind: "call" }, node: advance(calledCtx, rest) },
-    ];
-    // Villain raise (pot-sized raise-to = pot + 3*bet this street). Hero then faces
-    // it: fold (forfeits the bet) or call. Modeled as a villain bet; capped (no re-raise).
-    if (ctx.villainRaises) {
-      const raisePot = (ctx.pot + bet) + (ctx.pot + 3 * bet); // pot after villain's raise
-      const heroCallExtra = ctx.pot + 2 * bet;                // hero adds this to call the raise
-      const raiseState = nodeState({ ...ctx, pot: raisePot }, { toAct: "hero" });
-      const calledRaiseCtx: Ctx = { ...ctx, pot: raisePot + heroCallExtra, heroInvested: invAfterBet + heroCallExtra };
-      villChildren.push({
-        action: { kind: "bet", size: (ctx.pot + 3 * bet) / ctx.pot }, // raise-to, pot-relative
-        node: {
-          kind: "HERO", state: raiseState,
-          children: [
-            { action: { kind: "fold" },
-              node: { kind: "TERM", state: raiseState, terminal: { type: "fold", folder: "hero", heroInvested: invAfterBet } } },
-            { action: { kind: "call" }, node: advance(calledRaiseCtx, rest) },
-          ],
-        },
-      });
-    }
-    children.push({ action: { kind: "bet", size: s }, node: { kind: "VILL", state: villState, children: villChildren } });
+    const villNode = raiseNode("villain", ctx, ctx.pot + bet, bet, ctx.heroInvested + bet, ctx.raiseCap, rest);
+    children.push({ action: { kind: "bet", size: s }, node: villNode });
   }
 
   return { kind: "HERO", state: nodeState(ctx, { toAct: "hero" }), children };
@@ -606,18 +611,10 @@ function buildStreet(ctx: Ctx, streets: ("flop" | "turn" | "river")[]): TreeNode
 // call -> advance to the remaining streets, where hero can bet a completed draw and
 // villain pays off (the implied winnings). Models a true implied-odds call/fold.
 function heroFacesBetRoot(ctx: Ctx, size: number, streets: ("flop" | "turn" | "river")[]): TreeNode {
-  const rest = streets.slice(1);
   const bet = size * ctx.pot;
-  const betState = nodeState({ ...ctx, pot: ctx.pot + bet }, { toAct: "hero" });
-  const calledCtx: Ctx = { ...ctx, pot: ctx.pot + 2 * bet, heroInvested: ctx.heroInvested + bet };
-  return {
-    kind: "HERO", state: betState,
-    children: [
-      { action: { kind: "fold" },
-        node: { kind: "TERM", state: betState, terminal: { type: "fold", folder: "hero", heroInvested: ctx.heroInvested } } },
-      { action: { kind: "call" }, node: advance(calledCtx, rest) },
-    ],
-  };
+  // Hero faces villain's bet via the unified raise chain: fold/call, or (raiseCap>0)
+  // a 3-bet that villain then faces.
+  return raiseNode("hero", ctx, ctx.pot + bet, bet, ctx.heroInvested, ctx.raiseCap, streets.slice(1));
 }
 
 export function buildTree(state: State): TreeNode {
@@ -629,7 +626,7 @@ export function buildTree(state: State): TreeNode {
     abstraction: state.abstraction,
     sizes: state.abstraction.sizes,
     villainLeads: state.abstraction.villainLeads ?? false,
-    villainRaises: state.abstraction.villainRaises ?? false,
+    raiseCap: state.abstraction.raiseCap ?? (state.abstraction.villainRaises ? 1 : 0),
     heroInvested: 0,
   };
   if (state.abstraction.heroFacesBet !== undefined)
@@ -721,7 +718,7 @@ function actionSuffix(chosen: Action, best: Action): string {
   switch (chosen.kind) {
     case "fold": return "overfold";    // folded when something better existed
     case "check": return "missed_bet"; // checked when betting/acting was better
-    case "call": return "spew";        // called when folding was better
+    case "call": return best.kind === "bet" ? "passive" : "spew"; // flat when raising was best / called a loser
     case "bet":
       return best.kind === "bet" ? (chosen.size > best.size ? "overbet" : "underbet") : "overbet";
   }
@@ -854,6 +851,7 @@ const LEAK_TABLE: Record<string, string> = {
   "P2:overbet": "p2.bets_without_equity",
   "P3:missed_bet": "p3.misses_multistreet_value",
   "P3:overbet": "p3.overbets_multistreet",
+  "P3:passive": "p3.flats_instead_of_raising",
   "P4:overestimate": "p4.overrates_field",
   "P4:underestimate": "p4.underrates_field",
   "P5:missed_bet": "p5.misses_exploit",
@@ -1183,6 +1181,24 @@ export const STARTER_DRILLS: Drill[] = [
           legal.map((a) => ({ action: a, weight: a.kind === "call" ? 1 : 0 })),
       },
       abstraction: { sizes: [0.5, 1.0], streets: ["turn"], players: 2 },
+    },
+  },
+  {
+    id: "p3-3bet-the-nuts",
+    module: "P3",
+    title: "Raise lines: 3-bet the nuts for value instead of just calling",
+    ask: "action",
+    // heroFacesBet + raiseCap 1: hero faces villain's pot bet holding the nuts.
+    // Re-raising (3-bet, EV 5) beats flatting (EV 2); flatting under-extracts.
+    state: {
+      heroHand: hand("9s", "8s"), board: hand("7s", "6s", "5s", "2d"), // straight flush
+      pot: 1, toAct: "hero",
+      villain: {
+        range: [{ combo: hand("Kh", "Kd"), weight: 1 }],
+        strategy: (_s: NodeState, legal: Action[]) =>
+          legal.map((a) => ({ action: a, weight: a.kind === "call" ? 1 : 0 })),
+      },
+      abstraction: { sizes: [1.0], streets: ["turn"], players: 2, heroFacesBet: 1.0, raiseCap: 1 },
     },
   },
   {
