@@ -622,8 +622,8 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
   for (const d of STARTER_DRILLS) {
     const resp: Response = d.ask === "estimate"
       ? { kind: "estimate", value: 0.5 }
-      : d.state.abstraction.sizes.length === 0
-        ? { kind: "action", action: { kind: "call" } }   // pillar-1 call/fold
+      : (d.state.abstraction.sizes.length === 0 || d.state.abstraction.heroFacesBet !== undefined)
+        ? { kind: "action", action: { kind: "call" } }   // pillar-1 call/fold OR hero-faces-bet root
         : { kind: "action", action: { kind: "check" } }; // pillar-2 (legal at root)
     const out = gradeDrill(s, d.id, resp, 0);
     s = out.session;
@@ -729,8 +729,8 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
   ok("M4 check regret == 3 bb", approx(m4check.result.regretBb, 3), `got ${m4check.result.regretBb}`);
   ok("M4 check -> m4.misses_street_sequence", m4check.result.leakTag === "m4.misses_street_sequence");
 
-  ok("STARTER_DRILLS now spans 13 drills incl M3.5/M4/M5.6/P0/P1/P3/P4/P5",
-    STARTER_DRILLS.length === 13 &&
+  ok("STARTER_DRILLS now spans 14 drills incl M3.5/M4/M5.6/P0/P1/P3/P4/P5",
+    STARTER_DRILLS.length === 14 &&
     ["M3.5", "M4", "M5.6", "P0", "P1", "P3", "P4", "P5"].every((m) => STARTER_DRILLS.some((d) => d.module === m)));
 
   // P1 preflop drill is well-formed (board empty); equity is validated in the loop above.
@@ -864,6 +864,22 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
   ok("P0 bet regret 1 -> p0.bets_oop_without_equity",
     betGrade.result.regretBb === 1 && betGrade.result.leakTag === "p0.bets_oop_without_equity",
     `${betGrade.result.regretBb} ${betGrade.result.leakTag}`);
+
+  // True multi-street implied odds: hero faces an overbet at the root (fold|call);
+  // immediate odds say fold a ~37% draw, but villain pays off the turn -> calling +EV.
+  const m56t = byId("m56-true-implied-odds");
+  const tEvs = actionEVs(buildTree(m56t.state));
+  const callEv = tEvs.find((e) => e.action.kind === "call")!.ev;
+  const foldEv = tEvs.find((e) => e.action.kind === "fold")!.ev;
+  ok("implied odds: hero faces a bet at root (fold|call)",
+    tEvs.length === 2 && tEvs.some((e) => e.action.kind === "fold") && tEvs.some((e) => e.action.kind === "call"));
+  ok("implied odds: calling is +EV and best", callEv > 0 && foldEv === 0 && bestAction(buildTree(m56t.state)).kind === "call");
+  ok("implied odds: immediate price alone says fold (so implied odds matter)",
+    equity(hand("8s", "9s"), hand("As", "Ks", "4d"), hand("Ah", "Td")) < 2 / (1 + 2 * 2));
+  const m56tFold = gradeDrill(session, m56t.id, { kind: "action", action: { kind: "fold" } }, 0);
+  ok("implied odds: folding leaks -> m56.folds_with_implied_odds",
+    m56tFold.result.regretBb > 0 && m56tFold.result.leakTag === "m56.folds_with_implied_odds",
+    `${m56tFold.result.regretBb} ${m56tFold.result.leakTag}`);
 }
 
 // silence unused-import noise without weakening the public surface

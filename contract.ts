@@ -58,6 +58,9 @@ export interface Abstraction {
   villainLeads?: boolean;           // if set, villain may bet after hero checks (so hero can
                                     // FACE a bet) — enables P0 (IP/OOP) & true implied-odds spots.
                                     // Default off: hero is the sole aggressor (villain only fold/calls).
+  heroFacesBet?: number;            // if set, the tree ROOTS at hero facing a villain bet of this
+                                    // pot-relative size (fold | call -> remaining streets). Models a
+                                    // call/fold where calling realizes future winnings (true implied odds).
 }
 export declare const NO_ABSTRACTION: Abstraction; // { sizes: [], streets: [], players: 2 }
 

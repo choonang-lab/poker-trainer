@@ -47,15 +47,15 @@ test red, stop and fix the leak — do NOT edit the test to make it pass.
 - DONE: L5 scheduling — pure SM-2 over `Result` (`resultQuality`, `newReview`, `scheduleReview`,
   `dueReviews`, `nextReview`); injected day-number `now`, no `Date.now()`.
 - DONE: L6 content model + session glue — `Drill`/`Session`/`GradeOutcome`, `STARTER_DRILLS`
-  (13 drills: M1/M2/M3/M3.5/M4/M5/M5.6/P0/P1/P2/P3/P4/P5, incl. P1 preflop, M5.6 implied-odds, and a
-  P0 villain-leads spot), pure
+  (14 drills across M1–M6 + P0–P5, incl. P1 preflop, both M5.6 implied-odds variants (effective-pot +
+  true multi-street via `heroFacesBet`), and a P0 villain-leads spot), pure
   `newSession`/`nextDrill`/`gradeDrill` loop, and a module-scoped leak taxonomy `classifyLeak`
   (grade() emits structural tags; gradeDrill refines by module). `truth()` is field-aware
   (`fieldEquity`), so multiway (P4) estimate drills grade correctly. (Preflop grades enumerate a full
   runout ~3s — viable as content; the test suite pays it once, in the session-loop test.)
 - DONE: L7 CLI trainer (`cli.ts`) — dependency-free (Node readline async-iterator); drives the L6
   session loop end-to-end. Run: `node cli.ts`.
-  Smoke: `printf '0.14\ncall\nbet\n0.35\n0.95\nbet\nbet\n0.5\nbet\nbet\ncall\ncheck\n0.83\n' | node cli.ts`.
+  Smoke: `printf '0.14\ncall\nbet\n0.35\n0.95\nbet\nbet\n0.5\nbet\nbet\ncall\ncall\ncheck\n0.83\n' | node cli.ts`.
   It is the IO boundary, so it's NOT in the `engine.test.ts` unit suite (importing it would read stdin).
 - DONE: Persistence — pure `serializeSession`/`loadSession` (only the plain `reviews` are persisted;
   villain `strategy` is a function, so drills are supplied in-code and reviews rehydrate against them).
@@ -66,11 +66,12 @@ test red, stop and fix the leak — do NOT edit the test to make it pass.
 - DONE: M6 calibration — pure `calibration(samples)` (Brier + per-bucket reliability) over estimate
   drills; `GradeOutcome.truth` exposes the equity so callers build samples without re-enumerating; CLI
   prints a calibration summary at end of session.
-- DONE: villain-leads builder (flag `Abstraction.villainLeads`) — villain may bet after hero checks,
-  so hero can FACE a bet (enables P0 / IP-OOP and future true implied-odds). Additive & flag-gated:
-  default-off preserves the hero-as-aggressor behavior, so no existing drill/test changed.
-- NEXT: more drills (more P1 ranges; true multi-street implied odds via villainLeads; M0 needs a
-  non-equity drill type). Module coverage now spans M1–M6 + P0–P5. Optional web UI.
+- DONE: hero-faces-a-bet mechanics — `Abstraction.villainLeads` (villain bets after a hero check) and
+  `Abstraction.heroFacesBet` (tree roots at hero facing a bet: fold|call -> later streets). Both
+  additive & flag-gated; default-off preserves hero-as-aggressor, so no existing drill/test changed.
+  Enabled P0 (IP/OOP) and a TRUE multi-street implied-odds drill (villain pays off the turn).
+- NEXT: more drills (more P1 ranges; M0 needs a non-equity drill type). Coverage spans M1–M6 + P0–P5.
+  Optional web UI.
 - KNOWN L3 LIMIT: the builder models villain as a fixed call/fold responder (no villain lead/raise,
   so no hero-facing-bet nodes yet). `bestResponseEV` already supports those; extend the builder later.
 

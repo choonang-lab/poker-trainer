@@ -451,6 +451,8 @@ export function validateAbstraction(abstraction: Abstraction, board: Board = [])
   if (board.length && STREET_LEN[streets[0]] !== board.length)
     throw new Error(
       `first street ${streets[0]} expects board length ${STREET_LEN[streets[0]]}, got ${board.length}`);
+  if (abstraction.heroFacesBet !== undefined && !(abstraction.heroFacesBet > 0))
+    throw new Error(`heroFacesBet must be > 0 (got ${abstraction.heroFacesBet})`);
   return true;
 }
 
@@ -565,6 +567,24 @@ function buildStreet(ctx: Ctx, streets: ("flop" | "turn" | "river")[]): TreeNode
   return { kind: "HERO", state: nodeState(ctx, { toAct: "hero" }), children };
 }
 
+// Root where hero FACES a villain bet of size*pot: fold (forfeits prior money) or
+// call -> advance to the remaining streets, where hero can bet a completed draw and
+// villain pays off (the implied winnings). Models a true implied-odds call/fold.
+function heroFacesBetRoot(ctx: Ctx, size: number, streets: ("flop" | "turn" | "river")[]): TreeNode {
+  const rest = streets.slice(1);
+  const bet = size * ctx.pot;
+  const betState = nodeState({ ...ctx, pot: ctx.pot + bet }, { toAct: "hero" });
+  const calledCtx: Ctx = { ...ctx, pot: ctx.pot + 2 * bet, heroInvested: ctx.heroInvested + bet };
+  return {
+    kind: "HERO", state: betState,
+    children: [
+      { action: { kind: "fold" },
+        node: { kind: "TERM", state: betState, terminal: { type: "fold", folder: "hero", heroInvested: ctx.heroInvested } } },
+      { action: { kind: "call" }, node: advance(calledCtx, rest) },
+    ],
+  };
+}
+
 export function buildTree(state: State): TreeNode {
   validateAbstraction(state.abstraction, state.board);
   const ctx: Ctx = {
@@ -576,6 +596,8 @@ export function buildTree(state: State): TreeNode {
     villainLeads: state.abstraction.villainLeads ?? false,
     heroInvested: 0,
   };
+  if (state.abstraction.heroFacesBet !== undefined)
+    return heroFacesBetRoot(ctx, state.abstraction.heroFacesBet, state.abstraction.streets);
   return buildStreet(ctx, state.abstraction.streets);
 }
 
@@ -1015,6 +1037,25 @@ export const STARTER_DRILLS: Drill[] = [
       pot: 3, toCall: 1, toAct: "hero",
       villain: { range: [{ combo: hand("Ah", "Td"), weight: 1 }] },
       abstraction: { sizes: [], streets: [], players: 2 },
+    },
+  },
+  {
+    id: "m56-true-implied-odds",
+    module: "M5.6",
+    title: "Implied odds (true): call an overbet with a flush draw, get paid when it hits",
+    ask: "action",
+    // heroFacesBet 2.0 -> immediate odds need 40%, but the ~37% flush draw is +EV
+    // because villain (callStrat) pays off the turn when it completes. Unlike the
+    // effective-pot M5.6, the implied winnings come from a real future street.
+    state: {
+      heroHand: hand("8s", "9s"), board: hand("As", "Ks", "4d"),
+      pot: 1, toAct: "hero",
+      villain: {
+        range: [{ combo: hand("Ah", "Td"), weight: 1 }],
+        strategy: (_s: NodeState, legal: Action[]) =>
+          legal.map((a) => ({ action: a, weight: a.kind === "call" ? 1 : 0 })),
+      },
+      abstraction: { sizes: [1.0], streets: ["flop", "turn"], players: 2, heroFacesBet: 2.0 },
     },
   },
   {
