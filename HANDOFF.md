@@ -21,7 +21,7 @@
   - **L5** scheduling — pure deterministic SM-2 over `Result` (`resultQuality`, `newReview`,
     `scheduleReview`, `dueReviews`, `nextReview`); `now` is an injected day-number for exact tests.
   - **L6** content model + session glue — `Drill`/`Session`/`GradeOutcome`, a `STARTER_DRILLS`
-    set of 23 covering the FULL map M0–M6 + P0–P6 (estimate + action + category, preflop & postflop,
+    set of 27 covering the FULL map M0–M6 + P0–P6 (estimate + action + category, preflop & postflop,
     pillar 1/2, single- & multi-street, multiway, exploit, implied odds, IP/OOP, hand-reading,
     value-vs-raiser, sizing, 3-bet/re-raise, range-narrowing [multi-street, policy raises], check-raise
     range, plus depth in M2/M5/P1), a pure `newSession`/`nextDrill`/`gradeDrill` loop, and a magnitude-aware module-scoped leak

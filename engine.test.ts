@@ -731,8 +731,8 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
   ok("M4 check regret == 3 bb", approx(m4check.result.regretBb, 3), `got ${m4check.result.regretBb}`);
   ok("M4 check -> m4.misses_street_sequence", m4check.result.leakTag === "m4.misses_street_sequence");
 
-  ok("STARTER_DRILLS now spans 23 drills incl M0/M3.5/M4/M5.6/P0/P1/P3/P4/P5",
-    STARTER_DRILLS.length === 23 &&
+  ok("STARTER_DRILLS now spans 27 drills incl M0/M3.5/M4/M5.6/P0/P1/P3/P4/P5",
+    STARTER_DRILLS.length === 27 &&
     ["M0", "M3.5", "M4", "M5.6", "P0", "P1", "P3", "P4", "P5"].every((m) => STARTER_DRILLS.some((d) => d.module === m)));
 
   // Check-raise-range drill: villain raises only what beats hero (policy + raise).
@@ -1118,6 +1118,35 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
   const raiseShow = heroFacesRaise.children!.find((c) => c.action!.kind === "call")!.node; // showdown
   ok("raise line narrows to the raisers {AA}",
     raiseShow.state.villain.range.length === 1 && rankOf(raiseShow.state.villain.range[0].combo[0]) === 14);
+}
+
+// ---------- More content drills (variety within modules) ----------
+{
+  const byId = (id: string): Drill => STARTER_DRILLS.find((d) => d.id === id)!;
+  const session = newSession(STARTER_DRILLS);
+
+  // M0: read a straight (category 4).
+  const m0s = byId("m0-read-straight");
+  ok("M0 straight read correct (cat 4)",
+    gradeDrill(session, m0s.id, { kind: "category", value: 4 }, 0).result.estimateError === 0);
+  ok("M0 straight misread -> m0.misreads_hand",
+    gradeDrill(session, m0s.id, { kind: "category", value: 8 }, 0).result.leakTag === "m0.misreads_hand");
+
+  // M1: open-ended straight draw equity estimate.
+  const m1g = gradeDrill(session, "m1-open-ender", { kind: "estimate", value: 0.9 }, 0);
+  ok("M1 open-ender overestimate -> m1.overcounts_outs",
+    m1g.result.leakTag === "m1.overcounts_outs" && (m1g.truth ?? 1) < 0.9, m1g.result.leakTag);
+
+  // M3: fold a weak draw at a bad price; calling is the leak.
+  ok("M3 fold (bad price) is correct (regret 0)",
+    gradeDrill(session, "m3-bad-odds-fold", { kind: "action", action: { kind: "fold" } }, 0).result.regretBb === 0);
+  ok("M3 calling a bad price -> m3.calls_when_overpriced",
+    gradeDrill(session, "m3-bad-odds-fold", { kind: "action", action: { kind: "call" } }, 0).result.leakTag === "m3.calls_when_overpriced");
+
+  // P4: strong hand multiway (field equity = base^2).
+  const p4g = gradeDrill(session, "p4-strong-multiway", { kind: "estimate", value: 0.99 }, 0);
+  ok("P4 strong-multiway overestimate -> p4.overrates_field",
+    p4g.result.leakTag === "p4.overrates_field" && (p4g.truth ?? 1) < 0.99, p4g.result.leakTag);
 }
 
 // silence unused-import noise without weakening the public surface

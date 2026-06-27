@@ -1355,4 +1355,52 @@ export const STARTER_DRILLS: Drill[] = [
       abstraction: { sizes: [], streets: [], players: 2 },
     },
   },
+  {
+    id: "m0-read-straight",
+    module: "M0",
+    title: "Hand reading: name your made hand (a straight)",
+    ask: "category",
+    state: {
+      heroHand: hand("Ts", "9d"), board: hand("8c", "7h", "6s"), // T-9-8-7-6 straight (cat 4)
+      pot: 1, toAct: "hero",
+      villain: { range: [] },
+      abstraction: { sizes: [], streets: [], players: 2 },
+    },
+  },
+  {
+    id: "m1-open-ender",
+    module: "M1",
+    title: "Counting outs: an open-ended straight draw",
+    ask: "estimate",
+    state: {
+      heroHand: hand("9h", "8d"), board: hand("7s", "6c", "2h"), // OESD: 5 or T (8 outs)
+      pot: 1, toAct: "hero",
+      villain: { range: [{ combo: hand("Ah", "Ad"), weight: 1 }] },
+      abstraction: { sizes: [], streets: [], players: 2 },
+    },
+  },
+  {
+    id: "m3-bad-odds-fold",
+    module: "M3",
+    title: "Pot odds: fold a weak draw at a bad price",
+    ask: "action",
+    state: {
+      heroHand: hand("7h", "6h"), board: hand("As", "Ks", "2c"),
+      pot: 1, toCall: 1, toAct: "hero", // need 50%, hero ~15% -> fold; calling is the leak
+      villain: { range: [{ combo: hand("Ah", "Tc"), weight: 1 }] },
+      abstraction: { sizes: [], streets: [], players: 2 },
+    },
+  },
+  {
+    id: "p4-strong-multiway",
+    module: "P4",
+    title: "Multiway: top pair top kicker vs a two-opponent field",
+    ask: "estimate",
+    state: {
+      heroHand: hand("As", "Ks"), board: hand("Ad", "8c", "3h"),
+      pot: 1, toAct: "hero",
+      villain: { range: [{ combo: hand("Qh", "Jh"), weight: 1 }] },
+      abstraction: { sizes: [], streets: [], players: 3 },
+    },
+  },
 ];
