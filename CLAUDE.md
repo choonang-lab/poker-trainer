@@ -47,15 +47,16 @@ test red, stop and fix the leak — do NOT edit the test to make it pass.
 - DONE: L5 scheduling — pure SM-2 over `Result` (`resultQuality`, `newReview`, `scheduleReview`,
   `dueReviews`, `nextReview`); injected day-number `now`, no `Date.now()`.
 - DONE: L6 content model + session glue — `Drill`/`Session`/`GradeOutcome`, `STARTER_DRILLS`
-  (16 drills covering the FULL map M0–M6 + P0–P6, incl. M0 hand-reading [`ask:"category"`], P1 preflop,
-  both M5.6 implied-odds variants, a P0 villain-leads spot, and a P5 value-vs-raiser spot), pure
+  (19 drills covering the FULL map M0–M6 + P0–P6, incl. M0 hand-reading [`ask:"category"`], P1 preflop,
+  both M5.6 implied-odds variants, a P0 villain-leads spot, a P5 value-vs-raiser spot, and added
+  depth in M2/M5/P1), pure
   `newSession`/`nextDrill`/`gradeDrill` loop, and a module-scoped leak taxonomy `classifyLeak`
   (grade() emits structural tags; gradeDrill refines by module). `truth()` is field-aware
   (`fieldEquity`), so multiway (P4) estimate drills grade correctly. (Preflop grades enumerate a full
   runout ~3s — viable as content; the test suite pays it once, in the session-loop test.)
 - DONE: L7 CLI trainer (`cli.ts`) — dependency-free (Node readline async-iterator); drives the L6
   session loop end-to-end. Run: `node cli.ts`.
-  Smoke: `printf '0.14\ncall\nbet\n0.35\n0.95\nbet\nbet\n0.5\nbet\nbet\ncall\ncall\ncheck\n0.83\nbet\n2\n' | node cli.ts`.
+  Smoke (grades the first few drills, then exits at EOF): `printf '0.14\ncall\nbet\n' | node cli.ts`.
   It is the IO boundary, so it's NOT in the `engine.test.ts` unit suite (importing it would read stdin).
 - DONE: Persistence — pure `serializeSession`/`loadSession` (only the plain `reviews` are persisted;
   villain `strategy` is a function, so drills are supplied in-code and reviews rehydrate against them).
@@ -76,8 +77,11 @@ test red, stop and fix the leak — do NOT edit the test to make it pass.
 - DONE: M0 hand-reading — new `ask:"category"` response kind, graded by distance to the true made-hand
   category (`m0.misreads_hand`). Every module M0–M6 + P0–P6 now has at least one drill.
 - DONE: villain raises — `villainRaises` flag; P5 value-vs-raiser drill (bet nuts EV 5 vs check 1).
-- NEXT options: more drills (P1 ranges, M1 blockers, M2 2&4-correction, P2 sizing-choice); a true
-  multi-raise / hero-reraise tree; optional web UI. The core engine + full curriculum are complete.
+- DONE: added drill depth — M2 big-draw (2&4 correction), M5 wider range, P1 race (19 drills total).
+- NOTE: the leak taxonomy is module-level (classifyLeak keys on module+structural-suffix), so two
+  drills in one module share its leak tags; a magnitude/direction-aware tagger would be needed to
+  distinguish e.g. under-betting from over-betting. Also: each preflop drill costs ~3s in the suite.
+- NEXT options: a magnitude-aware leak tagger; hero re-raise / multi-raise trees; optional web UI.
 - KNOWN L3 LIMIT: the builder models villain as a fixed call/fold responder (no villain lead/raise,
   so no hero-facing-bet nodes yet). `bestResponseEV` already supports those; extend the builder later.
 

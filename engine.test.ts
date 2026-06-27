@@ -629,7 +629,7 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
           : { kind: "action", action: { kind: "check" } }; // pillar-2 (legal at root)
     const out = gradeDrill(s, d.id, resp, 0);
     s = out.session;
-    if (d.state.board.length === 0 && out.result.estimateError !== undefined) preflopErr = out.result.estimateError;
+    if (d.id === "p1-aa-vs-kk-preflop" && out.result.estimateError !== undefined) preflopErr = out.result.estimateError;
   }
   ok("nothing due immediately after grading the whole library", nextDrill(s, 0) === null);
   ok("drills come due again at now=1", nextDrill(s, 1) !== null);
@@ -731,9 +731,19 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
   ok("M4 check regret == 3 bb", approx(m4check.result.regretBb, 3), `got ${m4check.result.regretBb}`);
   ok("M4 check -> m4.misses_street_sequence", m4check.result.leakTag === "m4.misses_street_sequence");
 
-  ok("STARTER_DRILLS now spans 16 drills incl M0/M3.5/M4/M5.6/P0/P1/P3/P4/P5",
-    STARTER_DRILLS.length === 16 &&
+  ok("STARTER_DRILLS now spans 19 drills incl M0/M3.5/M4/M5.6/P0/P1/P3/P4/P5",
+    STARTER_DRILLS.length === 19 &&
     ["M0", "M3.5", "M4", "M5.6", "P0", "P1", "P3", "P4", "P5"].every((m) => STARTER_DRILLS.some((d) => d.module === m)));
+
+  // Added module depth: M2 big-draw, M5 wider range (cheap), P1 race (preflop).
+  const m2c = gradeDrill(session, "m2-combo-draw", { kind: "estimate", value: 0.95 }, 0);
+  ok("M2 big-draw overestimate -> m2.overestimates_equity",
+    m2c.result.leakTag === "m2.overestimates_equity" && (m2c.truth ?? 1) < 0.95, m2c.result.leakTag);
+  const m5w = gradeDrill(session, "m5-wide-range", { kind: "estimate", value: 0.95 }, 0);
+  ok("M5 wide-range overestimate -> m5.overrates_vs_range",
+    m5w.result.leakTag === "m5.overrates_vs_range" && (m5w.truth ?? 1) < 0.95, m5w.result.leakTag);
+  const race = STARTER_DRILLS.find((d) => d.id === "p1-akx-vs-qq-race")!;
+  ok("P1 race drill is a preflop estimate", race.ask === "estimate" && race.state.board.length === 0);
 
   // Villain raises (flag-gated): facing hero's bet, villain can fold/call/RAISE.
   const vr = byId("p5-value-vs-raiser");

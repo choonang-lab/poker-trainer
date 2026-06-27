@@ -1168,4 +1168,42 @@ export const STARTER_DRILLS: Drill[] = [
       abstraction: { sizes: [], streets: [], players: 2 },
     },
   },
+  {
+    id: "m2-combo-draw",
+    module: "M2",
+    title: "Rule of 2&4 with the big-draw correction (open-ender + flush draw)",
+    ask: "estimate",
+    state: {
+      heroHand: hand("Js", "Ts"), board: hand("9s", "8h", "2c"), // ~15 outs; naive 4x over-counts
+      pot: 1, toAct: "hero",
+      villain: { range: [{ combo: hand("Ah", "Ad"), weight: 1 }] },
+      abstraction: { sizes: [], streets: [], players: 2 },
+    },
+  },
+  {
+    id: "m5-wide-range",
+    module: "M5",
+    title: "Equity vs a wider range: AK high vs sets and an underpair",
+    ask: "estimate",
+    state: {
+      heroHand: hand("Ah", "Kh"), board: hand("Qd", "Js", "5c"),
+      pot: 1, toAct: "hero",
+      villain: { range: [{ combo: hand("Ac", "Ad"), weight: 1 },
+                         { combo: hand("Kc", "Kd"), weight: 1 },
+                         { combo: hand("Tc", "Td"), weight: 1 }] },
+      abstraction: { sizes: [], streets: [], players: 2 },
+    },
+  },
+  {
+    id: "p1-akx-vs-qq-race",
+    module: "P1",
+    title: "Preflop ranges: AK suited vs a pocket pair (a coinflip)",
+    ask: "estimate",
+    state: {
+      heroHand: hand("As", "Ks"), board: [],
+      pot: 1, toAct: "hero",
+      villain: { range: [{ combo: hand("Qh", "Qd"), weight: 1 }] },
+      abstraction: { sizes: [], streets: [], players: 2 },
+    },
+  },
 ];
