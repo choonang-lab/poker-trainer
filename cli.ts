@@ -38,6 +38,7 @@ function present(d: Drill): void {
     (s.toCall !== undefined ? ` | To call: ${s.toCall}` : ""));
   if (s.heroHand) console.log(`Hero:  ${cards(s.heroHand)}`);
   if (s.villain.range.length) console.log(`Vill:  ${villainLabel(s)} | ${s.abstraction.players} player(s)`);
+  if (d.read) console.log(`Read:  ${d.read}`);
   if (d.ask === "action") console.log(`Legal: ${legalLabel(s)}`);
 }
 

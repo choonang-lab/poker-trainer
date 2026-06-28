@@ -261,6 +261,7 @@ function playDrill(drill: Drill, tagText: string, contLabel: string, onCont: () 
     s.heroHand ? el("div", "hero", `You: ${cards(s.heroHand)}`) : el("div"),
     el("div", "vill", villainText(s)),
   );
+  if (drill.read) sec.append(el("div", "read", `Read — ${drill.read}`));
   const controls = el("div", "controls");
   buildControls(controls, drill, (resp) => {
     let out: ReturnType<typeof gradeDrill>;

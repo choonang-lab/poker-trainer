@@ -156,7 +156,10 @@ export const MODULES: Module[] = [
     ],
     objectives: ["See how folds add value to a bet", "Combine fold equity with a draw's equity", "Pick spots where betting beats checking"],
     example: "Betting a flush draw wins now when they fold, and later when you hit.",
-    drillIds: ["m35-semibluff-flushdraw", "m35-turn-semibluff"],
+    drillIds: [
+      "m35-semibluff-flushdraw", "m35-no-fold-equity", "m35-oesd-semibluff",
+      "m35-weak-draw-check", "m35-turn-semibluff",
+    ],
   },
   {
     id: "M4", track: "P1", title: "Street sequencing",
@@ -170,7 +173,7 @@ export const MODULES: Module[] = [
     ],
     objectives: ["Plan a multi-street betting line", "Bet strong hands across streets for value", "Avoid leaving money behind by checking"],
     example: "With the nuts, betting flop and turn builds a far bigger pot than a single bet.",
-    drillIds: ["m4-sequence-two-streets"],
+    drillIds: ["m4-sequence-two-streets", "m4-value-set", "m4-overpair-protection"],
   },
   {
     id: "M5", track: "P1", title: "Equity vs range",
@@ -201,7 +204,10 @@ export const MODULES: Module[] = [
     ],
     objectives: ["Add expected future winnings to the price", "Call draws that immediate odds reject", "Recognize when implied odds aren't really there"],
     example: "Calling a big bet with a flush draw can be +EV if you get paid off when it comes in.",
-    drillIds: ["m56-implied-odds-flushdraw", "m56-true-implied-odds"],
+    drillIds: [
+      "m56-implied-odds-flushdraw", "m56-true-implied-odds",
+      "m56-no-implied-odds", "m56-reverse-implied",
+    ],
   },
   // ---- Pillar 2 · decide ----
   {

@@ -740,8 +740,8 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
   ok("M4 check regret == 3 bb", approx(m4check.result.regretBb, 3), `got ${m4check.result.regretBb}`);
   ok("M4 check -> m4.misses_street_sequence", m4check.result.leakTag === "m4.misses_street_sequence");
 
-  ok("STARTER_DRILLS now spans 61 drills incl M0/M3.5/M4/M5.6/P0/P1/P3/P4/P5",
-    STARTER_DRILLS.length === 61 &&
+  ok("STARTER_DRILLS now spans 68 drills incl M0/M3.5/M4/M5.6/P0/P1/P3/P4/P5",
+    STARTER_DRILLS.length === 68 &&
     ["M0", "M3.5", "M4", "M5.6", "P0", "P1", "P3", "P4", "P5"].every((m) => STARTER_DRILLS.some((d) => d.module === m)));
 
   // Check-raise-range drill: villain raises only what beats hero (policy + raise).
@@ -1273,6 +1273,44 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
   ok("M3 gutshot: fold is best", act("m3-gutshot-fold", "fold") === "m3.ok");
   ok("M3 combo draw: call is best", act("m3-combo-draw-call", "call") === "m3.ok");
   ok("M3 combo draw: fold -> folds_when_priced_in", act("m3-combo-draw-call", "fold") === "m3.folds_when_priced_in");
+}
+
+// ---------- Rest of Pillar 1: M3.5 fold equity, M4 sequencing, M5.6 implied odds ----------
+{
+  const s = newSession(STARTER_DRILLS);
+  const st = (id: string): State => STARTER_DRILLS.find((d) => d.id === id)!.state;
+  const best = (id: string): string => bestAction(buildTree(st(id))).kind;
+  const lk = (id: string, resp: Response): string => gradeDrill(s, id, resp, 0).result.leakTag;
+  const bet: Response = { kind: "action", action: { kind: "bet", size: 1 } };
+  const check: Response = { kind: "action", action: { kind: "check" } };
+  const callR: Response = { kind: "action", action: { kind: "call" } };
+
+  // M3.5: fold equity only pays off when villain actually folds.
+  ok("M3.5 semibluff (folds often): best is bet", best("m35-semibluff-flushdraw") === "bet");
+  ok("M3.5 no fold equity (sticky): best is check", best("m35-no-fold-equity") === "check");
+  ok("M3.5 no fold equity: betting -> bluffs_without_fold_equity",
+    lk("m35-no-fold-equity", bet) === "m35.bluffs_without_fold_equity");
+  ok("M3.5 OESD semibluff: best is bet", best("m35-oesd-semibluff") === "bet");
+  ok("M3.5 OESD semibluff: checking -> gives_up_fold_equity",
+    lk("m35-oesd-semibluff", check) === "m35.gives_up_fold_equity");
+  ok("M3.5 weak draw, low fold equity: best is check", best("m35-weak-draw-check") === "check");
+  ok("M3.5 weak draw: betting -> bluffs_without_fold_equity",
+    lk("m35-weak-draw-check", bet) === "m35.bluffs_without_fold_equity");
+
+  // M4: bet strong hands across streets (checking leaves money behind).
+  ok("M4 top set: best is bet", best("m4-value-set") === "bet");
+  ok("M4 top set: checking -> misses_street_sequence", lk("m4-value-set", check) === "m4.misses_street_sequence");
+  ok("M4 overpair on a wet board: best is bet", best("m4-overpair-protection") === "bet");
+
+  // M5.6: implied odds aren't always there.
+  ok("M5.6 reverse-implied draw is near-dead (~0.11)", approx(truth(st("m56-reverse-implied")), 0.107, 0.01));
+  ok("M5.6 no implied odds: calling -> chases_without_odds", lk("m56-no-implied-odds", callR) === "m56.chases_without_odds");
+  ok("M5.6 reverse implied: calling -> chases_without_odds", lk("m56-reverse-implied", callR) === "m56.chases_without_odds");
+
+  // the villain's tendency drives these answers, so the drill must carry a read.
+  ok("strategy drills carry a villain read",
+    !!STARTER_DRILLS.find((d) => d.id === "m35-no-fold-equity")!.read &&
+    !!STARTER_DRILLS.find((d) => d.id === "m4-value-set")!.read);
 }
 
 // ---------- Curriculum: module integrity + progress + streak ----------

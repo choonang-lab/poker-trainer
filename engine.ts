@@ -919,6 +919,7 @@ const LEAK_TABLE: Record<string, string> = {
   "M3:overfold": "m3.folds_when_priced_in",
   "M3:spew": "m3.calls_when_overpriced",
   "M3.5:missed_bet": "m35.gives_up_fold_equity",
+  "M3.5:overbet": "m35.bluffs_without_fold_equity",
   "M4:missed_bet": "m4.misses_street_sequence",
   "M5.6:overfold": "m56.folds_with_implied_odds",
   "M5.6:spew": "m56.chases_without_odds",
@@ -1083,8 +1084,9 @@ export const STARTER_DRILLS: Drill[] = [
   {
     id: "m35-semibluff-flushdraw",
     module: "M3.5",
-    title: "Fold equity: semi-bluffing a flush draw on the flop",
+    title: "Fold equity: a flush draw on the flop",
     ask: "action",
+    read: "Villain folds often.",
     state: {
       heroHand: hand("8s", "9s"), board: hand("As", "Ks", "4d"),
       pot: 1, toAct: "hero",
@@ -1143,8 +1145,9 @@ export const STARTER_DRILLS: Drill[] = [
   {
     id: "m4-sequence-two-streets",
     module: "M4",
-    title: "Street sequencing: betting a flopped straight flush across streets",
+    title: "Street sequencing: a flopped straight flush",
     ask: "action",
+    read: "Villain calls any bet (calling station).",
     state: {
       heroHand: hand("9s", "8s"), board: hand("7s", "6s", "5s"), // flopped straight flush
       pot: 1, toAct: "hero",
@@ -1176,8 +1179,9 @@ export const STARTER_DRILLS: Drill[] = [
   {
     id: "m56-true-implied-odds",
     module: "M5.6",
-    title: "Implied odds (true): call an overbet with a flush draw, get paid when it hits",
+    title: "Implied odds: a flush draw facing an overbet",
     ask: "action",
+    read: "Villain pays off the turn when your draw hits.",
     // heroFacesBet 2.0 -> immediate odds need 40%, but the ~37% flush draw is +EV
     // because villain (callStrat) pays off the turn when it completes. Unlike the
     // effective-pot M5.6, the implied winnings come from a real future street.
@@ -1706,8 +1710,9 @@ export const STARTER_DRILLS: Drill[] = [
   {
     id: "m35-turn-semibluff",
     module: "M3.5",
-    title: "Fold equity: semi-bluffing a flush draw on the turn",
+    title: "Fold equity: a flush draw on the turn",
     ask: "action",
+    read: "Villain folds often.",
     state: {
       heroHand: hand("8s", "9s"), board: hand("As", "Ks", "4d", "Jc"), // flush draw, one to come
       pot: 1, toAct: "hero",
@@ -1895,6 +1900,130 @@ export const STARTER_DRILLS: Drill[] = [
         { combo: hand("Ac", "Kd"), weight: 1 },
         { combo: hand("Ks", "Kh"), weight: 1 },
       ] },
+      abstraction: { sizes: [], streets: [], players: 2 },
+    },
+  },
+  // ---- M3.5 coverage: fold equity only helps when villain actually folds ----
+  {
+    id: "m35-no-fold-equity",
+    module: "M3.5",
+    title: "Fold equity: the same flush draw, a sticky villain",
+    ask: "action",
+    read: "Villain never folds — calls any bet.",
+    state: {
+      // Same draw as the flop semi-bluff, but villain never folds: with no fold equity, betting as the
+      // underdog is worse than checking and realizing equity for free. Betting is the leak.
+      heroHand: hand("8s", "9s"), board: hand("As", "Ks", "4d"),
+      pot: 1, toAct: "hero",
+      villain: {
+        range: [{ combo: hand("Ah", "Td"), weight: 1 }],
+        strategy: (_s: NodeState, legal: Action[]) =>
+          legal.map((a) => ({ action: a, weight: a.kind === "call" ? 1 : 0 })),
+      },
+      abstraction: { sizes: [1.0], streets: ["flop"], players: 2 },
+    },
+  },
+  {
+    id: "m35-oesd-semibluff",
+    module: "M3.5",
+    title: "Fold equity: an open-ended draw on the flop",
+    ask: "action",
+    read: "Villain folds about half the time.",
+    state: {
+      // Open-ender (8 outs) + fold equity: betting wins now when villain folds and later when the draw hits.
+      heroHand: hand("Ts", "9s"), board: hand("Qh", "Jd", "2c"),
+      pot: 1, toAct: "hero",
+      villain: {
+        range: [{ combo: hand("Ah", "Ad"), weight: 1 }],
+        strategy: (_s: NodeState, legal: Action[]) =>
+          legal.map((a) => ({ action: a, weight: a.kind === "fold" ? 0.5 : 0.5 })),
+      },
+      abstraction: { sizes: [1.0], streets: ["flop"], players: 2 },
+    },
+  },
+  {
+    id: "m35-weak-draw-check",
+    module: "M3.5",
+    title: "Fold equity: a gutshot on the flop",
+    ask: "action",
+    read: "Villain rarely folds.",
+    state: {
+      // A 4-out gutshot with little fold equity: not enough folds + a weak draw means checking beats betting.
+      heroHand: hand("Kd", "Qc"), board: hand("Js", "9h", "2c"),
+      pot: 1, toAct: "hero",
+      villain: {
+        range: [{ combo: hand("Ah", "Ad"), weight: 1 }],
+        strategy: (_s: NodeState, legal: Action[]) =>
+          legal.map((a) => ({ action: a, weight: a.kind === "fold" ? 0.2 : 0.8 })),
+      },
+      abstraction: { sizes: [1.0], streets: ["flop"], players: 2 },
+    },
+  },
+  // ---- M4 coverage: bet strong hands across streets for value ----
+  {
+    id: "m4-value-set",
+    module: "M4",
+    title: "Street sequencing: a flopped top set",
+    ask: "action",
+    read: "Villain calls any bet (calling station).",
+    state: {
+      // Top set vs a station: bet flop and turn to build the pot — checking leaves money behind.
+      heroHand: hand("8s", "8d"), board: hand("8h", "Kc", "2c"),
+      pot: 1, toAct: "hero",
+      villain: {
+        range: [{ combo: hand("Kh", "Qd"), weight: 1 }],
+        strategy: (_s: NodeState, legal: Action[]) =>
+          legal.map((a) => ({ action: a, weight: a.kind === "call" ? 1 : 0 })),
+      },
+      abstraction: { sizes: [1.0], streets: ["flop", "turn"], players: 2 },
+    },
+  },
+  {
+    id: "m4-overpair-protection",
+    module: "M4",
+    title: "Street sequencing: an overpair on a wet board",
+    ask: "action",
+    read: "Villain calls any bet with a draw.",
+    state: {
+      // Overpair on a draw-heavy board: bet across streets for value and to charge the draw, not check.
+      heroHand: hand("As", "Ad"), board: hand("9h", "8h", "2c"),
+      pot: 1, toAct: "hero",
+      villain: {
+        range: [{ combo: hand("Kh", "Qh"), weight: 1 }],
+        strategy: (_s: NodeState, legal: Action[]) =>
+          legal.map((a) => ({ action: a, weight: a.kind === "call" ? 1 : 0 })),
+      },
+      abstraction: { sizes: [1.0], streets: ["flop", "turn"], players: 2 },
+    },
+  },
+  // ---- M5.6 coverage: implied odds aren't always there ----
+  {
+    id: "m56-no-implied-odds",
+    module: "M5.6",
+    title: "Implied odds: a flush draw with nothing behind",
+    ask: "action",
+    read: "Stacks are shallow — there's little left to win later.",
+    state: {
+      // ~37% flush draw at 1-to-call into 1: immediate odds need 50%, and there are no future bets to win,
+      // so implied odds can't rescue it. Calling is the leak (chases without odds).
+      heroHand: hand("8s", "9s"), board: hand("As", "Ks", "4d"),
+      pot: 1, toCall: 1, toAct: "hero",
+      villain: { range: [{ combo: hand("Ah", "Td"), weight: 1 }] },
+      abstraction: { sizes: [], streets: [], players: 2 },
+    },
+  },
+  {
+    id: "m56-reverse-implied",
+    module: "M5.6",
+    title: "Implied odds: a draw that may be second-best",
+    ask: "action",
+    read: "Villain likely holds a bigger draw.",
+    state: {
+      // A low flush draw drawing nearly dead vs a higher flush draw (~11%): the cards that 'hit' often lose,
+      // so even a 3-to-1 price is a fold. Reverse implied odds — discount the tainted outs.
+      heroHand: hand("Jh", "2h"), board: hand("Ah", "Kh", "5c"),
+      pot: 3, toCall: 1, toAct: "hero",
+      villain: { range: [{ combo: hand("Qh", "Th"), weight: 1 }] },
       abstraction: { sizes: [], streets: [], players: 2 },
     },
   },

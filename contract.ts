@@ -216,6 +216,7 @@ export interface Drill {
   module: string;                   // curriculum tag, e.g. "M2", "M3", "P2"
   title: string;                    // human-facing label
   ask: "estimate" | "action" | "category" | "outs";  // the response kind this drill expects
+  read?: string;                    // optional villain read/situational note (the strategy isn't visible from cards alone)
   state: State;
 }
 export interface Session {
