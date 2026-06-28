@@ -740,8 +740,8 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
   ok("M4 check regret == 3 bb", approx(m4check.result.regretBb, 3), `got ${m4check.result.regretBb}`);
   ok("M4 check -> m4.misses_street_sequence", m4check.result.leakTag === "m4.misses_street_sequence");
 
-  ok("STARTER_DRILLS now spans 31 drills incl M0/M3.5/M4/M5.6/P0/P1/P3/P4/P5",
-    STARTER_DRILLS.length === 31 &&
+  ok("STARTER_DRILLS now spans 38 drills incl M0/M3.5/M4/M5.6/P0/P1/P3/P4/P5",
+    STARTER_DRILLS.length === 38 &&
     ["M0", "M3.5", "M4", "M5.6", "P0", "P1", "P3", "P4", "P5"].every((m) => STARTER_DRILLS.some((d) => d.module === m)));
 
   // Check-raise-range drill: villain raises only what beats hero (policy + raise).
@@ -1140,6 +1140,23 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
     gradeDrill(session, m0s.id, { kind: "category", value: 4 }, 0).result.estimateError === 0);
   ok("M0 straight misread -> m0.misreads_hand",
     gradeDrill(session, m0s.id, { kind: "category", value: 8 }, 0).result.leakTag === "m0.misreads_hand");
+
+  // M0: the misread-trap drills, each graded at its true category (and a wrong read -> m0.misreads_hand).
+  const cat = (id: string, v: number): string =>
+    gradeDrill(session, id, { kind: "category", value: v }, 0).result.leakTag;
+  ok("M0 board pair -> two pair", cat("m0-counts-board-pair", 2) === "m0.ok");
+  ok("M0 board pair misread as one pair", cat("m0-counts-board-pair", 1) === "m0.misreads_hand");
+  ok("M0 wheel -> straight", cat("m0-wheel", 4) === "m0.ok");
+  ok("M0 wheel misread as high card", cat("m0-wheel", 0) === "m0.misreads_hand");
+  ok("M0 board straight -> straight (play the board)", cat("m0-play-the-board-straight", 4) === "m0.ok");
+  ok("M0 board straight misread as one pair", cat("m0-play-the-board-straight", 1) === "m0.misreads_hand");
+  ok("M0 four-to-a-flush -> one pair", cat("m0-flush-trap", 1) === "m0.ok");
+  ok("M0 four-to-a-flush misread as flush", cat("m0-flush-trap", 5) === "m0.misreads_hand");
+  ok("M0 made flush (2 hole + 3 board) -> flush", cat("m0-flush-count", 5) === "m0.ok");
+  ok("M0 pocket pair + board pair -> full house", cat("m0-fullhouse-pocket-pair", 6) === "m0.ok");
+  ok("M0 full house misread as trips", cat("m0-fullhouse-pocket-pair", 3) === "m0.misreads_hand");
+  ok("M0 straight flush -> cat 8", cat("m0-straight-flush", 8) === "m0.ok");
+  ok("M0 straight flush misread as flush", cat("m0-straight-flush", 5) === "m0.misreads_hand");
 
   // M1: open-ended straight draw out-counting (true = 8 outs).
   const m1os = byId("m1-open-ender").state;

@@ -1388,6 +1388,98 @@ export const STARTER_DRILLS: Drill[] = [
       abstraction: { sizes: [], streets: [], players: 2 },
     },
   },
+  // ---- M0 misread traps (common beginner errors) ----
+  {
+    id: "m0-counts-board-pair",
+    module: "M0",
+    title: "Hand reading: a paired board",
+    ask: "category",
+    state: {
+      // A-K on K-8-8-4-2: best is K K 8 8 A -> TWO PAIR (the board's pair counts). Misread: one pair.
+      heroHand: hand("Ac", "Kd"), board: hand("Ks", "8h", "8d", "4c", "2s"),
+      pot: 1, toAct: "hero",
+      villain: { range: [] },
+      abstraction: { sizes: [], streets: [], players: 2 },
+    },
+  },
+  {
+    id: "m0-wheel",
+    module: "M0",
+    title: "Hand reading: an ace with three low cards",
+    ask: "category",
+    state: {
+      // A-2 on 3-4-5-K-9: A-2-3-4-5 = the wheel STRAIGHT (cat 4). Misread: ace-high / high card.
+      heroHand: hand("As", "2h"), board: hand("3d", "4c", "5s", "Kh", "9d"),
+      pot: 1, toAct: "hero",
+      villain: { range: [] },
+      abstraction: { sizes: [], streets: [], players: 2 },
+    },
+  },
+  {
+    id: "m0-play-the-board-straight",
+    module: "M0",
+    title: "Hand reading: a fully connected board",
+    ask: "category",
+    state: {
+      // 2-2 on 5-6-7-8-9: the BOARD is a straight (cat 4) and beats your pair of twos. Misread: one pair.
+      heroHand: hand("2c", "2s"), board: hand("5d", "6c", "7h", "8s", "9d"),
+      pot: 1, toAct: "hero",
+      villain: { range: [] },
+      abstraction: { sizes: [], streets: [], players: 2 },
+    },
+  },
+  {
+    id: "m0-flush-trap",
+    module: "M0",
+    title: "Hand reading: three of a suit on the board",
+    ask: "category",
+    state: {
+      // K-2 on A-8-3(all hearts)-K-5: only 4 hearts total (board 3 + your 1) -> NO flush; best is a pair of kings.
+      heroHand: hand("Kh", "2c"), board: hand("Ah", "8h", "3h", "Kd", "5c"),
+      pot: 1, toAct: "hero",
+      villain: { range: [] },
+      abstraction: { sizes: [], streets: [], players: 2 },
+    },
+  },
+  {
+    id: "m0-flush-count",
+    module: "M0",
+    title: "Hand reading: three of your suit are on the board",
+    ask: "category",
+    state: {
+      // A-5 of diamonds on K-9-4(diamonds)-7-2: your 2 + board's 3 = 5 diamonds -> FLUSH (cat 5). Misread: ace-high.
+      heroHand: hand("Ad", "5d"), board: hand("Kd", "9d", "4d", "7c", "2s"),
+      pot: 1, toAct: "hero",
+      villain: { range: [] },
+      abstraction: { sizes: [], streets: [], players: 2 },
+    },
+  },
+  {
+    id: "m0-fullhouse-pocket-pair",
+    module: "M0",
+    title: "Hand reading: a pocket pair on a paired board",
+    ask: "category",
+    state: {
+      // 7-7 on 7-K-K-2-9: 7 7 7 + K K = FULL HOUSE (cat 6). Misread: trips (the third seven only) or two pair.
+      heroHand: hand("7h", "7d"), board: hand("7s", "Kc", "Kd", "2h", "9s"),
+      pot: 1, toAct: "hero",
+      villain: { range: [] },
+      abstraction: { sizes: [], streets: [], players: 2 },
+    },
+  },
+  {
+    id: "m0-straight-flush",
+    module: "M0",
+    title: "Hand reading: a connected, single-suit board",
+    ask: "category",
+    state: {
+      // T-9 of hearts on 6-7-8(hearts)-2-K: 6-7-8-9-T all hearts = STRAIGHT FLUSH (cat 8). Misread: flush or straight.
+      heroHand: hand("Th", "9h"), board: hand("6h", "7h", "8h", "2c", "Kd"),
+      pot: 1, toAct: "hero",
+      villain: { range: [] },
+      abstraction: { sizes: [], streets: [], players: 2 },
+    },
+  },
   {
     id: "m1-open-ender",
     module: "M1",

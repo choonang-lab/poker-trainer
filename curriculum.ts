@@ -85,7 +85,11 @@ export const MODULES: Module[] = [
     ],
     objectives: ["Name your made hand's category at a glance", "Spot the nut hands a board allows", "Avoid misreading straights, flushes, and full houses"],
     example: "On A♠ K♥ 7♣ holding A♦ K♦ you have two pair (aces and kings) — not just 'top pair'.",
-    drillIds: ["m0-read-two-pair", "m0-read-straight"],
+    drillIds: [
+      "m0-read-two-pair", "m0-counts-board-pair", "m0-read-straight", "m0-wheel",
+      "m0-play-the-board-straight", "m0-flush-trap", "m0-flush-count",
+      "m0-fullhouse-pocket-pair", "m0-straight-flush",
+    ],
   },
   {
     id: "M1", track: "P1", title: "Counting outs",
