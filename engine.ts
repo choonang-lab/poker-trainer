@@ -1548,6 +1548,73 @@ export const STARTER_DRILLS: Drill[] = [
     },
   },
   {
+    id: "m1-gutshot-2",
+    module: "M1",
+    title: "Counting outs: how many cards complete your draw?",
+    ask: "outs",
+    state: {
+      // Q-J on T-8-2 vs AA: only a 9 makes Q-J-T-9-8 = 4 outs (a second gutshot, different board).
+      heroHand: hand("Qd", "Jc"), board: hand("Ts", "8h", "2c"),
+      pot: 1, toAct: "hero",
+      villain: { range: [{ combo: hand("Ac", "As"), weight: 1 }] },
+      abstraction: { sizes: [], streets: [], players: 2 },
+    },
+  },
+  {
+    id: "m1-flush-draw-2",
+    module: "M1",
+    title: "Counting outs: count every card that wins",
+    ask: "outs",
+    state: {
+      // Q-J of clubs on A-7(clubs)-3 vs KK: a flush draw is 9 outs (a second flush draw, different board/suit).
+      heroHand: hand("Qc", "Jc"), board: hand("Ac", "7c", "3h"),
+      pot: 1, toAct: "hero",
+      villain: { range: [{ combo: hand("Kd", "Ks"), weight: 1 }] },
+      abstraction: { sizes: [], streets: [], players: 2 },
+    },
+  },
+  {
+    id: "m1-one-overcard",
+    module: "M1",
+    title: "Counting outs: how many winners are there?",
+    ask: "outs",
+    state: {
+      // A-7 on 9-5-2 vs KK: only ONE overcard (the ace); pairing it = 3 outs. The 7 doesn't beat kings.
+      heroHand: hand("Ac", "7s"), board: hand("9d", "5c", "2h"),
+      pot: 1, toAct: "hero",
+      villain: { range: [{ combo: hand("Kd", "Ks"), weight: 1 }] },
+      abstraction: { sizes: [], streets: [], players: 2 },
+    },
+  },
+  {
+    id: "m1-flush-plus-gutshot",
+    module: "M1",
+    title: "Counting outs: add up all your outs",
+    ask: "outs",
+    state: {
+      // J-9 of clubs on Q-8(clubs)-2 vs AA: flush draw (9) + a gutshot to a ten (Q-J-T-9-8). The T of clubs is
+      // already a flush out, so it's 9 + 3 = 12 — not 9 + 4 = 13. Combine draws without double-counting the overlap.
+      heroHand: hand("Jc", "9c"), board: hand("Qc", "8c", "2h"),
+      pot: 1, toAct: "hero",
+      villain: { range: [{ combo: hand("Ah", "Ad"), weight: 1 }] },
+      abstraction: { sizes: [], streets: [], players: 2 },
+    },
+  },
+  {
+    id: "m1-double-gutshot",
+    module: "M1",
+    title: "Counting outs: look again — how many outs?",
+    ask: "outs",
+    state: {
+      // T-4 on 6-7-8 vs AA: looks like nothing, but it's a double belly-buster — a 5 makes 4-5-6-7-8 AND a 9
+      // makes 6-7-8-9-T. Two gutshots = 8 outs, the same as an open-ender (easy to undercount as 0 or 4).
+      heroHand: hand("Td", "4c"), board: hand("6s", "7h", "8d"),
+      pot: 1, toAct: "hero",
+      villain: { range: [{ combo: hand("Ac", "As"), weight: 1 }] },
+      abstraction: { sizes: [], streets: [], players: 2 },
+    },
+  },
+  {
     id: "m3-bad-odds-fold",
     module: "M3",
     title: "Pot odds: fold a weak draw at a bad price",

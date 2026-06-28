@@ -106,8 +106,9 @@ export const MODULES: Module[] = [
     objectives: ["Count cards that improve you to the best hand", "Recognize draw types: flush 9, open-ender 8, gutshot 4", "Subtract outs that complete a better hand"],
     example: "A flush draw has 9 outs — 13 cards of the suit minus the 4 you can see.",
     drillIds: [
-      "m1-flush-draw-outs", "m1-gutshot", "m1-open-ender", "m1-overcards",
-      "m1-combo-draw-outs", "m1-tainted-flush-out",
+      "m1-flush-draw-outs", "m1-gutshot", "m1-open-ender", "m1-one-overcard",
+      "m1-overcards", "m1-flush-draw-2", "m1-gutshot-2", "m1-double-gutshot",
+      "m1-flush-plus-gutshot", "m1-combo-draw-outs", "m1-tainted-flush-out",
     ],
   },
   {

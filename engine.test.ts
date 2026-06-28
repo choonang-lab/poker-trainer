@@ -740,8 +740,8 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
   ok("M4 check regret == 3 bb", approx(m4check.result.regretBb, 3), `got ${m4check.result.regretBb}`);
   ok("M4 check -> m4.misses_street_sequence", m4check.result.leakTag === "m4.misses_street_sequence");
 
-  ok("STARTER_DRILLS now spans 42 drills incl M0/M3.5/M4/M5.6/P0/P1/P3/P4/P5",
-    STARTER_DRILLS.length === 42 &&
+  ok("STARTER_DRILLS now spans 47 drills incl M0/M3.5/M4/M5.6/P0/P1/P3/P4/P5",
+    STARTER_DRILLS.length === 47 &&
     ["M0", "M3.5", "M4", "M5.6", "P0", "P1", "P3", "P4", "P5"].every((m) => STARTER_DRILLS.some((d) => d.module === m)));
 
   // Check-raise-range drill: villain raises only what beats hero (policy + raise).
@@ -1183,6 +1183,20 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
   ok("M1 tainted flush = 8 clean outs (not 9)", trueOuts("m1-tainted-flush-out") === 8);
   ok("M1 tainted flush counted as 9 -> overcounts_outs", outsLeakOf("m1-tainted-flush-out", 9) === "m1.overcounts_outs");
   ok("M1 tainted flush answered 8 -> m1.ok", outsLeakOf("m1-tainted-flush-out", 8) === "m1.ok");
+
+  // M1: the additional coverage drills (second instances + more archetypes).
+  ok("M1 gutshot #2 = 4 outs", trueOuts("m1-gutshot-2") === 4);
+  ok("M1 gutshot #2 answered 4 -> m1.ok", outsLeakOf("m1-gutshot-2", 4) === "m1.ok");
+  ok("M1 flush draw #2 = 9 outs", trueOuts("m1-flush-draw-2") === 9);
+  ok("M1 flush draw #2 answered 9 -> m1.ok", outsLeakOf("m1-flush-draw-2", 9) === "m1.ok");
+  ok("M1 one overcard = 3 outs", trueOuts("m1-one-overcard") === 3);
+  ok("M1 one overcard miscounted as 6 -> overcounts_outs", outsLeakOf("m1-one-overcard", 6) === "m1.overcounts_outs");
+  ok("M1 flush + gutshot = 12 outs (not 13)", trueOuts("m1-flush-plus-gutshot") === 12);
+  ok("M1 flush + gutshot double-counted as 13 -> overcounts_outs", outsLeakOf("m1-flush-plus-gutshot", 13) === "m1.overcounts_outs");
+  ok("M1 flush + gutshot answered 12 -> m1.ok", outsLeakOf("m1-flush-plus-gutshot", 12) === "m1.ok");
+  ok("M1 double gutshot = 8 outs", trueOuts("m1-double-gutshot") === 8);
+  ok("M1 double gutshot undercounted as 4 -> undercounts_outs", outsLeakOf("m1-double-gutshot", 4) === "m1.undercounts_outs");
+  ok("M1 double gutshot answered 8 -> m1.ok", outsLeakOf("m1-double-gutshot", 8) === "m1.ok");
 
   // M3: fold a weak draw at a bad price; calling is the leak.
   ok("M3 fold (bad price) is correct (regret 0)",
