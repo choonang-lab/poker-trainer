@@ -10,7 +10,7 @@ import {
   STARTER_DRILLS, newSession, nextDrill, gradeDrill, classifyLeak,
   serializeSession, loadSession,
 } from "./engine.ts";
-import { MODULES, moduleDone, moduleStatus, currentStreak } from "./curriculum.ts";
+import { MODULES, PRIMER, moduleDone, moduleStatus, currentStreak } from "./curriculum.ts";
 import type { State, NodeState, Action, TreeNode, Abstraction, Response, Result, Review, Drill, Score, RangePolicy } from "./contract.ts";
 
 let pass = 0, fail = 0;
@@ -1184,6 +1184,10 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
   ok("module list covers all drills", allModuleIds.length === STARTER_DRILLS.length);
   ok("every module has preface, 3 objectives, an example",
     MODULES.every((m) => m.preface.length > 0 && m.objectives.length === 3 && m.example.length > 0));
+  ok("every module has >=2 well-formed key terms",
+    MODULES.every((m) => m.concepts.length >= 2 && m.concepts.every((c) => c.term.length > 0 && c.def.length > 0)));
+  ok("primer has sections with non-empty heading + body",
+    PRIMER.length >= 5 && PRIMER.every((s) => s.heading.length > 0 && s.body.length > 0 && s.body.every((p) => p.length > 0)));
   // Pillar 1 modules all precede Pillar 2 (so P2 unlocks only after P1).
   const lastP1 = MODULES.map((m, i) => (m.track === "P1" ? i : -1)).reduce((a, b) => Math.max(a, b), -1);
   const firstP2 = MODULES.findIndex((m) => m.track === "P2");

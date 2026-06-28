@@ -8,7 +8,7 @@ import {
   buildTree, actionEVs, truth, calibration, leakReport,
   rankOf, suitOf, RNAMES,
 } from "../engine.ts";
-import { MODULES, moduleStatus, currentStreak } from "../curriculum.ts";
+import { MODULES, PRIMER, moduleStatus, currentStreak } from "../curriculum.ts";
 import type { Drill, Response, Action, State, Module } from "../contract.ts";
 
 // ---- persistence (localStorage; the IO boundary, like cli.ts's fs) ----------
@@ -34,7 +34,7 @@ function persist(): void {
 
 // ---- UI state ---------------------------------------------------------------
 type View = "learn" | "review" | "stats";
-type LScreen = "map" | "intro" | "drill" | "recap";
+type LScreen = "map" | "primer" | "intro" | "drill" | "recap";
 let view: View = "learn";
 let lScreen: LScreen = "map";
 let activeModule: Module | null = null;
@@ -115,6 +115,7 @@ function renderNav(): void {
 // ---- Learn: map -> intro -> lessons -> recap --------------------------------
 function renderLearn(): void {
   if (lScreen === "map") renderMap();
+  else if (lScreen === "primer") renderPrimer();
   else if (lScreen === "intro") renderIntro();
   else if (lScreen === "drill") renderLesson();
   else renderRecap();
@@ -122,6 +123,13 @@ function renderLearn(): void {
 
 function renderMap(): void {
   app.append(streakChip());
+  const starter = el("div", "modrow starter");
+  starter.append(el("div", "mdot", "★"));
+  const stitle = el("div", "mtitle");
+  stitle.append(el("div", "nm", "Start here"), el("div", "sb", "New to poker? Learn the words first."));
+  starter.append(stitle);
+  starter.onclick = () => { lScreen = "primer"; renderAll(); };
+  app.append(starter);
   const tracks: [Module["track"], string][] = [["P1", "Pillar 1 · estimate"], ["P2", "Pillar 2 · decide"]];
   for (const [tr, label] of tracks) {
     app.append(el("div", "trackhdr", label));
@@ -143,6 +151,20 @@ function renderMap(): void {
   }
 }
 
+function renderPrimer(): void {
+  app.append(backLink("← Path", () => { lScreen = "map"; renderAll(); }));
+  const sec = el("section", "drill primer-screen");
+  sec.append(el("div", "tag", "Start here"), el("h2", "title", "Poker basics"));
+  for (const s of PRIMER) {
+    sec.append(el("h3", "primer-h", s.heading));
+    for (const p of s.body) sec.append(el("p", "primer-p", p));
+  }
+  const done = el("button", "primary", "Got it — back to the path");
+  done.onclick = () => { lScreen = "map"; renderAll(); };
+  sec.append(done);
+  app.append(sec);
+}
+
 function renderIntro(): void {
   const m = activeModule!;
   app.append(backLink("← Path", () => { lScreen = "map"; renderAll(); }));
@@ -151,8 +173,14 @@ function renderIntro(): void {
     el("div", "tag", m.track === "P1" ? "Pillar 1 · estimate" : "Pillar 2 · decide"),
     el("h2", "title", `${m.id} · ${m.title}`),
     el("p", "preface", m.preface),
-    el("div", "prompt", "You'll be able to"),
   );
+  sec.append(el("div", "prompt", "Key terms"));
+  for (const c of m.concepts) {
+    const r = el("div", "term");
+    r.append(el("span", "tm", c.term), el("span", "df", ` — ${c.def}`));
+    sec.append(r);
+  }
+  sec.append(el("div", "prompt", "You'll be able to"));
   for (const o of m.objectives) {
     const r = el("div", "obj"); r.append(el("span", "ck", "✓"), el("div", undefined, o)); sec.append(r);
   }

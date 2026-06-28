@@ -287,11 +287,13 @@ export declare function leakReport(entries: { leakTag: string; regretBb: number 
 // the web UI). A Module groups drills with a preface, objectives, and a worked
 // example; modules unlock in order. Pure helpers derive progress from the Session.
 // ===========================================================================
+export interface Concept { term: string; def: string; }  // a key-term definition
 export interface Module {
   id: string;                 // e.g. "M1"
   track: "P1" | "P2";         // Pillar 1 (estimate) | Pillar 2 (decide)
   title: string;
   preface: string;            // why it matters
+  concepts: Concept[];        // key terms this module's lessons use
   objectives: string[];       // what you'll be able to do
   example: string;            // a worked example
   drillIds: string[];         // the module's drills, in teaching order
@@ -300,6 +302,11 @@ export declare const MODULES: Module[];
 export declare function moduleDone(module: Module, session: Session): boolean;
 export declare function moduleStatus(moduleId: string, session: Session): "done" | "current" | "locked";
 export declare function currentStreak(activeDays: number[], today: number): number;
+
+// A beginner orientation shown before any module (the "Start here" primer). Pure
+// data — drill-free reading, surfaced by the web UI from a pinned map card.
+export interface PrimerSection { heading: string; body: string[]; }  // body = paragraphs
+export declare const PRIMER: PrimerSection[];
 
 // ===========================================================================
 // Build status

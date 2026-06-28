@@ -120,3 +120,16 @@ body { padding-bottom: 78px; }
   background: rgba(46,204,113,.18); color: var(--good);
 }
 .recap-objs { text-align: left; display: inline-block; margin: 8px 0; }
+
+/* Start here card + primer screen + per-module key terms */
+.modrow.starter { cursor: pointer; border-color: rgba(76,154,255,.4); margin-bottom: 4px; }
+.modrow.starter:hover { border-color: var(--accent); }
+.modrow.starter .mdot { background: rgba(76,154,255,.18); color: var(--accent); }
+
+.primer-screen .primer-h { font-size: 15px; margin: 18px 0 6px; color: var(--accent); }
+.primer-screen .primer-p { margin: 0 0 8px; line-height: 1.6; }
+.primer-screen .primary { width: 100%; margin-top: 16px; }
+
+.term { margin: 7px 0; font-size: 14px; line-height: 1.5; }
+.term .tm { font-weight: 700; color: var(--text); }
+.term .df { color: var(--muted); }
