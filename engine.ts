@@ -749,7 +749,7 @@ export function actionEVs(heroNode: TreeNode): { action: Action; ev: number }[] 
 // a call/fold facing state.toCall; pillar 2 reads them off the built tree's root.
 function decisionEVs(state: State): { action: Action; ev: number }[] {
   if (state.abstraction.sizes.length === 0) {
-    const eq = equityLeaf(state);
+    const eq = fieldEquity(state); // field-aware (reduces to heads-up equity at players=2)
     if (eq === null) throw new Error("grade: no valid villain combo for this spot");
     if (state.toCall === undefined)
       throw new Error("grade: a pillar-1 call/fold drill requires state.toCall");
