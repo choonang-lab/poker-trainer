@@ -32,10 +32,10 @@ main { width: 100%; max-width: 460px; display: flex; flex-direction: column; gap
 }
 .pcard .pr { font-size: .78em; }
 .pcard .ps { font-size: .92em; }
-.pcard.s0 { color: #1a2733; }  /* spades   */
-.pcard.s1 { color: #d62b3a; }  /* hearts   */
-.pcard.s2 { color: #2f6fd6; }  /* diamonds */
-.pcard.s3 { color: #1a9e54; }  /* clubs    */
+.pcard.s0 { color: #1a1a1a; }  /* spades   — black */
+.pcard.s1 { color: #d62b3a; }  /* hearts   — red   */
+.pcard.s2 { color: #d62b3a; }  /* diamonds — red   */
+.pcard.s3 { color: #1a1a1a; }  /* clubs    — black */
 
 .controls { margin-top: 16px; display: flex; flex-direction: column; gap: 10px; }
 .prompt { font-size: 14px; color: var(--muted); }
