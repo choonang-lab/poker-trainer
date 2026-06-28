@@ -4,7 +4,7 @@
     {
       "name": "poker-web",
       "runtimeExecutable": "python",
-      "runtimeArgs": ["-m", "http.server", "5050", "--directory", "web"],
+      "runtimeArgs": ["-m", "http.server", "5050", "--directory", "docs"],
       "port": 5050
     }
   ]

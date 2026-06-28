@@ -28,11 +28,12 @@
     taxonomy `classifyLeak` (grade() emits structural tags; gradeDrill refines them into named
     curriculum leaks, e.g. `m5.overrates_vs_range`, with module-scoped fallbacks). `truth()` is
     field-aware (`fieldEquity`) so multiway (P4) estimate drills grade against the field, not heads-up.
-- **`web/`** — L7 web PWA. Vanilla-TS UI (`web/app.ts`) over the same pure seam as the CLI
+- **`web/app.ts`** — L7 web PWA SOURCE. Vanilla-TS UI over the same pure seam as the CLI
   (loadSession → nextDrill → render → gradeDrill → persist) with localStorage persistence, 4-color
-  cards, a stats screen (M6 calibration + P6 leaks), and PWA bits (`manifest.webmanifest`, `sw.js`,
-  `icon.svg`) for install + offline. The engine stays clean — `web/` only imports it. Build with esbuild
-  (via npx cache, no committed deps); `web/dist/` is git-ignored. See "Run it" below.
+  cards, a stats screen (M6 calibration + P6 leaks). The engine stays clean — `web/` only imports it.
+- **`docs/`** — the DEPLOYED static site (GitHub Pages serves `main` /docs): app shell + PWA bits
+  (`manifest.webmanifest`, `sw.js`, `icon.svg`) + the committed, minified `docs/app.js` (built from
+  `web/app.ts` via esbuild). Installable + offline (the engine is fully client-side). See "Run it".
 - **`cli.ts`** — L7 CLI trainer. Dependency-free (Node readline async-iterator); the IO boundary that
   drives the L6 session loop (present → read → grade → schedule → repeat). Type-checked by `tsc`
   (minimal ambient `node:readline`/`node:fs` decls in `globals.d.ts`); not in the unit suite (it reads stdin).
@@ -56,10 +57,14 @@ node bench.ts                   # AA vs KK preflop = 82.64% in ~3s (was ~190s pr
 node validate-evaluator.ts      # deep cross-check (500k hands) + fast-vs-slow perf (~70x)
 node cli.ts                     # smoke (grades a few drills, exits at EOF): printf '0.14\ncall\nbet\n' | node cli.ts
 
-# Web PWA (web/):
-npx -p esbuild esbuild web/app.ts --bundle --format=esm --outfile=web/dist/app.js  # build the bundle
-npx -p typescript tsc -p web/tsconfig.json                                          # type-check the UI (DOM lib)
-# then serve web/ over http (e.g. python -m http.server --directory web) and open it; installable + offline.
+# Web PWA (source web/app.ts -> deployed site docs/):
+npx -p esbuild esbuild web/app.ts --bundle --format=esm --minify --outfile=docs/app.js  # rebuild the bundle
+npx -p typescript tsc -p web/tsconfig.json                                               # type-check the UI (DOM lib)
+python -m http.server 5050 --directory docs   # preview; then open http://localhost:5050/
+
+# Deploy (GitHub Pages): push the repo, then Settings -> Pages -> Source: "Deploy from a branch",
+# branch=main, folder=/docs. Site appears at https://<user>.github.io/<repo>/ . Paths are relative,
+# so the /<repo>/ subpath works. After any engine/UI change, rebuild docs/app.js and commit.
 ```
 
 ## What Claude Code builds next (in priority order)

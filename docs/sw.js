@@ -3,7 +3,7 @@
 const CACHE = "poker-trainer-v1";
 const SHELL = [
   "./", "./index.html", "./styles.css", "./manifest.webmanifest",
-  "./icon.svg", "./dist/app.js",
+  "./icon.svg", "./app.js",
 ];
 
 self.addEventListener("install", (e) => {

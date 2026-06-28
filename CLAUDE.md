@@ -86,12 +86,12 @@ test red, stop and fix the leak — do NOT edit the test to make it pass.
   fold/call/RAISE: the range splits PER ACTION (call→callers, raise→raisers) and hero faces the raise
   via the raise chain. Mixed strategies & weighted ranges were already supported. P5 thin-value +
   check-raise-range drills showcase it. 31 drills.
-- DONE: L7 web PWA (`web/`) — vanilla-TS front-end over the same pure seam (loadSession → nextDrill →
-  gradeDrill → persist), localStorage persistence, 4-color cards, M6/P6 stats screen, manifest +
-  service worker (installable, offline). Build (no committed deps, via npx cache):
-  `npx -p esbuild esbuild web/app.ts --bundle --format=esm --outfile=web/dist/app.js`; type-check:
-  `npx -p typescript tsc -p web/tsconfig.json`. `web/dist/` is git-ignored (generated).
-  NOTE: the SW is cache-first; bump `CACHE` in `web/sw.js` to ship an update.
+- DONE: L7 web PWA — `web/app.ts` is the TS SOURCE (over the same pure seam: loadSession → nextDrill →
+  gradeDrill → persist; localStorage, 4-color cards, M6/P6 stats). `docs/` is the DEPLOYED static site
+  (shell + committed, minified `docs/app.js`) — GitHub Pages serves `main` /docs.
+  Build: `npx -p esbuild esbuild web/app.ts --bundle --format=esm --minify --outfile=docs/app.js`.
+  Type-check: `npx -p typescript tsc -p web/tsconfig.json`. Preview: serve `docs/` over http.
+  NOTE: SW is cache-first; bump `CACHE` in `docs/sw.js` (AND rebuild `docs/app.js`) to ship a UI update.
 - NOTE: tags are module+suffix keyed. Each preflop drill costs ~3s. Raises are pot-sized (raiseCap ≤ 4).
 - NEXT options: more drills; deploy (static host); push notifications (iOS-limited). Feature-complete.
 

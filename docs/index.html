@@ -13,7 +13,7 @@
 <body>
   <header><h1>Poker Trainer</h1></header>
   <main id="app"><p class="muted">Loading…</p></main>
-  <script type="module" src="dist/app.js"></script>
+  <script type="module" src="app.js"></script>
   <script>
     if ("serviceWorker" in navigator) {
       window.addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));
