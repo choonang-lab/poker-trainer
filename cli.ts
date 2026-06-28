@@ -50,6 +50,11 @@ function parseResponse(d: Drill, answer: string): Response {
     if (!Number.isFinite(value)) throw new Error(`not a number: "${answer}"`);
     return { kind: "category", value };
   }
+  if (d.ask === "outs") {
+    const value = Math.round(Number(answer));
+    if (!Number.isFinite(value)) throw new Error(`not a number: "${answer}"`);
+    return { kind: "outs", value };
+  }
   const w = answer.toLowerCase().trim();
   if (w === "fold") return { kind: "action", action: { kind: "fold" } };
   if (w === "call") return { kind: "action", action: { kind: "call" } };
@@ -67,7 +72,7 @@ function showFeedback(d: Drill, out: GradeOutcome): void {
   const r = out.result;
   if (d.ask === "estimate") {
     console.log(`  -> true equity ${truth(d.state).toFixed(3)} | error ${(r.estimateError ?? 0).toFixed(3)} | ${r.leakTag}`);
-  } else if (d.ask === "category") {
+  } else if (d.ask === "category" || d.ask === "outs") {
     console.log(`  -> ${r.estimateError === 0 ? "correct" : `off by ${r.estimateError}`} | ${r.leakTag}`);
   } else {
     console.log(`  -> regret ${r.regretBb.toFixed(3)} bb | ${r.leakTag}`);
@@ -78,7 +83,8 @@ function showFeedback(d: Drill, out: GradeOutcome): void {
 const promptFor = (d: Drill): string =>
   d.ask === "estimate" ? "Your equity estimate (0..1): "
     : d.ask === "category" ? "Your hand category (0=high .. 8=straight flush): "
-      : "Your action: ";
+      : d.ask === "outs" ? "How many outs? "
+        : "Your action: ";
 
 // Pull lines from readline's async iterator (correct backpressure for piped or
 // interactive input — unlike repeated question() which races across awaits).

@@ -791,6 +791,22 @@ function handCategory(state: State): number {
   return best([...state.heroHand, ...state.board])[0];
 }
 
+// M1 out-counting: the true number of outs (single-card-to-come) for hero vs the
+// drill's single villain combo. Mirrors the L2 `outs` leaf.
+function drillOuts(state: State): number {
+  if (!state.heroHand) throw new Error("outs drill requires heroHand");
+  const v = state.villain.range[0]?.combo;
+  if (!v) throw new Error("outs drill requires a single villain combo");
+  return outs(state.heroHand, state.board, v);
+}
+
+// Out-counting is graded exactly (off-by-any-amount is a miss); the over/under
+// suffixes reuse the pillar-1 estimate tags so classifyLeak maps M1 -> over/undercounts_outs.
+function outsLeak(error: number): string {
+  if (error === 0) return "p1.ok";
+  return error > 0 ? "p1.overestimate" : "p1.underestimate";
+}
+
 export function grade(state: State, response: Response): Result {
   if (response.kind === "estimate") {
     const t = truth(state); // throws on a malformed spot
@@ -801,6 +817,11 @@ export function grade(state: State, response: Response): Result {
     // Graded by distance to the true category (0 = correct). Not an EV decision.
     const err = Math.abs(response.value - handCategory(state));
     return { regretBb: 0, estimateError: err, leakTag: err === 0 ? "p1.ok" : "p1.miscategorized" };
+  }
+  if (response.kind === "outs") {
+    // Graded by distance to the true out count (0 = exact). Not an EV decision.
+    const error = response.value - drillOuts(state);
+    return { regretBb: 0, estimateError: Math.abs(error), leakTag: outsLeak(error) };
   }
   const evs = decisionEVs(state);
   const chosen = evs.find((e) => sameAction(e.action, response.action));
@@ -1039,7 +1060,7 @@ export const STARTER_DRILLS: Drill[] = [
     id: "m1-flush-draw-outs",
     module: "M1",
     title: "Counting outs: a bare flush draw on the flop",
-    ask: "estimate",
+    ask: "outs",
     state: {
       heroHand: hand("2s", "5s"), board: hand("As", "9s", "7h"),
       pot: 1, toAct: "hero",
@@ -1371,7 +1392,7 @@ export const STARTER_DRILLS: Drill[] = [
     id: "m1-open-ender",
     module: "M1",
     title: "Counting outs: an open-ended straight draw",
-    ask: "estimate",
+    ask: "outs",
     state: {
       heroHand: hand("9h", "8d"), board: hand("7s", "6c", "2h"), // OESD: 5 or T (8 outs)
       pot: 1, toAct: "hero",

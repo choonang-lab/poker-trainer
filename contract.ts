@@ -173,7 +173,8 @@ export declare function realizationFactor(state: State): number;
 export type Response =
   | { kind: "estimate"; value: number }        // an equity estimate in [0,1]
   | { kind: "action"; action: Action }         // a chosen action
-  | { kind: "category"; value: number };       // a made-hand category guess (0=high..8=straight flush), M0
+  | { kind: "category"; value: number }        // a made-hand category guess (0=high..8=straight flush), M0
+  | { kind: "outs"; value: number };           // a count of outs (cards that improve to the best hand), M1
 
 // Per-action EVs at a HERO node — the source bestAction argmaxes and grade()
 // computes regret from.
@@ -214,7 +215,7 @@ export interface Drill {
   id: string;
   module: string;                   // curriculum tag, e.g. "M2", "M3", "P2"
   title: string;                    // human-facing label
-  ask: "estimate" | "action" | "category";  // the response kind this drill expects
+  ask: "estimate" | "action" | "category" | "outs";  // the response kind this drill expects
   state: State;
 }
 export interface Session {

@@ -5,7 +5,7 @@
 // no engine logic lives here.
 import {
   STARTER_DRILLS, loadSession, serializeSession, gradeDrill,
-  buildTree, actionEVs, truth, calibration, leakReport,
+  buildTree, actionEVs, truth, outs, calibration, leakReport,
   rankOf, suitOf, RNAMES,
 } from "../engine.ts";
 import { MODULES, PRIMER, moduleStatus, currentStreak } from "../curriculum.ts";
@@ -280,6 +280,14 @@ function buildControls(controls: HTMLElement, drill: Drill, onAnswer: (r: Respon
     go.onclick = submit;
     input.onkeydown = (e) => { if ((e as KeyboardEvent).key === "Enter") submit(); };
     controls.append(el("label", "prompt", "Your equity estimate:"), input, go);
+  } else if (drill.ask === "outs") {
+    const input = el("input") as HTMLInputElement;
+    input.type = "number"; input.min = "0"; input.max = "20"; input.step = "1"; input.placeholder = "e.g. 9";
+    const go = el("button", "primary", "Submit");
+    const submit = () => { const v = Math.round(Number(input.value)); if (Number.isFinite(v) && input.value !== "") onAnswer({ kind: "outs", value: v }); };
+    go.onclick = submit;
+    input.onkeydown = (e) => { if ((e as KeyboardEvent).key === "Enter") submit(); };
+    controls.append(el("label", "prompt", "How many outs?"), input, go);
   } else if (drill.ask === "category") {
     controls.append(el("label", "prompt", "Name your made hand:"));
     const grid = el("div", "cats");
@@ -317,6 +325,10 @@ function renderFeedback(drill: Drill, out: ReturnType<typeof gradeDrill>, contLa
   const fb = el("div", `feedback ${ok ? "good" : "bad"}`);
   let line = "";
   if (drill.ask === "estimate") line = `True equity ${truth(drill.state).toFixed(3)} · error ${(r.estimateError ?? 0).toFixed(3)}`;
+  else if (drill.ask === "outs") {
+    const t = outs(drill.state.heroHand!, drill.state.board, drill.state.villain.range[0].combo);
+    line = r.estimateError === 0 ? `Correct — ${t} outs` : `True outs: ${t} · off by ${r.estimateError}`;
+  }
   else if (drill.ask === "category") line = r.estimateError === 0 ? "Correct!" : `Off by ${r.estimateError} categor${r.estimateError === 1 ? "y" : "ies"}`;
   else line = r.regretBb <= 1e-9 ? "Optimal." : `Regret ${r.regretBb.toFixed(2)} bb`;
   fb.append(el("div", "fb-line", line), el("div", "leak", r.leakTag),

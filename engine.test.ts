@@ -625,9 +625,11 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
       ? { kind: "estimate", value: 0.5 }
       : d.ask === "category"
         ? { kind: "category", value: 2 }                 // M0 hand-reading
-        : (d.state.abstraction.sizes.length === 0 || d.state.abstraction.heroFacesBet !== undefined)
-          ? { kind: "action", action: { kind: "call" } } // pillar-1 call/fold OR hero-faces-bet root
-          : { kind: "action", action: { kind: "check" } }; // pillar-2 (legal at root)
+        : d.ask === "outs"
+          ? { kind: "outs", value: 8 }                   // M1 out-counting
+          : (d.state.abstraction.sizes.length === 0 || d.state.abstraction.heroFacesBet !== undefined)
+            ? { kind: "action", action: { kind: "call" } } // pillar-1 call/fold OR hero-faces-bet root
+            : { kind: "action", action: { kind: "check" } }; // pillar-2 (legal at root)
     const out = gradeDrill(s, d.id, resp, 0);
     s = out.session;
     if (d.id === "p1-aa-vs-kk-preflop" && out.result.estimateError !== undefined) preflopErr = out.result.estimateError;
@@ -676,9 +678,14 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
   ok("gradeDrill M2 overestimate -> m2.overestimates_equity",
     overM2.result.leakTag === "m2.overestimates_equity", overM2.result.leakTag);
 
-  const overM1 = gradeDrill(session, "m1-flush-draw-outs", { kind: "estimate", value: 0.95 }, 0);
-  ok("gradeDrill M1 overestimate -> m1.overcounts_outs",
+  const overM1 = gradeDrill(session, "m1-flush-draw-outs", { kind: "outs", value: 12 }, 0);
+  ok("gradeDrill M1 overcount -> m1.overcounts_outs",
     overM1.result.leakTag === "m1.overcounts_outs", overM1.result.leakTag);
+  const underM1 = gradeDrill(session, "m1-flush-draw-outs", { kind: "outs", value: 6 }, 0);
+  ok("gradeDrill M1 undercount -> m1.undercounts_outs",
+    underM1.result.leakTag === "m1.undercounts_outs", underM1.result.leakTag);
+  const exactM1 = gradeDrill(session, "m1-flush-draw-outs", { kind: "outs", value: 9 }, 0);
+  ok("gradeDrill M1 exact (9 outs) -> m1.ok", exactM1.result.leakTag === "m1.ok", exactM1.result.leakTag);
 
   const overM5 = gradeDrill(session, "m5-overcards-vs-pairs", { kind: "estimate", value: 0.95 }, 0);
   ok("gradeDrill M5 overestimate -> m5.overrates_vs_range",
@@ -688,8 +695,9 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
   ok("gradeDrill M3 fold (priced in) -> m3.folds_when_priced_in",
     foldM3.result.leakTag === "m3.folds_when_priced_in", foldM3.result.leakTag);
 
-  // The new estimate drills have computable, non-null truth (don't throw).
-  ok("m1 drill truth is a number", typeof truth(byId("m1-flush-draw-outs").state) === "number");
+  // M1 out-counting grades against the exact out count (flush draw = 9).
+  const m1s = byId("m1-flush-draw-outs").state;
+  ok("m1 flush draw has 9 outs", outs(m1s.heroHand!, m1s.board, m1s.villain.range[0].combo) === 9);
   ok("m5 drill truth is a number", typeof truth(byId("m5-overcards-vs-pairs").state) === "number");
 }
 
@@ -1133,10 +1141,12 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
   ok("M0 straight misread -> m0.misreads_hand",
     gradeDrill(session, m0s.id, { kind: "category", value: 8 }, 0).result.leakTag === "m0.misreads_hand");
 
-  // M1: open-ended straight draw equity estimate.
-  const m1g = gradeDrill(session, "m1-open-ender", { kind: "estimate", value: 0.9 }, 0);
-  ok("M1 open-ender overestimate -> m1.overcounts_outs",
-    m1g.result.leakTag === "m1.overcounts_outs" && (m1g.truth ?? 1) < 0.9, m1g.result.leakTag);
+  // M1: open-ended straight draw out-counting (true = 8 outs).
+  const m1os = byId("m1-open-ender").state;
+  ok("m1 open-ender has 8 outs", outs(m1os.heroHand!, m1os.board, m1os.villain.range[0].combo) === 8);
+  const m1g = gradeDrill(session, "m1-open-ender", { kind: "outs", value: 12 }, 0);
+  ok("M1 open-ender overcount -> m1.overcounts_outs",
+    m1g.result.leakTag === "m1.overcounts_outs", m1g.result.leakTag);
 
   // M3: fold a weak draw at a bad price; calling is the leak.
   ok("M3 fold (bad price) is correct (regret 0)",
