@@ -740,8 +740,8 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
   ok("M4 check regret == 3 bb", approx(m4check.result.regretBb, 3), `got ${m4check.result.regretBb}`);
   ok("M4 check -> m4.misses_street_sequence", m4check.result.leakTag === "m4.misses_street_sequence");
 
-  ok("STARTER_DRILLS now spans 68 drills incl M0/M3.5/M4/M5.6/P0/P1/P3/P4/P5",
-    STARTER_DRILLS.length === 68 &&
+  ok("STARTER_DRILLS now spans 71 drills incl M0/M3.5/M4/M5.6/P0/P1/P3/P4/P5",
+    STARTER_DRILLS.length === 71 &&
     ["M0", "M3.5", "M4", "M5.6", "P0", "P1", "P3", "P4", "P5"].every((m) => STARTER_DRILLS.some((d) => d.module === m)));
 
   // Check-raise-range drill: villain raises only what beats hero (policy + raise).
@@ -1157,6 +1157,22 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
   ok("M0 full house misread as trips", cat("m0-fullhouse-pocket-pair", 3) === "m0.misreads_hand");
   ok("M0 straight flush -> cat 8", cat("m0-straight-flush", 8) === "m0.ok");
   ok("M0 straight flush misread as flush", cat("m0-straight-flush", 5) === "m0.misreads_hand");
+  // ladder completion: trips (3), quads (7), high card (0)
+  ok("M0 trips -> cat 3", cat("m0-trips", 3) === "m0.ok");
+  ok("M0 trips over-read as full house", cat("m0-trips", 6) === "m0.misreads_hand");
+  ok("M0 quads -> cat 7", cat("m0-quads", 7) === "m0.ok");
+  ok("M0 quads under-read as full house", cat("m0-quads", 6) === "m0.misreads_hand");
+  ok("M0 high card -> cat 0", cat("m0-high-card", 0) === "m0.ok");
+  ok("M0 high card over-read as a pair", cat("m0-high-card", 1) === "m0.misreads_hand");
+  // every rung of the 0..8 ladder now has a drill whose true category is that rung.
+  // (derive each drill's true category via the grader, which handles any board size.)
+  const trueCat = (id: string): number => {
+    for (let v = 0; v <= 8; v++) if (cat(id, v) === "m0.ok") return v;
+    return -1;
+  };
+  const m0cats = new Set(MODULES.find((m) => m.id === "M0")!.drillIds.map(trueCat));
+  ok("M0 covers the full 0..8 category ladder", [0, 1, 2, 3, 4, 5, 6, 7, 8].every((c) => m0cats.has(c)),
+    [...m0cats].sort((a, b) => a - b).join(","));
 
   // M1: open-ended straight draw out-counting (true = 8 outs).
   const m1os = byId("m1-open-ender").state;

@@ -1164,6 +1164,7 @@ export const STARTER_DRILLS: Drill[] = [
     module: "M5.6",
     title: "Implied odds: call a flush draw the immediate price doesn't justify",
     ask: "action",
+    read: "The pot shown includes the chips you expect to win later when the draw hits.",
     // `pot` is the EFFECTIVE pot — current pot plus the winnings hero expects to
     // collect on later streets when the draw hits. callEV multiplies it by equity,
     // so this is exactly the implied-odds EV. (A real villain-leads multi-street
@@ -1479,6 +1480,46 @@ export const STARTER_DRILLS: Drill[] = [
     state: {
       // T-9 of hearts on 6-7-8(hearts)-2-K: 6-7-8-9-T all hearts = STRAIGHT FLUSH (cat 8). Misread: flush or straight.
       heroHand: hand("Th", "9h"), board: hand("6h", "7h", "8h", "2c", "Kd"),
+      pot: 1, toAct: "hero",
+      villain: { range: [] },
+      abstraction: { sizes: [], streets: [], players: 2 },
+    },
+  },
+  {
+    id: "m0-trips",
+    module: "M0",
+    title: "Hand reading: you match the board's pair",
+    ask: "category",
+    state: {
+      // A-9 on 9-9-K-2-5: three nines = THREE OF A KIND (cat 3). Common over-read: "full house" (a paired
+      // board feels like a boat) — but there's no second pair.
+      heroHand: hand("Ac", "9d"), board: hand("9s", "9h", "Kd", "2c", "5h"),
+      pot: 1, toAct: "hero",
+      villain: { range: [] },
+      abstraction: { sizes: [], streets: [], players: 2 },
+    },
+  },
+  {
+    id: "m0-quads",
+    module: "M0",
+    title: "Hand reading: a pocket pair meets a paired board",
+    ask: "category",
+    state: {
+      // 9-9 on 9-9-K-2-5: all four nines = FOUR OF A KIND (cat 7). Easy to under-read as trips or a full house.
+      heroHand: hand("9c", "9s"), board: hand("9d", "9h", "Kc", "2s", "5h"),
+      pot: 1, toAct: "hero",
+      villain: { range: [] },
+      abstraction: { sizes: [], streets: [], players: 2 },
+    },
+  },
+  {
+    id: "m0-high-card",
+    module: "M0",
+    title: "Hand reading: nothing connects",
+    ask: "category",
+    state: {
+      // A-Q on K-9-4-2-7 (rainbow): no pair, straight, or flush -> just HIGH CARD (cat 0). Don't overvalue ace-high.
+      heroHand: hand("Ac", "Qd"), board: hand("Ks", "9h", "4c", "2s", "7d"),
       pot: 1, toAct: "hero",
       villain: { range: [] },
       abstraction: { sizes: [], streets: [], players: 2 },
