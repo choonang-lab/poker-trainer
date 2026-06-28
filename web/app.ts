@@ -55,6 +55,11 @@ const cardHTML = (c: number): string => {
   return `<span class="pcard s${s}"><span class="pr">${RNAMES[r] ?? r}</span><span class="ps">${SUIT_SYM[s]}</span></span>`;
 };
 const cards = (cs: number[]): string => cs.map(cardHTML).join("");
+// turn rank+suit tokens in curriculum prose (e.g. "A♦", "9♠", "10♥") into the same tiles.
+// (content is trusted, so injecting spans into innerHTML is safe here.)
+const withCardTiles = (text: string): string =>
+  text.replace(/(10|[2-9TJQKA])([♠♥♦♣])/g, (_m, r, sym) =>
+    `<span class="pcard s${SUIT_SYM.indexOf(sym)}"><span class="pr">${r}</span><span class="ps">${sym}</span></span>`);
 const drillById = (id: string): Drill => STARTER_DRILLS.find((d) => d.id === id)!;
 
 const CATEGORY = ["high card", "pair", "two pair", "trips", "straight", "flush", "full house", "quads", "straight flush"];
@@ -157,7 +162,7 @@ function renderPrimer(): void {
   sec.append(el("div", "tag", "Start here"), el("h2", "title", "Poker basics"));
   for (const s of PRIMER) {
     sec.append(el("h3", "primer-h", s.heading));
-    for (const p of s.body) sec.append(el("p", "primer-p", p));
+    for (const p of s.body) sec.append(el("p", "primer-p", withCardTiles(p)));
   }
   const done = el("button", "primary", "Got it — back to the path");
   done.onclick = () => { lScreen = "map"; renderAll(); };
@@ -172,19 +177,19 @@ function renderIntro(): void {
   sec.append(
     el("div", "tag", m.track === "P1" ? "Pillar 1 · estimate" : "Pillar 2 · decide"),
     el("h2", "title", `${m.id} · ${m.title}`),
-    el("p", "preface", m.preface),
+    el("p", "preface", withCardTiles(m.preface)),
   );
   sec.append(el("div", "prompt", "Key terms"));
   for (const c of m.concepts) {
     const r = el("div", "term");
-    r.append(el("span", "tm", c.term), el("span", "df", ` — ${c.def}`));
+    r.append(el("span", "tm", c.term), el("span", "df", ` — ${withCardTiles(c.def)}`));
     sec.append(r);
   }
   sec.append(el("div", "prompt", "You'll be able to"));
   for (const o of m.objectives) {
     const r = el("div", "obj"); r.append(el("span", "ck", "✓"), el("div", undefined, o)); sec.append(r);
   }
-  const ex = el("div", "example"); ex.append(el("span", "lbl", "Worked example"), document.createTextNode(m.example));
+  const ex = el("div", "example"); ex.append(el("span", "lbl", "Worked example"), el("span", undefined, withCardTiles(m.example)));
   sec.append(ex);
   const start = el("button", "primary", "Start module");
   start.onclick = () => { lessonIndex = 0; lScreen = "drill"; renderAll(); };

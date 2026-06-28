@@ -112,7 +112,7 @@ body { padding-bottom: 78px; }
 .obj .ck { color: var(--accent); flex: 0 0 auto; }
 .example {
   background: var(--panel2); border-radius: 10px; padding: 12px; font-size: 14px;
-  line-height: 1.5; margin: 14px 0; display: block;
+  line-height: 1.9; margin: 14px 0; display: block;
 }
 .example .lbl { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .6px; display: block; margin-bottom: 5px; }
 .intro .primary, .recap .primary, .recap button { width: 100%; margin-top: 4px; }
