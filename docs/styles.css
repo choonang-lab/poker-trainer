@@ -22,11 +22,20 @@ main { width: 100%; max-width: 460px; display: flex; flex-direction: column; gap
 .hero { margin-top: 10px; font-size: 18px; }
 .vill { color: var(--muted); font-size: 14px; margin-top: 2px; }
 
-.card { font-weight: 700; }
-.card.s0 { color: #e6edf3; }  /* spades  */
-.card.s1 { color: #ff6b6b; }  /* hearts  */
-.card.s2 { color: #4c9aff; }  /* diamonds */
-.card.s3 { color: #2ecc71; }  /* clubs   */
+/* mini playing-card tiles (4-color deck on a white face) */
+.pcard {
+  display: inline-flex; flex-direction: column; align-items: center; justify-content: center;
+  width: 1.5em; height: 2.1em; padding: .08em 0; margin: 0 .09em;
+  border-radius: .26em; background: #f4f7fb; line-height: 1; font-weight: 800;
+  vertical-align: middle; box-shadow: 0 1px 2px rgba(0,0,0,.45);
+  letter-spacing: 0;
+}
+.pcard .pr { font-size: .78em; }
+.pcard .ps { font-size: .92em; }
+.pcard.s0 { color: #1a2733; }  /* spades   */
+.pcard.s1 { color: #d62b3a; }  /* hearts   */
+.pcard.s2 { color: #2f6fd6; }  /* diamonds */
+.pcard.s3 { color: #1a9e54; }  /* clubs    */
 
 .controls { margin-top: 16px; display: flex; flex-direction: column; gap: 10px; }
 .prompt { font-size: 14px; color: var(--muted); }

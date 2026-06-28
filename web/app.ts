@@ -52,7 +52,7 @@ const el = (tag: string, cls?: string, html?: string): HTMLElement => {
 };
 const cardHTML = (c: number): string => {
   const r = rankOf(c), s = suitOf(c);
-  return `<span class="card s${s}">${RNAMES[r] ?? r}${SUIT_SYM[s]}</span>`;
+  return `<span class="pcard s${s}"><span class="pr">${RNAMES[r] ?? r}</span><span class="ps">${SUIT_SYM[s]}</span></span>`;
 };
 const cards = (cs: number[]): string => cs.map(cardHTML).join("");
 const drillById = (id: string): Drill => STARTER_DRILLS.find((d) => d.id === id)!;
