@@ -1626,6 +1626,59 @@ export const STARTER_DRILLS: Drill[] = [
       abstraction: { sizes: [], streets: [], players: 2 },
     },
   },
+  // ---- M3 coverage: the price decides (same draw, two prices) ----
+  {
+    id: "m3-flush-draw-call",
+    module: "M3",
+    title: "Pot odds: a flush draw, small bet to call",
+    ask: "action",
+    state: {
+      // 9-out flush draw on the turn (~20%) getting 5:1 (break-even 16.7%): a +EV CALL. Folding is the leak.
+      heroHand: hand("8s", "3s"), board: hand("Ks", "Js", "2h", "5d"),
+      pot: 5, toCall: 1, toAct: "hero",
+      villain: { range: [{ combo: hand("Ad", "Ac"), weight: 1 }] },
+      abstraction: { sizes: [], streets: [], players: 2 },
+    },
+  },
+  {
+    id: "m3-flush-draw-fold",
+    module: "M3",
+    title: "Pot odds: the same flush draw, big bet to call",
+    ask: "action",
+    state: {
+      // The SAME ~20% flush draw, now facing a pot-size bet (break-even 50%): a FOLD. Calling is the leak.
+      heroHand: hand("8s", "3s"), board: hand("Ks", "Js", "2h", "5d"),
+      pot: 2, toCall: 2, toAct: "hero",
+      villain: { range: [{ combo: hand("Ad", "Ac"), weight: 1 }] },
+      abstraction: { sizes: [], streets: [], players: 2 },
+    },
+  },
+  {
+    id: "m3-gutshot-fold",
+    module: "M3",
+    title: "Pot odds: a gutshot facing a bet",
+    ask: "action",
+    state: {
+      // 4-out gutshot on the turn (~9%) facing 3:1 (break-even 25%): a FOLD — small draws rarely get the price.
+      heroHand: hand("Kd", "Qc"), board: hand("Js", "9h", "2c", "5s"),
+      pot: 3, toCall: 1, toAct: "hero",
+      villain: { range: [{ combo: hand("Ah", "Ad"), weight: 1 }] },
+      abstraction: { sizes: [], streets: [], players: 2 },
+    },
+  },
+  {
+    id: "m3-combo-draw-call",
+    module: "M3",
+    title: "Pot odds: a big combo draw facing a bet",
+    ask: "action",
+    state: {
+      // Big combo draw (flush + open-ender, ~34%) facing 3:1 (break-even 25%): a clear CALL. Folding is the leak.
+      heroHand: hand("Qh", "Jh"), board: hand("Th", "9h", "3c", "4s"),
+      pot: 3, toCall: 1, toAct: "hero",
+      villain: { range: [{ combo: hand("Ad", "Ac"), weight: 1 }] },
+      abstraction: { sizes: [], streets: [], players: 2 },
+    },
+  },
   {
     id: "p4-strong-multiway",
     module: "P4",

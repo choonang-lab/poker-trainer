@@ -140,7 +140,10 @@ export const MODULES: Module[] = [
     ],
     objectives: ["Compute the break-even percentage", "Call when equity is at or above break-even", "Fold when the price is wrong"],
     example: "Calling 1 to win a pot of 2 needs 1 / 3 ≈ 33% equity.",
-    drillIds: ["m3-chop-potodds", "m3-bad-odds-fold"],
+    drillIds: [
+      "m3-chop-potodds", "m3-flush-draw-call", "m3-flush-draw-fold",
+      "m3-gutshot-fold", "m3-combo-draw-call", "m3-bad-odds-fold",
+    ],
   },
   {
     id: "M3.5", track: "P1", title: "Fold equity",

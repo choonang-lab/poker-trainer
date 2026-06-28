@@ -740,8 +740,8 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
   ok("M4 check regret == 3 bb", approx(m4check.result.regretBb, 3), `got ${m4check.result.regretBb}`);
   ok("M4 check -> m4.misses_street_sequence", m4check.result.leakTag === "m4.misses_street_sequence");
 
-  ok("STARTER_DRILLS now spans 57 drills incl M0/M3.5/M4/M5.6/P0/P1/P3/P4/P5",
-    STARTER_DRILLS.length === 57 &&
+  ok("STARTER_DRILLS now spans 61 drills incl M0/M3.5/M4/M5.6/P0/P1/P3/P4/P5",
+    STARTER_DRILLS.length === 61 &&
     ["M0", "M3.5", "M4", "M5.6", "P0", "P1", "P3", "P4", "P5"].every((m) => STARTER_DRILLS.some((d) => d.module === m)));
 
   // Check-raise-range drill: villain raises only what beats hero (policy + raise).
@@ -1256,6 +1256,23 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
   ok("M5 dominated kicker ≈ 0.389", approx(tru("m5-dominated-kicker"), 0.389, 0.004));
   ok("M5 overestimate -> m5.overrates_vs_range", leak("m5-vs-condensed", 0.99) === "m5.overrates_vs_range");
   ok("M5 underestimate -> m5.underrates_vs_range", leak("m5-vs-condensed", 0.5) === "m5.underrates_vs_range");
+}
+
+// ---------- M3 (pot odds): the price decides call vs fold ----------
+{
+  const s = newSession(STARTER_DRILLS);
+  const act = (id: string, kind: "call" | "fold"): string =>
+    gradeDrill(s, id, { kind: "action", action: { kind } }, 0).result.leakTag;
+  // Small bet -> call; the SAME draw vs a big bet -> fold (price flips the decision).
+  ok("M3 flush draw, small bet: call is best", act("m3-flush-draw-call", "call") === "m3.ok");
+  ok("M3 flush draw, small bet: fold -> folds_when_priced_in", act("m3-flush-draw-call", "fold") === "m3.folds_when_priced_in");
+  ok("M3 flush draw, big bet: fold is best", act("m3-flush-draw-fold", "fold") === "m3.ok");
+  ok("M3 flush draw, big bet: call -> calls_when_overpriced", act("m3-flush-draw-fold", "call") === "m3.calls_when_overpriced");
+  // Small draw folds; big combo draw calls.
+  ok("M3 gutshot: call -> calls_when_overpriced", act("m3-gutshot-fold", "call") === "m3.calls_when_overpriced");
+  ok("M3 gutshot: fold is best", act("m3-gutshot-fold", "fold") === "m3.ok");
+  ok("M3 combo draw: call is best", act("m3-combo-draw-call", "call") === "m3.ok");
+  ok("M3 combo draw: fold -> folds_when_priced_in", act("m3-combo-draw-call", "fold") === "m3.folds_when_priced_in");
 }
 
 // ---------- Curriculum: module integrity + progress + streak ----------
