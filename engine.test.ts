@@ -10,6 +10,7 @@ import {
   STARTER_DRILLS, newSession, nextDrill, gradeDrill, classifyLeak,
   serializeSession, loadSession,
 } from "./engine.ts";
+import { MODULES, moduleDone, moduleStatus, currentStreak } from "./curriculum.ts";
 import type { State, NodeState, Action, TreeNode, Abstraction, Response, Result, Review, Drill, Score, RangePolicy } from "./contract.ts";
 
 let pass = 0, fail = 0;
@@ -1169,6 +1170,45 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
   const m5p = gradeDrill(session, "m5-polarized-range", { kind: "estimate", value: 0.95 }, 0);
   ok("M5 polarized overestimate -> m5.overrates_vs_range",
     m5p.result.leakTag === "m5.overrates_vs_range" && (m5p.truth ?? 1) < 0.95, m5p.result.leakTag);
+}
+
+// ---------- Curriculum: module integrity + progress + streak ----------
+{
+  // Every drill belongs to exactly one module, and every module drillId exists.
+  const allModuleIds = MODULES.flatMap((m) => m.drillIds);
+  ok("every drill is covered by exactly one module",
+    STARTER_DRILLS.every((d) => allModuleIds.filter((id) => id === d.id).length === 1),
+    `drills ${STARTER_DRILLS.length} vs module-listed ${allModuleIds.length}`);
+  ok("every module drillId is a real drill",
+    allModuleIds.every((id) => STARTER_DRILLS.some((d) => d.id === id)));
+  ok("module list covers all drills", allModuleIds.length === STARTER_DRILLS.length);
+  ok("every module has preface, 3 objectives, an example",
+    MODULES.every((m) => m.preface.length > 0 && m.objectives.length === 3 && m.example.length > 0));
+  // Pillar 1 modules all precede Pillar 2 (so P2 unlocks only after P1).
+  const lastP1 = MODULES.map((m, i) => (m.track === "P1" ? i : -1)).reduce((a, b) => Math.max(a, b), -1);
+  const firstP2 = MODULES.findIndex((m) => m.track === "P2");
+  ok("tracks are ordered P1 then P2", firstP2 > lastP1);
+
+  // Progress: fresh session -> first module current, rest locked.
+  const s0 = newSession(STARTER_DRILLS);
+  ok("fresh: M0 is current", moduleStatus("M0", s0) === "current");
+  ok("fresh: M1 is locked", moduleStatus("M1", s0) === "locked");
+  ok("fresh: P0 is locked (Pillar 2 gated)", moduleStatus("P0", s0) === "locked");
+
+  // Complete M0's drills -> M0 done, M1 current.
+  let s = s0;
+  for (const id of MODULES.find((m) => m.id === "M0")!.drillIds)
+    s = gradeDrill(s, id, { kind: "category", value: 2 }, 0).session;
+  ok("after M0 drills: M0 done", moduleStatus("M0", s) === "done" && moduleDone(MODULES[0], s));
+  ok("after M0 drills: M1 current", moduleStatus("M1", s) === "current");
+  ok("after M0 drills: M2 still locked", moduleStatus("M2", s) === "locked");
+
+  // Streak: consecutive days ending today (or yesterday as grace); else 0.
+  ok("streak counts consecutive days to today", currentStreak([3, 4, 5], 5) === 3);
+  ok("streak allows a one-day grace (yesterday)", currentStreak([3, 4], 5) === 2);
+  ok("streak breaks with a gap", currentStreak([1, 2, 5], 5) === 1);
+  ok("streak is 0 when stale", currentStreak([1, 2], 10) === 0);
+  ok("streak is 0 when empty", currentStreak([], 5) === 0);
 }
 
 // silence unused-import noise without weakening the public surface

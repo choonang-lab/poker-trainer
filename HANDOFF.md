@@ -28,9 +28,18 @@
     taxonomy `classifyLeak` (grade() emits structural tags; gradeDrill refines them into named
     curriculum leaks, e.g. `m5.overrates_vs_range`, with module-scoped fallbacks). `truth()` is
     field-aware (`fieldEquity`) so multiway (P4) estimate drills grade against the field, not heads-up.
-- **`web/app.ts`** — L7 web PWA SOURCE. Vanilla-TS UI over the same pure seam as the CLI
-  (loadSession → nextDrill → render → gradeDrill → persist) with localStorage persistence, 4-color
-  cards, a stats screen (M6 calibration + P6 leaks). The engine stays clean — `web/` only imports it.
+- **`curriculum.ts`** — the guided "learn" path over the L6 drills (pure data + helpers; no engine
+  logic). `MODULES` groups all 31 drills into 14 ordered modules (M0–M5.6 = Pillar 1, P0–P5 = Pillar 2),
+  each with a preface, 3 objectives, and a worked example. `moduleDone`/`moduleStatus` derive
+  done/current/locked from the Session's reviews (a drill is "seen" once graded; modules unlock in
+  array order, so Pillar 2 gates behind Pillar 1); `currentStreak` counts consecutive active days.
+  Tested in `engine.test.ts` (integrity: every drill in exactly one module; progress + streak exact).
+- **`web/app.ts`** — L7 web PWA SOURCE: a guided trainer over the same pure seam. Three tabs via a
+  bottom nav: **Learn** (module map → intro with preface/objectives/worked example → gated lessons →
+  recap; completing a module unlocks the next and drops its drills into review), **Review** (SM-2 over
+  drills already learned and due today), **Stats** (modules-completed, streak, M6 calibration, P6 leaks).
+  localStorage persistence (`pt-reviews`/`pt-history`/`pt-days`), 4-color cards. The engine stays clean
+  — `web/` only imports `engine.ts` + `curriculum.ts`.
 - **`docs/`** — the DEPLOYED static site (GitHub Pages serves `main` /docs): app shell + PWA bits
   (`manifest.webmanifest`, `sw.js`, `icon.svg`) + the committed, minified `docs/app.js` (built from
   `web/app.ts` via esbuild). Installable + offline (the engine is fully client-side). See "Run it".
@@ -39,7 +48,7 @@
   (minimal ambient `node:readline`/`node:fs` decls in `globals.d.ts`); not in the unit suite (it reads stdin).
   Persists progress to `$POKER_SAVE` (default `.poker-trainer.json`, git-ignored) via the pure engine
   primitives `serializeSession`/`loadSession`; `now` is a real day-number (override with `$POKER_NOW`).
-- **`engine.test.ts`** — 254 assertions, all passing. Exact/hand-checkable, not approximate:
+- **`engine.test.ts`** — 270 assertions, all passing. Exact/hand-checkable, not approximate:
   - full category ladder (high card → royal), wheel straight, kicker tiebreaks
   - `equity` against exact rationals: straight draw = **6/44**, drawing dead = **0**, chop = **0.5**, made hand = **1.0**
   - L3 identities: CHANCE-of-showdowns **==** `equity` (one-engine), cross-street tree **==** `equity`,
@@ -51,7 +60,7 @@
 
 ## Run it
 ```
-node engine.test.ts            # expect: 254 passed, 0 failed (Node strips types at runtime)
+node engine.test.ts            # expect: 270 passed, 0 failed (Node strips types at runtime)
 npx -p typescript tsc --noEmit  # expect: exit 0 (type-check; uses npx cache, adds NO repo dependency)
 node bench.ts                   # AA vs KK preflop = 82.64% in ~3s (was ~190s pre-fast-evaluator)
 node validate-evaluator.ts      # deep cross-check (500k hands) + fast-vs-slow perf (~70x)

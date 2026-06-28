@@ -15,6 +15,7 @@ import {
   newSession, nextDrill, gradeDrill, classifyLeak, serializeSession, loadSession,
   calibration, leakReport,
 } from "./engine.ts";
+import { MODULES, moduleDone, moduleStatus, currentStreak } from "./curriculum.ts";
 
 // L1
 const _card: typeof C.card = card;
@@ -61,6 +62,10 @@ const _serializeSession: typeof C.serializeSession = serializeSession;
 const _loadSession: typeof C.loadSession = loadSession;
 const _calibration: typeof C.calibration = calibration;
 const _leakReport: typeof C.leakReport = leakReport;
+const _MODULES: typeof C.MODULES = MODULES;
+const _moduleDone: typeof C.moduleDone = moduleDone;
+const _moduleStatus: typeof C.moduleStatus = moduleStatus;
+const _currentStreak: typeof C.currentStreak = currentStreak;
 
 void [
   _card, _rankOf, _suitOf, _score5, _score7, _cmpScore,
@@ -72,4 +77,5 @@ void [
   _resultQuality, _newReview, _scheduleReview, _dueReviews, _nextReview,
   _newSession, _nextDrill, _gradeDrill, _classifyLeak, _serializeSession, _loadSession,
   _calibration, _leakReport,
+  _MODULES, _moduleDone, _moduleStatus, _currentStreak,
 ];

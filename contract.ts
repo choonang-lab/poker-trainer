@@ -283,6 +283,25 @@ export interface LeakReport {
 export declare function leakReport(entries: { leakTag: string; regretBb: number }[]): LeakReport;
 
 // ===========================================================================
+// Curriculum — the guided "learn" path layered over the L6 drills (consumed by
+// the web UI). A Module groups drills with a preface, objectives, and a worked
+// example; modules unlock in order. Pure helpers derive progress from the Session.
+// ===========================================================================
+export interface Module {
+  id: string;                 // e.g. "M1"
+  track: "P1" | "P2";         // Pillar 1 (estimate) | Pillar 2 (decide)
+  title: string;
+  preface: string;            // why it matters
+  objectives: string[];       // what you'll be able to do
+  example: string;            // a worked example
+  drillIds: string[];         // the module's drills, in teaching order
+}
+export declare const MODULES: Module[];
+export declare function moduleDone(module: Module, session: Session): boolean;
+export declare function moduleStatus(moduleId: string, session: Session): "done" | "current" | "locked";
+export declare function currentStreak(activeDays: number[], today: number): number;
+
+// ===========================================================================
 // Build status
 //   L1, L2, L4   implemented in engine.ts, exact tests + AA/KK benchmark passing
 //   L3           expectimax + multi-street builder + multiway field approx + budget
