@@ -17,7 +17,9 @@ const cards = (cs: Card[]): string => cs.map(cardName).join(" ");
 function villainLabel(s: State): string {
   const r = s.villain.range;
   if (r.length === 1) return `${cards(r[0].combo)} (fixed)`;
-  return `${r.length}-combo range`;
+  if (r.length > 4) return `${r.length}-combo range`;
+  const uniform = r.every((x) => x.weight === r[0].weight);
+  return r.map((x) => cards(x.combo) + (uniform ? "" : ` x${x.weight}`)).join(" / ");
 }
 
 function legalLabel(s: State): string {

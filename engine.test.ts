@@ -740,8 +740,8 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
   ok("M4 check regret == 3 bb", approx(m4check.result.regretBb, 3), `got ${m4check.result.regretBb}`);
   ok("M4 check -> m4.misses_street_sequence", m4check.result.leakTag === "m4.misses_street_sequence");
 
-  ok("STARTER_DRILLS now spans 47 drills incl M0/M3.5/M4/M5.6/P0/P1/P3/P4/P5",
-    STARTER_DRILLS.length === 47 &&
+  ok("STARTER_DRILLS now spans 57 drills incl M0/M3.5/M4/M5.6/P0/P1/P3/P4/P5",
+    STARTER_DRILLS.length === 57 &&
     ["M0", "M3.5", "M4", "M5.6", "P0", "P1", "P3", "P4", "P5"].every((m) => STARTER_DRILLS.some((d) => d.module === m)));
 
   // Check-raise-range drill: villain raises only what beats hero (policy + raise).
@@ -1230,6 +1230,32 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
   const m5p = gradeDrill(session, "m5-polarized-range", { kind: "estimate", value: 0.95 }, 0);
   ok("M5 polarized overestimate -> m5.overrates_vs_range",
     m5p.result.leakTag === "m5.overrates_vs_range" && (m5p.truth ?? 1) < 0.95, m5p.result.leakTag);
+}
+
+// ---------- M2 (rule of 2 & 4) + M5 (equity vs range) expanded coverage ----------
+{
+  const s = newSession(STARTER_DRILLS);
+  const tru = (x: string): number => truth(STARTER_DRILLS.find((d) => d.id === x)!.state);
+  const leak = (x: string, v: number): string =>
+    gradeDrill(s, x, { kind: "estimate", value: v }, 0).result.leakTag;
+
+  // M2: exact equities line up with the rule-of-2-and-4 estimates.
+  ok("M2 flush draw flop ≈ 0.366", approx(tru("m2-flush-draw-flop"), 0.366, 0.004));
+  ok("M2 flush draw turn ≈ 0.205 (x2 not x4)", approx(tru("m2-flush-draw-turn"), 0.205, 0.004));
+  ok("M2 gutshot flop ≈ 0.187", approx(tru("m2-gutshot-flop"), 0.187, 0.004));
+  ok("M2 overcards flop ≈ 0.256", approx(tru("m2-overcards-flop"), 0.256, 0.004));
+  ok("M2 combo draw turn ≈ 0.341", approx(tru("m2-combo-draw-turn"), 0.341, 0.004));
+  ok("M2 overestimate -> m2.overestimates_equity", leak("m2-flush-draw-flop", 0.7) === "m2.overestimates_equity");
+  ok("M2 underestimate -> m2.underestimates_equity", leak("m2-flush-draw-flop", 0.1) === "m2.underestimates_equity");
+
+  // M5: exact range equities, including that weighting actually moves the number.
+  ok("M5 overpair vs draws ≈ 0.429", approx(tru("m5-overpair-vs-draws"), 0.429, 0.004));
+  ok("M5 underpair crushed ≈ 0.056", approx(tru("m5-underpair-vs-range"), 0.056, 0.004));
+  ok("M5 vs condensed ≈ 0.841", approx(tru("m5-vs-condensed"), 0.841, 0.004));
+  ok("M5 weighted (3:1 bluffs) ≈ 0.705 (not 0.498)", approx(tru("m5-weighted-range"), 0.705, 0.004));
+  ok("M5 dominated kicker ≈ 0.389", approx(tru("m5-dominated-kicker"), 0.389, 0.004));
+  ok("M5 overestimate -> m5.overrates_vs_range", leak("m5-vs-condensed", 0.99) === "m5.overrates_vs_range");
+  ok("M5 underestimate -> m5.underrates_vs_range", leak("m5-vs-condensed", 0.5) === "m5.underrates_vs_range");
 }
 
 // ---------- Curriculum: module integrity + progress + streak ----------

@@ -1694,4 +1694,155 @@ export const STARTER_DRILLS: Drill[] = [
       abstraction: { sizes: [], streets: [], players: 2 },
     },
   },
+  // ---- M2 coverage: convert outs -> equity across draw types and streets ----
+  {
+    id: "m2-flush-draw-flop",
+    module: "M2",
+    title: "Rule of 2 & 4: your equity with two cards to come",
+    ask: "estimate",
+    state: {
+      // 9-out flush draw on the flop vs AA: 9 x 4 ≈ 36% (exact ≈ 0.366).
+      heroHand: hand("8s", "3s"), board: hand("Ks", "Js", "2h"),
+      pot: 1, toAct: "hero",
+      villain: { range: [{ combo: hand("Ad", "Ac"), weight: 1 }] },
+      abstraction: { sizes: [], streets: [], players: 2 },
+    },
+  },
+  {
+    id: "m2-flush-draw-turn",
+    module: "M2",
+    title: "Rule of 2 & 4: your equity with one card to come",
+    ask: "estimate",
+    state: {
+      // Same 9-out flush draw, but on the TURN: 9 x 2 ≈ 18% (exact ≈ 0.205). Use x2, not x4.
+      heroHand: hand("8s", "3s"), board: hand("Ks", "Js", "2h", "5d"),
+      pot: 1, toAct: "hero",
+      villain: { range: [{ combo: hand("Ad", "Ac"), weight: 1 }] },
+      abstraction: { sizes: [], streets: [], players: 2 },
+    },
+  },
+  {
+    id: "m2-gutshot-flop",
+    module: "M2",
+    title: "Rule of 2 & 4: count, then convert (two cards to come)",
+    ask: "estimate",
+    state: {
+      // 4-out gutshot (a ten) on the flop vs AA: 4 x 4 ≈ 16% (exact ≈ 0.187). Small draws stay small.
+      heroHand: hand("Kd", "Qc"), board: hand("Js", "9h", "2c"),
+      pot: 1, toAct: "hero",
+      villain: { range: [{ combo: hand("Ah", "Ad"), weight: 1 }] },
+      abstraction: { sizes: [], streets: [], players: 2 },
+    },
+  },
+  {
+    id: "m2-overcards-flop",
+    module: "M2",
+    title: "Rule of 2 & 4: two big cards, two cards to come",
+    ask: "estimate",
+    state: {
+      // Two overcards (6 outs) on the flop vs a small pair: 6 x 4 ≈ 24% (exact ≈ 0.256).
+      heroHand: hand("As", "Kd"), board: hand("Qc", "7h", "2d"),
+      pot: 1, toAct: "hero",
+      villain: { range: [{ combo: hand("8s", "8h"), weight: 1 }] },
+      abstraction: { sizes: [], streets: [], players: 2 },
+    },
+  },
+  {
+    id: "m2-combo-draw-turn",
+    module: "M2",
+    title: "Rule of 2 & 4: one card to come on a draw-heavy board",
+    ask: "estimate",
+    state: {
+      // Big combo draw (flush + open-ender, ~15 outs) on the TURN: 15 x 2 ≈ 30% (exact ≈ 0.341) — not x4.
+      heroHand: hand("Js", "Ts"), board: hand("9s", "8s", "2c", "4d"),
+      pot: 1, toAct: "hero",
+      villain: { range: [{ combo: hand("Ah", "Ad"), weight: 1 }] },
+      abstraction: { sizes: [], streets: [], players: 2 },
+    },
+  },
+  // ---- M5 coverage: equity vs a range (weighting, condensed/polarized, domination) ----
+  {
+    id: "m5-overpair-vs-draws",
+    module: "M5",
+    title: "Equity vs range: your overpair against draws",
+    ask: "estimate",
+    state: {
+      // QQ vs {flush draw, open-ender, a set}: ahead of the draws, crushed by the set -> ≈ 0.429, not a lock.
+      heroHand: hand("Qs", "Qd"), board: hand("9h", "6h", "3s"),
+      pot: 1, toAct: "hero",
+      villain: { range: [
+        { combo: hand("Kh", "Jh"), weight: 1 },
+        { combo: hand("8c", "7c"), weight: 1 },
+        { combo: hand("9c", "9d"), weight: 1 },
+      ] },
+      abstraction: { sizes: [], streets: [], players: 2 },
+    },
+  },
+  {
+    id: "m5-underpair-vs-range",
+    module: "M5",
+    title: "Equity vs range: a small pair against a strong range",
+    ask: "estimate",
+    state: {
+      // JJ on A-K-5 vs {AK, AA, KK, AQ}: behind every combo -> ≈ 0.056. Recognize a near-dead spot.
+      heroHand: hand("Jh", "Jd"), board: hand("Ah", "Kc", "5d"),
+      pot: 1, toAct: "hero",
+      villain: { range: [
+        { combo: hand("As", "Kh"), weight: 1 },
+        { combo: hand("Ac", "Ad"), weight: 1 },
+        { combo: hand("Kd", "Ks"), weight: 1 },
+        { combo: hand("Ad", "Qs"), weight: 1 },
+      ] },
+      abstraction: { sizes: [], streets: [], players: 2 },
+    },
+  },
+  {
+    id: "m5-vs-condensed",
+    module: "M5",
+    title: "Equity vs range: a big hand against medium holdings",
+    ask: "estimate",
+    state: {
+      // AA on K-8-3 vs a condensed range (top pairs + an underpair, no nuts/air): ahead of all -> ≈ 0.841.
+      heroHand: hand("As", "Ad"), board: hand("Kc", "8d", "3h"),
+      pot: 1, toAct: "hero",
+      villain: { range: [
+        { combo: hand("Kh", "Qs"), weight: 1 },
+        { combo: hand("Kd", "Js"), weight: 1 },
+        { combo: hand("Ks", "Th"), weight: 1 },
+        { combo: hand("9c", "9h"), weight: 1 },
+      ] },
+      abstraction: { sizes: [], streets: [], players: 2 },
+    },
+  },
+  {
+    id: "m5-weighted-range",
+    module: "M5",
+    title: "Equity vs range: mostly bluffs, a little value",
+    ask: "estimate",
+    state: {
+      // KK bluff-catcher vs a range that's 3 parts air to 1 part value: weighting lifts equity to ≈ 0.705
+      // (the same combos weighted evenly would be ≈ 0.498). Weight the range, don't just average combos.
+      heroHand: hand("Ks", "Kd"), board: hand("Qh", "7d", "2c"),
+      pot: 1, toAct: "hero",
+      villain: { range: [{ combo: hand("Jh", "Th"), weight: 3 }, { combo: hand("Ah", "Ad"), weight: 1 }] },
+      abstraction: { sizes: [], streets: [], players: 2 },
+    },
+  },
+  {
+    id: "m5-dominated-kicker",
+    module: "M5",
+    title: "Equity vs range: top pair with a weak kicker",
+    ask: "estimate",
+    state: {
+      // A-J (top pair, weak kicker) on A-8-3 vs {AK, AK, KK}: out-kicked by the AKs, ahead of KK -> ≈ 0.389.
+      heroHand: hand("Ah", "Jc"), board: hand("As", "8d", "3h"),
+      pot: 1, toAct: "hero",
+      villain: { range: [
+        { combo: hand("Ad", "Kc"), weight: 1 },
+        { combo: hand("Ac", "Kd"), weight: 1 },
+        { combo: hand("Ks", "Kh"), weight: 1 },
+      ] },
+      abstraction: { sizes: [], streets: [], players: 2 },
+    },
+  },
 ];

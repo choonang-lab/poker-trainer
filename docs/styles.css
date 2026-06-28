@@ -20,7 +20,8 @@ main { width: 100%; max-width: 460px; display: flex; flex-direction: column; gap
 .board { font-size: 26px; letter-spacing: 2px; margin: 6px 0; }
 .meta { color: var(--muted); font-size: 14px; }
 .hero { margin-top: 10px; font-size: 18px; }
-.vill { color: var(--muted); font-size: 14px; margin-top: 2px; }
+.vill { color: var(--muted); font-size: 14px; margin-top: 2px; line-height: 1.9; }
+.vill .wt { color: var(--accent); font-weight: 700; font-size: 12px; }
 
 /* mini playing-card tiles (4-color deck on a white face) */
 .pcard {

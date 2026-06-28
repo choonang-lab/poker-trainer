@@ -124,7 +124,10 @@ export const MODULES: Module[] = [
     ],
     objectives: ["Convert outs to equity with ×2 and ×4", "Apply the correction when you have many outs", "Estimate combo-draw and made-hand equity"],
     example: "9 outs × 4 ≈ 36% by the flop; the exact figure is about 35%.",
-    drillIds: ["m2-kqo-vs-aa", "m2-combo-draw", "m2-set-vs-overpair"],
+    drillIds: [
+      "m2-flush-draw-flop", "m2-gutshot-flop", "m2-overcards-flop", "m2-combo-draw",
+      "m2-kqo-vs-aa", "m2-flush-draw-turn", "m2-combo-draw-turn", "m2-set-vs-overpair",
+    ],
   },
   {
     id: "M3", track: "P1", title: "Pot odds",
@@ -179,7 +182,10 @@ export const MODULES: Module[] = [
     ],
     objectives: ["Estimate equity against a range, not one hand", "Weight wide ranges correctly", "Read your equity vs a polarized (nuts-or-air) range"],
     example: "AK-high is about 40% vs a set but 85% vs an underpair — average over the whole range.",
-    drillIds: ["m5-overcards-vs-pairs", "m5-wide-range", "m5-polarized-range"],
+    drillIds: [
+      "m5-overcards-vs-pairs", "m5-overpair-vs-draws", "m5-vs-condensed", "m5-wide-range",
+      "m5-dominated-kicker", "m5-polarized-range", "m5-weighted-range", "m5-underpair-vs-range",
+    ],
   },
   {
     id: "M5.6", track: "P1", title: "Implied odds",

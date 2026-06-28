@@ -74,7 +74,10 @@ function villainText(s: State): string {
   const r = s.villain.range;
   if (r.length === 0) return "";
   if (r.length === 1) return `vs ${cards(r[0].combo)}`;
-  return `vs a ${r.length}-combo range`;
+  if (r.length > 4) return `vs a ${r.length}-combo range`;
+  const uniform = r.every((x) => x.weight === r[0].weight);
+  const parts = r.map((x) => cards(x.combo) + (uniform ? "" : ` <span class="wt">×${x.weight}</span>`));
+  return `vs ${parts.join("&nbsp; · &nbsp;")}`;
 }
 
 // drills that have been seen (graded once) and are due for spaced review today
