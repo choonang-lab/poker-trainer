@@ -740,8 +740,8 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
   ok("M4 check regret == 3 bb", approx(m4check.result.regretBb, 3), `got ${m4check.result.regretBb}`);
   ok("M4 check -> m4.misses_street_sequence", m4check.result.leakTag === "m4.misses_street_sequence");
 
-  ok("STARTER_DRILLS now spans 38 drills incl M0/M3.5/M4/M5.6/P0/P1/P3/P4/P5",
-    STARTER_DRILLS.length === 38 &&
+  ok("STARTER_DRILLS now spans 42 drills incl M0/M3.5/M4/M5.6/P0/P1/P3/P4/P5",
+    STARTER_DRILLS.length === 42 &&
     ["M0", "M3.5", "M4", "M5.6", "P0", "P1", "P3", "P4", "P5"].every((m) => STARTER_DRILLS.some((d) => d.module === m)));
 
   // Check-raise-range drill: villain raises only what beats hero (policy + raise).
@@ -1164,6 +1164,25 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
   const m1g = gradeDrill(session, "m1-open-ender", { kind: "outs", value: 12 }, 0);
   ok("M1 open-ender overcount -> m1.overcounts_outs",
     m1g.result.leakTag === "m1.overcounts_outs", m1g.result.leakTag);
+
+  // M1: the commonly-miscounted spots, graded against the exact out count.
+  const trueOuts = (id: string): number => {
+    const s = byId(id).state;
+    return outs(s.heroHand!, s.board, s.villain.range[0].combo);
+  };
+  const outsLeakOf = (id: string, v: number): string =>
+    gradeDrill(session, id, { kind: "outs", value: v }, 0).result.leakTag;
+  ok("M1 gutshot = 4 outs (not 8)", trueOuts("m1-gutshot") === 4);
+  ok("M1 gutshot answered 8 -> overcounts_outs", outsLeakOf("m1-gutshot", 8) === "m1.overcounts_outs");
+  ok("M1 gutshot answered 4 -> m1.ok", outsLeakOf("m1-gutshot", 4) === "m1.ok");
+  ok("M1 two overcards = 6 outs", trueOuts("m1-overcards") === 6);
+  ok("M1 overcards answered 6 -> m1.ok", outsLeakOf("m1-overcards", 6) === "m1.ok");
+  ok("M1 combo draw = 15 outs (not 17)", trueOuts("m1-combo-draw-outs") === 15);
+  ok("M1 combo draw double-counted as 17 -> overcounts_outs", outsLeakOf("m1-combo-draw-outs", 17) === "m1.overcounts_outs");
+  ok("M1 combo draw answered 15 -> m1.ok", outsLeakOf("m1-combo-draw-outs", 15) === "m1.ok");
+  ok("M1 tainted flush = 8 clean outs (not 9)", trueOuts("m1-tainted-flush-out") === 8);
+  ok("M1 tainted flush counted as 9 -> overcounts_outs", outsLeakOf("m1-tainted-flush-out", 9) === "m1.overcounts_outs");
+  ok("M1 tainted flush answered 8 -> m1.ok", outsLeakOf("m1-tainted-flush-out", 8) === "m1.ok");
 
   // M3: fold a weak draw at a bad price; calling is the leak.
   ok("M3 fold (bad price) is correct (regret 0)",

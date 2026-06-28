@@ -1059,7 +1059,7 @@ export const STARTER_DRILLS: Drill[] = [
   {
     id: "m1-flush-draw-outs",
     module: "M1",
-    title: "Counting outs: a bare flush draw on the flop",
+    title: "Counting outs: how many cards give you the winning hand?",
     ask: "outs",
     state: {
       heroHand: hand("2s", "5s"), board: hand("As", "9s", "7h"),
@@ -1329,7 +1329,7 @@ export const STARTER_DRILLS: Drill[] = [
   {
     id: "m0-read-two-pair",
     module: "M0",
-    title: "Hand reading: name your made hand (0=high .. 8=straight flush)",
+    title: "Hand reading: a high, two-tone board",
     ask: "category",
     state: {
       heroHand: hand("Ac", "Kd"), board: hand("Ah", "Kh", "7c"), // two pair, aces & kings
@@ -1379,7 +1379,7 @@ export const STARTER_DRILLS: Drill[] = [
   {
     id: "m0-read-straight",
     module: "M0",
-    title: "Hand reading: name your made hand (a straight)",
+    title: "Hand reading: a low connected board",
     ask: "category",
     state: {
       heroHand: hand("Ts", "9d"), board: hand("8c", "7h", "6s"), // T-9-8-7-6 straight (cat 4)
@@ -1483,12 +1483,67 @@ export const STARTER_DRILLS: Drill[] = [
   {
     id: "m1-open-ender",
     module: "M1",
-    title: "Counting outs: an open-ended straight draw",
+    title: "Counting outs: which cards make you the best hand?",
     ask: "outs",
     state: {
       heroHand: hand("9h", "8d"), board: hand("7s", "6c", "2h"), // OESD: 5 or T (8 outs)
       pot: 1, toAct: "hero",
       villain: { range: [{ combo: hand("Ah", "Ad"), weight: 1 }] },
+      abstraction: { sizes: [], streets: [], players: 2 },
+    },
+  },
+  // ---- M1 commonly-miscounted spots ----
+  {
+    id: "m1-gutshot",
+    module: "M1",
+    title: "Counting outs: count the cards that win",
+    ask: "outs",
+    state: {
+      // 9-8 on 7-5-2 vs AA: only a 6 completes 9-8-7-6-5 = 4 outs (a gutshot, not 8). Pairing loses to aces.
+      heroHand: hand("9d", "8c"), board: hand("7s", "5h", "2d"),
+      pot: 1, toAct: "hero",
+      villain: { range: [{ combo: hand("Ac", "As"), weight: 1 }] },
+      abstraction: { sizes: [], streets: [], players: 2 },
+    },
+  },
+  {
+    id: "m1-overcards",
+    module: "M1",
+    title: "Counting outs: how many outs do you have?",
+    ask: "outs",
+    state: {
+      // A-K on 9-5-2 vs 77: pairing the A or K (3 + 3 = 6 outs) beats the small pair. Nothing else wins.
+      heroHand: hand("As", "Kd"), board: hand("9c", "5d", "2h"),
+      pot: 1, toAct: "hero",
+      villain: { range: [{ combo: hand("7d", "7c"), weight: 1 }] },
+      abstraction: { sizes: [], streets: [], players: 2 },
+    },
+  },
+  {
+    id: "m1-combo-draw-outs",
+    module: "M1",
+    title: "Counting outs: count your outs against a big hand",
+    ask: "outs",
+    state: {
+      // J-T hearts on 9-8(hearts)-2 vs AA: flush draw (9) + open-ender (Q,7). The Q/7 of hearts are already
+      // flush outs, so it's 9 + 6 = 15 — NOT 9 + 8 = 17. The classic double-count trap.
+      heroHand: hand("Jh", "Th"), board: hand("9h", "8h", "2c"),
+      pot: 1, toAct: "hero",
+      villain: { range: [{ combo: hand("As", "Ac"), weight: 1 }] },
+      abstraction: { sizes: [], streets: [], players: 2 },
+    },
+  },
+  {
+    id: "m1-tainted-flush-out",
+    module: "M1",
+    title: "Counting outs: careful — not every winner is clean",
+    ask: "outs",
+    state: {
+      // A-Q of spades on K-7-2(K,7 spades) vs a set of kings: a flush draw looks like 9, but the 2♠ pairs the
+      // board and gives the set a full house that beats the flush. So it's 8 clean outs, not 9 (discount the taint).
+      heroHand: hand("As", "Qs"), board: hand("Ks", "7s", "2h"),
+      pot: 1, toAct: "hero",
+      villain: { range: [{ combo: hand("Kd", "Kc"), weight: 1 }] },
       abstraction: { sizes: [], streets: [], players: 2 },
     },
   },
