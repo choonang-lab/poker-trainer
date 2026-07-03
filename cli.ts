@@ -9,6 +9,7 @@ import {
   STARTER_DRILLS, loadSession, serializeSession, nextDrill, gradeDrill, truth, buildTree, actionEVs,
   calibration, leakReport, rankOf, suitOf, RNAMES, SNAMES,
 } from "./engine.ts";
+import { EXPLAIN } from "./curriculum.ts";
 import type { Drill, Response, State, Card, GradeOutcome } from "./contract.ts";
 
 const cardName = (c: Card): string => (RNAMES[rankOf(c)] ?? String(rankOf(c))) + SNAMES[suitOf(c)];
@@ -44,8 +45,9 @@ function present(d: Drill): void {
 
 function parseResponse(d: Drill, answer: string): Response {
   if (d.ask === "estimate") {
-    const value = Number(answer);
+    let value = Number(answer);
     if (!Number.isFinite(value)) throw new Error(`not a number: "${answer}"`);
+    if (value > 1) value = value / 100; // values above 1 are read as a percentage (36 -> 0.36)
     return { kind: "estimate", value };
   }
   if (d.ask === "category") {
@@ -80,6 +82,7 @@ function showFeedback(d: Drill, out: GradeOutcome): void {
   } else {
     console.log(`  -> regret ${r.regretBb.toFixed(3)} bb | ${r.leakTag}`);
   }
+  if (EXPLAIN[d.id]) console.log(`     why: ${EXPLAIN[d.id]}`);
   console.log(`     next review in ${out.review.intervalDays}d (ease ${out.review.ease.toFixed(2)}, reps ${out.review.reps})`);
 }
 

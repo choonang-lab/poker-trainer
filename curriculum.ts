@@ -173,7 +173,7 @@ export const MODULES: Module[] = [
     ],
     objectives: ["Plan a multi-street betting line", "Bet strong hands across streets for value", "Avoid leaving money behind by checking"],
     example: "With the nuts, betting flop and turn builds a far bigger pot than a single bet.",
-    drillIds: ["m4-sequence-two-streets", "m4-value-set", "m4-overpair-protection"],
+    drillIds: ["m4-sequence-two-streets", "m4-value-set", "m4-overpair-protection", "m4-way-behind-check"],
   },
   {
     id: "M5", track: "P1", title: "Equity vs range",
@@ -296,6 +296,78 @@ export const MODULES: Module[] = [
     drillIds: ["p5-exploit-overfolder", "p5-value-vs-raiser", "p5-thin-value-vs-range", "p5-vs-checkraise-range"],
   },
 ];
+
+// Post-answer explanations, keyed by drill id — the WHY behind each spot, shown
+// in the feedback panel after grading (right when the student wants the reason).
+// Pure teaching content; covers every Pillar-1 drill.
+export const EXPLAIN: Record<string, string> = {
+  // M0 — hand reading
+  "m0-read-two-pair": "Your ace and king each pair the board: aces and kings — two pair, not just 'top pair'.",
+  "m0-counts-board-pair": "The board's pair counts as yours: K-K-8-8-A is two pair even though only one king is in your hand.",
+  "m0-trips": "Three nines and no second pair is three of a kind — a full house needs a pair to go with the trips.",
+  "m0-read-straight": "Your T-9 connects with 8-7-6: a ten-high straight.",
+  "m0-wheel": "A-2-3-4-5 is the wheel — the ace plays low. Easy to dismiss as ace-high.",
+  "m0-play-the-board-straight": "The board itself is a 5-6-7-8-9 straight — your best five cards ARE the board. The pair of twos is irrelevant.",
+  "m0-high-card": "No pair, no straight, no flush — just ace-high. Don't talk yourself into more.",
+  "m0-flush-trap": "Only four hearts in total — a flush needs five. Your real hand is a pair of kings.",
+  "m0-flush-count": "Your two diamonds plus the board's three make five: a flush, not ace-high.",
+  "m0-fullhouse-pocket-pair": "Three sevens plus the board's pair of kings: sevens full of kings, better than trips.",
+  "m0-quads": "Your two nines plus the board's two: all four nines — quads.",
+  "m0-straight-flush": "6-7-8-9-T all in hearts: a straight flush, the top of the ladder — more than a flush or a straight alone.",
+  // M1 — counting outs
+  "m1-flush-draw-outs": "13 spades in the deck minus the 4 you can see = 9 outs.",
+  "m1-gutshot": "Only a 6 completes 9-8-7-6-5 — 4 outs. Pairing your 9 or 8 still loses to the aces.",
+  "m1-open-ender": "Either end fills it: four 5s and four Ts = 8 outs.",
+  "m1-one-overcard": "Only the ace is an overcard to kings — 3 outs. Pairing your 7 doesn't beat them.",
+  "m1-overcards": "Three aces plus three kings = 6 outs to out-pair the sevens.",
+  "m1-flush-draw-2": "Same rule, new suit: 13 clubs minus the 4 visible = 9 outs.",
+  "m1-gutshot-2": "Only a 9 fills Q-J-T-9-8 — 4 outs, not the 8 an open-ender gets.",
+  "m1-double-gutshot": "A 5 makes 4-5-6-7-8 AND a 9 makes 6-7-8-9-T: two gutshots = 8 outs — an open-ender in disguise.",
+  "m1-flush-plus-gutshot": "9 flush outs + four tens, but the T♣ is already counted as a flush out: 9 + 3 = 12, not 13.",
+  "m1-combo-draw-outs": "9 flush outs + 8 straight outs − 2 counted twice (Q♥ and 7♥ complete both) = 15, not 17.",
+  "m1-tainted-flush-out": "The 2♠ makes your flush but pairs the board, filling the set into a full house — 9 − 1 = 8 clean outs.",
+  // M2 — rule of 2 and 4
+  "m2-flush-draw-flop": "9 outs × 4 ≈ 36% with two cards to come (exact: 36.6%).",
+  "m2-gutshot-flop": "4 outs × 4 ≈ 16% (exact: 18.7%). Small draws stay small.",
+  "m2-overcards-flop": "6 outs × 4 ≈ 24% (exact: 25.6%).",
+  "m2-combo-draw": "~15 outs: naive ×4 says 60%, but big draws need shading down — the exact figure is about 54%.",
+  "m2-kqo-vs-aa": "8 outs on paper (aces and nines), but villain holds two of your aces — closer to 6 live outs × 2 ≈ 12–14% (exact: 13.6%).",
+  "m2-flush-draw-turn": "The same 9 outs, but with one card to come it's ×2 ≈ 18% (exact: 20.5%) — not ×4.",
+  "m2-combo-draw-turn": "~15 outs × 2 ≈ 30% with one card to come (exact: 34%).",
+  "m2-set-vs-overpair": "You're way ahead — the overpair is drawing to two aces (exact: 91.1% for the set).",
+  // M3 — pot odds
+  "m3-chop-potodds": "You can't lose the hand — the straight on the board plays for both, so calling collects your half of the pot.",
+  "m3-flush-draw-call": "~20% equity vs a break-even of 1/(5+1) ≈ 17%: the price is right — call.",
+  "m3-flush-draw-fold": "The same ~20% draw, but a pot-size bet needs 50% equity: the price is wrong — fold.",
+  "m3-gutshot-fold": "~9% with one card to come against a 25% break-even: fold. Small draws rarely get the right price.",
+  "m3-combo-draw-call": "~34% equity against a 25% break-even: a clear call.",
+  "m3-bad-odds-fold": "A weak draw around 15% facing a 50% price — nowhere close. Fold.",
+  // M3.5 — fold equity
+  "m35-semibluff-flushdraw": "Two ways to win: villain folds often (instant profit), and when called you still hit the flush ~1 in 3.",
+  "m35-no-fold-equity": "The same draw, but nobody folds: betting just builds a pot you usually lose. Check and take the free card.",
+  "m35-oesd-semibluff": "Half the time they fold; when called you still have 8 outs. The two ways to win make betting best.",
+  "m35-weak-draw-check": "4 outs and few folds — not enough of either way to win. Check.",
+  "m35-turn-semibluff": "Fold equity still pays on the turn: frequent folds now, plus the flush when called.",
+  // M4 — street sequencing
+  "m4-sequence-two-streets": "Unbeatable hand, guaranteed caller: every street you don't bet is money left behind. Bet flop AND turn.",
+  "m4-value-set": "Top set against a station: bet both streets to build the pot you're going to win.",
+  "m4-overpair-protection": "Bet for value and charge the flush draw — checking hands over a free card.",
+  "m4-way-behind-check": "Their two pair never folds and always calls: betting only loses more. Sequencing includes choosing NO streets — check to a cheap showdown.",
+  // M5 — equity vs range
+  "m5-overcards-vs-pairs": "Two overcards plus a gutshot vs underpairs is a live underdog — around a third of the pot on average (exact: 34.6%).",
+  "m5-wide-range": "Behind both big pairs (though live), well ahead of TT — averaging across the range lands under a coinflip.",
+  "m5-polarized-range": "Half the range is a bluff you crush, half is AA that crushes you — a bluff-catcher's equity sits near the middle.",
+  "m5-overpair-vs-draws": "Ahead of both draws but crushed by the set — one strong combo drags a 'safe' overpair down to a coinflip.",
+  "m5-underpair-vs-range": "Every hand in the range beats you and you're drawing to two jacks — near-dead. Recognizing ~5% spots saves stacks.",
+  "m5-vs-condensed": "Every hand in the range is a pair you beat — against a condensed (medium-strength) range, an overpair is huge.",
+  "m5-weighted-range": "3 bluff combos for every value combo: ¾ of the time you're crushing it, ¼ near-dead — the weighted average is ~70%, not the 50% an unweighted glance suggests.",
+  "m5-dominated-kicker": "Both A-K combos out-kick your A-J; only KK is behind — domination cuts top pair down to ~40%.",
+  // M5.6 — implied odds
+  "m56-implied-odds-flushdraw": "Counting the chips you'll win later when the flush hits, the effective price justifies the call — the immediate pot alone wouldn't.",
+  "m56-true-implied-odds": "The overbet needs 40% now and you have ~37% — but villain pays you again on the turn when the flush lands. Future bets rescue the call.",
+  "m56-no-implied-odds": "You need 50% and have ~37% — and with nothing left to win later, implied odds can't make up the gap. Fold.",
+  "m56-reverse-implied": "Your 'outs' complete villain's BIGGER flush — hitting often means losing more, not winning. Fold.",
+};
 
 // A module is "done" once every one of its drills has been graded at least once
 // (i.e. has a scheduling entry in the Session).

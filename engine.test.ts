@@ -10,7 +10,7 @@ import {
   STARTER_DRILLS, newSession, nextDrill, gradeDrill, classifyLeak,
   serializeSession, loadSession,
 } from "./engine.ts";
-import { MODULES, PRIMER, moduleDone, moduleStatus, currentStreak } from "./curriculum.ts";
+import { MODULES, PRIMER, EXPLAIN, moduleDone, moduleStatus, currentStreak } from "./curriculum.ts";
 import type { State, NodeState, Action, TreeNode, Abstraction, Response, Result, Review, Drill, Score, RangePolicy } from "./contract.ts";
 
 let pass = 0, fail = 0;
@@ -740,8 +740,8 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
   ok("M4 check regret == 3 bb", approx(m4check.result.regretBb, 3), `got ${m4check.result.regretBb}`);
   ok("M4 check -> m4.misses_street_sequence", m4check.result.leakTag === "m4.misses_street_sequence");
 
-  ok("STARTER_DRILLS now spans 71 drills incl M0/M3.5/M4/M5.6/P0/P1/P3/P4/P5",
-    STARTER_DRILLS.length === 71 &&
+  ok("STARTER_DRILLS now spans 72 drills incl M0/M3.5/M4/M5.6/P0/P1/P3/P4/P5",
+    STARTER_DRILLS.length === 72 &&
     ["M0", "M3.5", "M4", "M5.6", "P0", "P1", "P3", "P4", "P5"].every((m) => STARTER_DRILLS.some((d) => d.module === m)));
 
   // Check-raise-range drill: villain raises only what beats hero (policy + raise).
@@ -1317,6 +1317,9 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
   ok("M4 top set: best is bet", best("m4-value-set") === "bet");
   ok("M4 top set: checking -> misses_street_sequence", lk("m4-value-set", check) === "m4.misses_street_sequence");
   ok("M4 overpair on a wet board: best is bet", best("m4-overpair-protection") === "bet");
+  // ...and the contrast: way behind vs a station, choose NO streets.
+  ok("M4 way behind: best is check", best("m4-way-behind-check") === "check");
+  ok("M4 way behind: betting -> bets_when_way_behind", lk("m4-way-behind-check", bet) === "m4.bets_when_way_behind");
 
   // M5.6: implied odds aren't always there.
   ok("M5.6 reverse-implied draw is near-dead (~0.11)", approx(truth(st("m56-reverse-implied")), 0.107, 0.01));
@@ -1345,6 +1348,13 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
     MODULES.every((m) => m.concepts.length >= 2 && m.concepts.every((c) => c.term.length > 0 && c.def.length > 0)));
   ok("primer has sections with non-empty heading + body",
     PRIMER.length >= 5 && PRIMER.every((s) => s.heading.length > 0 && s.body.length > 0 && s.body.every((p) => p.length > 0)));
+  // Every Pillar-1 drill has a post-answer explanation, and no entry is orphaned.
+  const p1Ids = MODULES.filter((m) => m.track === "P1").flatMap((m) => m.drillIds);
+  ok("every Pillar-1 drill has an EXPLAIN entry",
+    p1Ids.every((id) => (EXPLAIN[id] ?? "").length > 0),
+    p1Ids.filter((id) => !(EXPLAIN[id] ?? "").length).join(","));
+  ok("no EXPLAIN entry points at a missing drill",
+    Object.keys(EXPLAIN).every((id) => STARTER_DRILLS.some((d) => d.id === id)));
   // Pillar 1 modules all precede Pillar 2 (so P2 unlocks only after P1).
   const lastP1 = MODULES.map((m, i) => (m.track === "P1" ? i : -1)).reduce((a, b) => Math.max(a, b), -1);
   const firstP2 = MODULES.findIndex((m) => m.track === "P2");

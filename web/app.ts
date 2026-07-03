@@ -8,7 +8,7 @@ import {
   buildTree, actionEVs, truth, outs, calibration, leakReport,
   rankOf, suitOf, RNAMES,
 } from "../engine.ts";
-import { MODULES, PRIMER, moduleStatus, currentStreak } from "../curriculum.ts";
+import { MODULES, PRIMER, EXPLAIN, moduleStatus, currentStreak } from "../curriculum.ts";
 import type { Drill, Response, Action, State, Module } from "../contract.ts";
 
 // ---- persistence (localStorage; the IO boundary, like cli.ts's fs) ----------
@@ -278,9 +278,14 @@ function playDrill(drill: Drill, tagText: string, contLabel: string, onCont: () 
 function buildControls(controls: HTMLElement, drill: Drill, onAnswer: (r: Response) => void): void {
   if (drill.ask === "estimate") {
     const input = el("input") as HTMLInputElement;
-    input.type = "number"; input.min = "0"; input.max = "1"; input.step = "0.01"; input.placeholder = "equity 0..1";
+    input.type = "number"; input.min = "0"; input.max = "100"; input.step = "0.01"; input.placeholder = "0.36 or 36 (%)";
     const go = el("button", "primary", "Submit");
-    const submit = () => { const v = Number(input.value); if (Number.isFinite(v) && input.value !== "") onAnswer({ kind: "estimate", value: v }); };
+    const submit = () => {
+      let v = Number(input.value);
+      if (!Number.isFinite(v) || input.value === "") return;
+      if (v > 1) v = v / 100; // values above 1 are read as a percentage (36 -> 0.36)
+      onAnswer({ kind: "estimate", value: v });
+    };
     go.onclick = submit;
     input.onkeydown = (e) => { if ((e as KeyboardEvent).key === "Enter") submit(); };
     controls.append(el("label", "prompt", "Your equity estimate:"), input, go);
@@ -335,8 +340,10 @@ function renderFeedback(drill: Drill, out: ReturnType<typeof gradeDrill>, contLa
   }
   else if (drill.ask === "category") line = r.estimateError === 0 ? "Correct!" : `Off by ${r.estimateError} categor${r.estimateError === 1 ? "y" : "ies"}`;
   else line = r.regretBb <= 1e-9 ? "Optimal." : `Regret ${r.regretBb.toFixed(2)} bb`;
-  fb.append(el("div", "fb-line", line), el("div", "leak", r.leakTag),
-    el("div", "next-review", `next review in ${out.review.intervalDays}d`));
+  fb.append(el("div", "fb-line", line), el("div", "leak", r.leakTag));
+  const why = EXPLAIN[drill.id];
+  if (why) fb.append(el("div", "explain", withCardTiles(why)));
+  fb.append(el("div", "next-review", `next review in ${out.review.intervalDays}d`));
   const next = el("button", "primary", contLabel);
   next.onclick = onCont;
   fb.append(next);

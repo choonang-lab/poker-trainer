@@ -921,6 +921,7 @@ const LEAK_TABLE: Record<string, string> = {
   "M3.5:missed_bet": "m35.gives_up_fold_equity",
   "M3.5:overbet": "m35.bluffs_without_fold_equity",
   "M4:missed_bet": "m4.misses_street_sequence",
+  "M4:overbet": "m4.bets_when_way_behind",
   "M5.6:overfold": "m56.folds_with_implied_odds",
   "M5.6:spew": "m56.chases_without_odds",
   "P2:missed_bet": "p2.misses_thin_value",
@@ -2035,6 +2036,25 @@ export const STARTER_DRILLS: Drill[] = [
           legal.map((a) => ({ action: a, weight: a.kind === "call" ? 1 : 0 })),
       },
       abstraction: { sizes: [1.0], streets: ["flop", "turn"], players: 2 },
+    },
+  },
+  {
+    id: "m4-way-behind-check",
+    module: "M4",
+    title: "Street sequencing: a middling pair on a high board",
+    ask: "action",
+    read: "Villain has hit this board hard and calls any bet.",
+    state: {
+      // 9-9 on K-Q-2 vs villain's two pair, who never folds: betting only loses more (bet EV -0.71
+      // vs check +0.10). The sequencing skill includes choosing NO streets — check back, cheap showdown.
+      heroHand: hand("9h", "9d"), board: hand("Kc", "Qs", "2d"),
+      pot: 1, toAct: "hero",
+      villain: {
+        range: [{ combo: hand("Kh", "Qd"), weight: 1 }],
+        strategy: (_s: NodeState, legal: Action[]) =>
+          legal.map((a) => ({ action: a, weight: a.kind === "call" ? 1 : 0 })),
+      },
+      abstraction: { sizes: [1.0], streets: ["flop"], players: 2 },
     },
   },
   // ---- M5.6 coverage: implied odds aren't always there ----

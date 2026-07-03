@@ -23,6 +23,10 @@ main { width: 100%; max-width: 460px; display: flex; flex-direction: column; gap
 .vill { color: var(--muted); font-size: 14px; margin-top: 2px; line-height: 1.9; }
 .vill .wt { color: var(--accent); font-weight: 700; font-size: 12px; }
 .read { margin-top: 8px; font-size: 14px; color: var(--accent); font-style: italic; }
+.explain {
+  background: var(--panel2); border-radius: 10px; padding: 10px 12px;
+  font-size: 14px; line-height: 1.7; color: var(--text);
+}
 
 /* mini playing-card tiles (4-color deck on a white face) */
 .pcard {

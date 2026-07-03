@@ -310,6 +310,9 @@ export declare function currentStreak(activeDays: number[], today: number): numb
 export interface PrimerSection { heading: string; body: string[]; }  // body = paragraphs
 export declare const PRIMER: PrimerSection[];
 
+// Post-answer explanations keyed by drill id (the "why", shown after grading).
+export declare const EXPLAIN: Record<string, string>;
+
 // ===========================================================================
 // Build status
 //   L1, L2, L4   implemented in engine.ts, exact tests + AA/KK benchmark passing
