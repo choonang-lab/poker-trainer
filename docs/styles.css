@@ -44,7 +44,7 @@ main { width: 100%; max-width: 460px; display: flex; flex-direction: column; gap
 .pcard .idx .ps { font-size: .6em; margin-top: .12em; }
 .pcard .pip {
   position: absolute; right: .02em; bottom: -.14em;
-  font-size: 1.5em; opacity: .3;
+  font-size: 1.5em; opacity: .14;
 }
 .pcard.s0 { color: #1a1a1a; }  /* spades   — black */
 .pcard.s1 { color: #d62b3a; }  /* hearts   — red   */
@@ -65,7 +65,11 @@ button {
   background: var(--panel2); color: var(--text); border: 1px solid var(--line);
   border-radius: 10px; padding: 12px 14px; font-size: 16px; cursor: pointer;
 }
-button:hover { border-color: var(--accent); }
+/* hover feedback only on devices with a real pointer — on touch screens a tap
+   leaves a sticky :hover that re-lights the same spot on the next screen */
+@media (hover: hover) {
+  button:hover { border-color: var(--accent); }
+}
 button.primary { background: var(--accent); color: #04122b; border: none; font-weight: 700; }
 button.link { background: none; border: none; color: var(--accent); align-self: flex-start; padding: 6px 0; }
 .cats { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
@@ -96,7 +100,9 @@ body { padding-bottom: 78px; }
   flex: 1; background: none; border: none; color: var(--muted);
   font-size: 14px; padding: 10px 6px; border-radius: 10px;
 }
-.navbtn:hover { border: none; color: var(--text); }
+@media (hover: hover) {
+  .navbtn:hover { border: none; color: var(--text); }
+}
 .navbtn.on { color: var(--accent); background: var(--panel2); }
 
 .screen-title { font-size: 18px; font-weight: 600; margin: 2px 0; }
@@ -109,7 +115,9 @@ body { padding-bottom: 78px; }
   background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px;
 }
 .modrow.current, .modrow.done { cursor: pointer; }
-.modrow.current:hover, .modrow.done:hover { border-color: var(--accent); }
+@media (hover: hover) {
+  .modrow.current:hover, .modrow.done:hover { border-color: var(--accent); }
+}
 .modrow.locked { opacity: .5; }
 .mdot {
   width: 32px; height: 32px; border-radius: 9px; flex: 0 0 auto;
@@ -123,7 +131,9 @@ body { padding-bottom: 78px; }
 .badge { background: rgba(76,154,255,.18); color: var(--accent); font-size: 12px; padding: 3px 9px; border-radius: 20px; flex: 0 0 auto; }
 
 .backlink { background: none; border: none; color: var(--muted); align-self: flex-start; padding: 6px 0; }
-.backlink:hover { border: none; color: var(--text); }
+@media (hover: hover) {
+  .backlink:hover { border: none; color: var(--text); }
+}
 .intro .preface { line-height: 1.6; margin: 0 0 14px; }
 .intro .prompt { margin-bottom: 6px; }
 .obj { display: flex; gap: 9px; align-items: flex-start; margin: 7px 0; font-size: 15px; }
@@ -150,7 +160,9 @@ body { padding-bottom: 78px; }
 
 /* Start here card + primer screen + per-module key terms */
 .modrow.starter { cursor: pointer; border-color: rgba(76,154,255,.4); margin-bottom: 4px; }
-.modrow.starter:hover { border-color: var(--accent); }
+@media (hover: hover) {
+  .modrow.starter:hover { border-color: var(--accent); }
+}
 .modrow.starter .mdot { background: rgba(76,154,255,.18); color: var(--accent); }
 
 .primer-screen .primer-h { font-size: 15px; margin: 18px 0 6px; color: var(--accent); }
