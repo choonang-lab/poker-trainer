@@ -36,7 +36,7 @@ main { width: 100%; max-width: 460px; display: flex; flex-direction: column; gap
   vertical-align: middle; box-shadow: 0 1px 2px rgba(0,0,0,.45);
   letter-spacing: 0;
 }
-.pcard .pr { font-size: .78em; }
+.pcard .pr { font-size: .78em; letter-spacing: -.06em; }
 .pcard .ps { font-size: .92em; }
 .pcard.s0 { color: #1a1a1a; }  /* spades   — black */
 .pcard.s1 { color: #d62b3a; }  /* hearts   — red   */

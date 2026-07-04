@@ -12,7 +12,8 @@ import {
 import { EXPLAIN } from "./curriculum.ts";
 import type { Drill, Response, State, Card, GradeOutcome } from "./contract.ts";
 
-const cardName = (c: Card): string => (RNAMES[rankOf(c)] ?? String(rankOf(c))) + SNAMES[suitOf(c)];
+const cardName = (c: Card): string =>
+  (rankOf(c) === 10 ? "10" : RNAMES[rankOf(c)] ?? String(rankOf(c))) + SNAMES[suitOf(c)];
 const cards = (cs: Card[]): string => cs.map(cardName).join(" ");
 
 function villainLabel(s: State): string {

@@ -50,16 +50,17 @@ const el = (tag: string, cls?: string, html?: string): HTMLElement => {
   if (html !== undefined) e.innerHTML = html;
   return e;
 };
+const rankLabel = (r: number): string => (r === 10 ? "10" : RNAMES[r] ?? String(r)); // beginners read "10", not "T"
 const cardHTML = (c: number): string => {
   const r = rankOf(c), s = suitOf(c);
-  return `<span class="pcard s${s}"><span class="pr">${RNAMES[r] ?? r}</span><span class="ps">${SUIT_SYM[s]}</span></span>`;
+  return `<span class="pcard s${s}"><span class="pr">${rankLabel(r)}</span><span class="ps">${SUIT_SYM[s]}</span></span>`;
 };
 const cards = (cs: number[]): string => cs.map(cardHTML).join("");
 // turn rank+suit tokens in curriculum prose (e.g. "A♦", "9♠", "10♥") into the same tiles.
 // (content is trusted, so injecting spans into innerHTML is safe here.)
 const withCardTiles = (text: string): string =>
   text.replace(/(10|[2-9TJQKA])([♠♥♦♣])/g, (_m, r, sym) =>
-    `<span class="pcard s${SUIT_SYM.indexOf(sym)}"><span class="pr">${r}</span><span class="ps">${sym}</span></span>`);
+    `<span class="pcard s${SUIT_SYM.indexOf(sym)}"><span class="pr">${r === "T" ? "10" : r}</span><span class="ps">${sym}</span></span>`);
 const drillById = (id: string): Drill => STARTER_DRILLS.find((d) => d.id === id)!;
 
 const CATEGORY = ["high card", "pair", "two pair", "trips", "straight", "flush", "full house", "quads", "straight flush"];
