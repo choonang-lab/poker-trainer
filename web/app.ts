@@ -51,16 +51,16 @@ const el = (tag: string, cls?: string, html?: string): HTMLElement => {
   return e;
 };
 const rankLabel = (r: number): string => (r === 10 ? "10" : RNAMES[r] ?? String(r)); // beginners read "10", not "T"
-const cardHTML = (c: number): string => {
-  const r = rankOf(c), s = suitOf(c);
-  return `<span class="pcard s${s}"><span class="pr">${rankLabel(r)}</span><span class="ps">${SUIT_SYM[s]}</span></span>`;
-};
+// a mini playing-card face: rank+suit index in the top-left corner, big faint suit pip center-right.
+const tileHTML = (rank: string, s: number): string =>
+  `<span class="pcard s${s}"><span class="idx"><span class="pr">${rank}</span><span class="ps">${SUIT_SYM[s]}</span></span><span class="pip">${SUIT_SYM[s]}</span></span>`;
+const cardHTML = (c: number): string => tileHTML(rankLabel(rankOf(c)), suitOf(c));
 const cards = (cs: number[]): string => cs.map(cardHTML).join("");
 // turn rank+suit tokens in curriculum prose (e.g. "A♦", "9♠", "10♥") into the same tiles.
 // (content is trusted, so injecting spans into innerHTML is safe here.)
 const withCardTiles = (text: string): string =>
   text.replace(/(10|[2-9TJQKA])([♠♥♦♣])/g, (_m, r, sym) =>
-    `<span class="pcard s${SUIT_SYM.indexOf(sym)}"><span class="pr">${r === "T" ? "10" : r}</span><span class="ps">${sym}</span></span>`);
+    tileHTML(r === "T" ? "10" : r, SUIT_SYM.indexOf(sym)));
 const drillById = (id: string): Drill => STARTER_DRILLS.find((d) => d.id === id)!;
 
 const CATEGORY = ["high card", "pair", "two pair", "trips", "straight", "flush", "full house", "quads", "straight flush"];
