@@ -5,6 +5,8 @@ A poker skill-trainer. **Pillar 1**: estimate equity / outs / pot-odds from flop
 
 Detailed docs live in the repo; this file is the standing constitution. Read these once at session start:
 - `HANDOFF.md` — full status, what's built/proven, next steps.
+- `SESSION.md` — session continuity: working conventions, decision log, and what's next
+  (start here when picking the project up on a new machine).
 - `contract.ts` — the type seam and all function signatures.
 
 ## The core idea (don't lose this)
