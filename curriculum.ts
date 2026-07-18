@@ -89,6 +89,7 @@ export const MODULES: Module[] = [
       "m0-read-two-pair", "m0-counts-board-pair", "m0-trips", "m0-read-straight", "m0-wheel",
       "m0-play-the-board-straight", "m0-high-card", "m0-flush-trap", "m0-flush-count",
       "m0-fullhouse-pocket-pair", "m0-quads", "m0-straight-flush", "m0-nut-broadway",
+      "m0-nuts-flush", "m0-nuts-straight", "m0-nuts-quads",
     ],
   },
   {
@@ -307,6 +308,9 @@ export const EXPLAIN: Record<string, string> = {
   "m0-trips": "Three nines and no second pair is three of a kind — a full house needs a pair to go with the trips.",
   "m0-read-straight": "Your 10-9 connects with 8-7-6: a ten-high straight.",
   "m0-nut-broadway": "Your ten completes A-K-Q-J-T — a straight. With no pair or flush possible on this board, that's the best hand there is: the nuts. Spotting when you hold the nuts matters as much as reading your own hand.",
+  "m0-nuts-flush": "Three spades are on the board and it isn't paired, so the best hand anyone can have is a flush — a set or a straight can't beat it. When three of one suit are out, a flush is the nuts.",
+  "m0-nuts-straight": "The board runs J-10-9. Someone holding K-Q makes K-Q-J-10-9, a straight — and with no flush or pair possible, that's the best hand here. Connected boards make straights the nuts.",
+  "m0-nuts-quads": "The board is paired (two kings), so whoever holds the other two kings has four of a kind. On any paired board, quads and full houses come into play — here quad kings is the nuts.",
   "m0-wheel": "A-2-3-4-5 is the wheel — the ace plays low. Easy to dismiss as ace-high.",
   "m0-play-the-board-straight": "The board itself is a 5-6-7-8-9 straight — your best five cards ARE the board. The pair of twos is irrelevant.",
   "m0-high-card": "No pair, no straight, no flush — just ace-high. Don't talk yourself into more.",

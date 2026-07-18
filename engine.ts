@@ -301,6 +301,24 @@ export function drawSuit(hero: Combo, board: Board): number | null {
   return null;
 }
 
+// The CATEGORY of the nuts: the best hand any two hole cards could make on this
+// board, independent of hero. Enumerates every 2-card holding from the remaining
+// deck and takes the max. Board must be a flop/turn/river (3-5). Powers the M0
+// "name the nuts" drills — recognizing the strongest possible hand on a board.
+export function nutCategory(board: Board): number {
+  if (board.length < 3 || board.length > 5)
+    throw new Error(`nutCategory: board must be 3 to 5 cards; got ${board.length}`);
+  const known = new Set<Card>(board);
+  const rem = FULL_DECK.filter((c) => !known.has(c));
+  let bestS: Score | null = null;
+  for (let i = 0; i < rem.length; i++)
+    for (let j = i + 1; j < rem.length; j++) {
+      const s = best([rem[i], rem[j], ...board]);
+      if (bestS === null || cmpScore(s, bestS) > 0) bestS = s;
+    }
+  return bestS![0];
+}
+
 // ---- L4: grading primitives ----------------------------------------------
 export const breakEven = (pot: number, call: number): number => call / (pot + call);
 
@@ -869,6 +887,11 @@ export function grade(state: State, response: Response): Result {
     const error = response.value - drillOuts(state);
     return { regretBb: 0, estimateError: Math.abs(error), leakTag: outsLeak(error) };
   }
+  if (response.kind === "nuts") {
+    // Graded by distance to the true nut category (0 = correct). Board-only.
+    const err = Math.abs(response.value - nutCategory(state.board));
+    return { regretBb: 0, estimateError: err, leakTag: err === 0 ? "p1.ok" : "p1.misreads_nuts" };
+  }
   const evs = decisionEVs(state);
   const chosen = evs.find((e) => sameAction(e.action, response.action));
   if (!chosen) throw new Error(`grade: illegal action ${JSON.stringify(response.action)} for this spot`);
@@ -958,6 +981,7 @@ const LEAK_TABLE: Record<string, string> = {
   "M5:overestimate": "m5.overrates_vs_range",
   "M5:underestimate": "m5.underrates_vs_range",
   "M0:miscategorized": "m0.misreads_hand",
+  "M0:misreads_nuts": "m0.misreads_nuts",
   "P0:overbet": "p0.bets_without_fold_equity",
   "P0:overfold": "p0.overfolds_in_position",
   "P1:overestimate": "p1.overvalues_holding",
@@ -1493,6 +1517,49 @@ export const STARTER_DRILLS: Drill[] = [
     // pair or flush on the board it is the NUTS. Teaches recognizing the best hand.
     state: {
       heroHand: hand("Tc", "5d"), board: hand("As", "Kd", "Qc", "Jh", "9s"),
+      pot: 1, toAct: "hero",
+      villain: { range: [] },
+      abstraction: { sizes: [], streets: [], players: 2 },
+    },
+  },
+  // ---- M0 "name the nuts": the best hand the BOARD allows (board-only, ask:"nuts") ----
+  {
+    id: "m0-nuts-flush",
+    module: "M0",
+    title: "Name the nuts: three of a suit on the board",
+    ask: "nuts",
+    // As 9s 4s Kd 2c: three spades, unpaired -> the best possible hand is a FLUSH
+    // (cat 5); no straight/full house can form. Recognizing a flush-possible board.
+    state: {
+      board: hand("As", "9s", "4s", "Kd", "2c"),
+      pot: 1, toAct: "hero",
+      villain: { range: [] },
+      abstraction: { sizes: [], streets: [], players: 2 },
+    },
+  },
+  {
+    id: "m0-nuts-straight",
+    module: "M0",
+    title: "Name the nuts: a connected board",
+    ask: "nuts",
+    // Js Td 9c 4h 2s: J-T-9 with no flush possible -> K-Q makes K-Q-J-T-9, a
+    // STRAIGHT (cat 4) — the best hand the board allows.
+    state: {
+      board: hand("Js", "Td", "9c", "4h", "2s"),
+      pot: 1, toAct: "hero",
+      villain: { range: [] },
+      abstraction: { sizes: [], streets: [], players: 2 },
+    },
+  },
+  {
+    id: "m0-nuts-quads",
+    module: "M0",
+    title: "Name the nuts: a paired board",
+    ask: "nuts",
+    // Ks Kd 8c 5h 2s: the board is paired, so whoever holds the other two kings has
+    // four of a kind -> QUADS (cat 7) is the nuts. Paired boards enable quads/boats.
+    state: {
+      board: hand("Ks", "Kd", "8c", "5h", "2s"),
       pot: 1, toAct: "hero",
       villain: { range: [] },
       abstraction: { sizes: [], streets: [], players: 2 },

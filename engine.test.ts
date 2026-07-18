@@ -2,7 +2,7 @@
 import {
   score5, score7, score7slow, cmpScore, equity, equityVsRange, outs,
   breakEven, callEV, decisionRegret, regret, estimateError, withinBand, brier, calibration, leakReport,
-  hand, parseCard, card, rankOf, suitOf, FULL_DECK, madeHand, drawSuit,
+  hand, parseCard, card, rankOf, suitOf, FULL_DECK, madeHand, drawSuit, nutCategory,
   equityLeaf, bestResponseEV, bestAction, truth, buildTree, realizationFactor,
   fieldEquity, validateAbstraction, ABSTRACTION_LIMITS,
   actionEVs, grade,
@@ -123,6 +123,18 @@ ok("score7 finds flush",
     drawSuit(hand("Ah", "4h"), hand("Kh", "7h", "2c")) === suitOf(hand("Ah")[0]));
   ok("drawSuit: a made flush (5) is not a draw", drawSuit(hand("Ah", "4h"), hand("Kh", "7h", "2h")) === null);
   ok("drawSuit: a rainbow board has no flush draw", drawSuit(hand("Ah", "4d"), hand("Kh", "7c", "2s")) === null);
+}
+
+// ---------- nutCategory (M0 "name the nuts") ----------
+{
+  const throws = (fn: () => unknown): boolean => { try { fn(); return false; } catch { return true; } };
+  // 5 = flush, 4 = straight, 7 = quads, 3 = trips (see CATEGORY ladder).
+  ok("nutCategory: three of a suit -> flush (5)", nutCategory(hand("As", "9s", "4s", "Kd", "2c")) === 5);
+  ok("nutCategory: a connected board -> straight (4)", nutCategory(hand("Js", "Td", "9c", "4h", "2s")) === 4);
+  ok("nutCategory: a paired board -> quads (7)", nutCategory(hand("Ks", "Kd", "8c", "5h", "2s")) === 7);
+  ok("nutCategory: a dry disconnected board -> a set (3)", nutCategory(hand("Ks", "8d", "3c", "Qh", "2s")) === 3);
+  ok("nutCategory: works on a flop too", nutCategory(hand("As", "Ks", "Qs")) >= 5); // 3 spades broadway -> flush or better
+  ok("nutCategory throws on fewer than 3 cards", throws(() => nutCategory(hand("As", "Ks"))));
 }
 
 // ---------- L4 grading ----------
@@ -683,7 +695,9 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
       ? { kind: "estimate", value: 0.5 }
       : d.ask === "category"
         ? { kind: "category", value: 2 }                 // M0 hand-reading
-        : d.ask === "outs"
+        : d.ask === "nuts"
+          ? { kind: "nuts", value: 5 }                   // M0 name-the-nuts (board-only)
+          : d.ask === "outs"
           ? { kind: "outs", value: 8 }                   // M1 out-counting
           : (d.state.abstraction.sizes.length === 0 || d.state.abstraction.heroFacesBet !== undefined)
             ? { kind: "action", action: { kind: "call" } } // pillar-1 call/fold OR hero-faces-bet root
@@ -801,8 +815,8 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
   ok("M4 check regret == 3 bb", approx(m4check.result.regretBb, 3), `got ${m4check.result.regretBb}`);
   ok("M4 check -> m4.misses_street_sequence", m4check.result.leakTag === "m4.misses_street_sequence");
 
-  ok("STARTER_DRILLS now spans 75 drills incl M0/M3.5/M4/M5.6/P0/P1/P3/P4/P5",
-    STARTER_DRILLS.length === 75 &&
+  ok("STARTER_DRILLS now spans 78 drills incl M0/M3.5/M4/M5.6/P0/P1/P3/P4/P5",
+    STARTER_DRILLS.length === 78 &&
     ["M0", "M3.5", "M4", "M5.6", "P0", "P1", "P3", "P4", "P5"].every((m) => STARTER_DRILLS.some((d) => d.module === m)));
 
   // Check-raise-range drill: villain raises only what beats hero (policy + raise).
@@ -1283,13 +1297,23 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
   // Nut recognition: hero's ten completes broadway on A-K-Q-J-9 -> the nut straight (4).
   ok("M0 broadway nuts -> straight (cat 4)", cat("m0-nut-broadway", 4) === "m0.ok");
   ok("M0 broadway misread as high card", cat("m0-nut-broadway", 0) === "m0.misreads_hand");
-  // every rung of the 0..8 ladder now has a drill whose true category is that rung.
-  // (derive each drill's true category via the grader, which handles any board size.)
+  // "Name the nuts" drills (board-only, ask:"nuts") — graded by distance to the nut
+  // category; a wrong read tags m0.misreads_nuts (distinct from misreads_hand).
+  const nuts = (id: string, v: number): string =>
+    gradeDrill(session, id, { kind: "nuts", value: v }, 0).result.leakTag;
+  ok("M0 nuts: flush board -> flush (5)", nuts("m0-nuts-flush", 5) === "m0.ok");
+  ok("M0 nuts: flush board misread -> m0.misreads_nuts", nuts("m0-nuts-flush", 3) === "m0.misreads_nuts");
+  ok("M0 nuts: connected board -> straight (4)", nuts("m0-nuts-straight", 4) === "m0.ok");
+  ok("M0 nuts: paired board -> quads (7)", nuts("m0-nuts-quads", 7) === "m0.ok");
+
+  // every rung of the 0..8 ladder now has a category drill whose true cat is that rung.
+  // (only category drills carry a hero hand; nuts drills are board-only, so exclude them.)
   const trueCat = (id: string): number => {
     for (let v = 0; v <= 8; v++) if (cat(id, v) === "m0.ok") return v;
     return -1;
   };
-  const m0cats = new Set(MODULES.find((m) => m.id === "M0")!.drillIds.map(trueCat));
+  const isCat = (id: string): boolean => STARTER_DRILLS.find((d) => d.id === id)!.ask === "category";
+  const m0cats = new Set(MODULES.find((m) => m.id === "M0")!.drillIds.filter(isCat).map(trueCat));
   ok("M0 covers the full 0..8 category ladder", [0, 1, 2, 3, 4, 5, 6, 7, 8].every((c) => m0cats.has(c)),
     [...m0cats].sort((a, b) => a - b).join(","));
 
@@ -1491,10 +1515,14 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
   ok("fresh: M1 is locked", moduleStatus("M1", s0) === "locked");
   ok("fresh: P0 is locked (Pillar 2 gated)", moduleStatus("P0", s0) === "locked");
 
-  // Complete M0's drills -> M0 done, M1 current.
+  // Complete M0's drills -> M0 done, M1 current. (M0 mixes category + board-only
+  // nuts drills, so pick a valid response kind per drill.)
   let s = s0;
-  for (const id of MODULES.find((m) => m.id === "M0")!.drillIds)
-    s = gradeDrill(s, id, { kind: "category", value: 2 }, 0).session;
+  for (const id of MODULES.find((m) => m.id === "M0")!.drillIds) {
+    const ask = STARTER_DRILLS.find((d) => d.id === id)!.ask;
+    const resp: Response = ask === "nuts" ? { kind: "nuts", value: 5 } : { kind: "category", value: 2 };
+    s = gradeDrill(s, id, resp, 0).session;
+  }
   ok("after M0 drills: M0 done", moduleStatus("M0", s) === "done" && moduleDone(MODULES[0], s));
   ok("after M0 drills: M1 current", moduleStatus("M1", s) === "current");
   ok("after M0 drills: M2 still locked", moduleStatus("M2", s) === "locked");

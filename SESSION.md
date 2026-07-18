@@ -37,7 +37,7 @@ repetition) with a guided-curriculum PWA on top.
 5. **The ship checklist** (after every approved change):
    `node engine.test.ts` → both tsc checks →
    `npx -p esbuild esbuild web/app.ts --bundle --format=esm --minify --outfile=docs/app.js`
-   → bump `CACHE` in `docs/sw.js` (v26 as of this writing) → update
+   → bump `CACHE` in `docs/sw.js` (v27 as of this writing) → update
    HANDOFF.md counts → commit (message style: `feat(scope): ...` with body,
    end with the Claude co-author line) → push → poll the live site until
    `docs/app.js` byte-size matches. If GitHub Pages sticks in "building",
@@ -55,7 +55,7 @@ repetition) with a guided-curriculum PWA on top.
 
 ## State as of 2026-07 (commit 6b80618)
 
-- **384 tests passing**, both type-checks clean, deployed bundle in sync.
+- **394 tests passing**, both type-checks clean, deployed bundle in sync.
 - **Review fixes (2026-07-18, post-audit), cache v21:** (1) `m2-combo-draw`
   board was `9s 8h 2c` (an 8-out spot, 36.9%) but its title/EXPLAIN teach the
   15-out flush+open-ender combo — fixed to `9s 8s 2c` (56.3%); a learner who
@@ -68,8 +68,9 @@ repetition) with a guided-curriculum PWA on top.
   reviewer findings (EXPLAIN accuracy in m3-bad-odds-fold/m3-chop-potodds,
   4-color-deck-is-actually-2-color, double-`truth()` preflop freeze, SW caching
   error responses, a11y) are logged below as Tier 2/3 next-ups.
-- **Pillar 1 content complete** (60 drills): M0 hand reading (13 — full 0–8
-  category ladder incl. misread traps + a nut-recognition broadway), M1 counting
+- **Pillar 1 content complete** (63 drills): M0 hand reading (16 — full 0–8
+  category ladder incl. misread traps, a nut-recognition broadway, and 3
+  board-only "name the nuts" drills), M1 counting
   outs (11 — gutshot/OESD/overcards/combo/double-gutshot/tainted, second
   instances of high-error types), M2 rule of 2&4 (8 — incl. same-draw flop ×4 vs
   turn ×2 contrast), M3 pot odds (6 — same flush draw call-vs-fold price
@@ -170,13 +171,12 @@ repetition) with a guided-curriculum PWA on top.
    suite still ~2s total, the fast score7 makes preflop cheap) and `m0-nut-broadway`
    (hero's ten completes A-K-Q-J-T — a category-4 drill framed on nut recognition,
    serving M0's "spot the nuts" objective). 75 drills now.
+   The nut-IDENTIFICATION idea below was later BUILT (see item 7).
    STILL OPEN: the M4/P3 "bet flop, check turn" pot-control line — DEFERRED because
    it doesn't fit the engine cleanly: the turn is a CHANCE average (no single scare
    card to react to) and the per-combo `policy` is street-independent, so you can't
    make flop-bet +EV but turn-bet −EV without a street-aware villain model (an
-   engine change). A true nut-IDENTIFICATION question (name the best hand the board
-   allows, not your own) would also need a new response kind. Both are engine work,
-   out of "additive content" scope.
+   engine change). Out of "additive content" scope.
 6. ~~**Made-hand highlight**~~ — DONE 2026-07-18 (cache v26, 384 tests). Added two
    pure engine helpers (in `contract.ts` + `engine.ts`, conformance-checked):
    `madeHand(cards)` (best-scoring 5 of 5–7; tested by `score5(madeHand)===score7`)
@@ -186,6 +186,20 @@ repetition) with a guided-curriculum PWA on top.
    board has missed and is not tinted; caught this in browser testing on
    `m0-flush-trap`), dims the rest, and shows a colour legend. Browser-verified on
    mobile across flop/full-board/flush-draw/flush-trap cases.
+7. ~~**"Name the nuts" question type**~~ — DONE 2026-07-18 (cache v27, 394 tests).
+   New `nuts` response kind end-to-end: `contract.ts` (Response + `ask` + declare),
+   `engine.ts` `nutCategory(board)` (enumerate all 2-card holdings, take the max
+   category; board 3–5), a `grade()` nuts branch (distance to the nut category →
+   `p1.misreads_nuts` → `m0.misreads_nuts`), and `web/app.ts` controls/feedback
+   (board-only render, 0–8 buttons, "Best possible hand here?" prompt, feedback
+   NAMES the nuts). 3 board-only M0 drills verified against the engine before
+   authoring: flush (`As 9s 4s Kd 2c`→5), straight (`Js Td 9c 4h 2s`→4), quads
+   (`Ks Kd 8c 5h 2s`→7). NOTE: dry boards are surprisingly straight-prone (A-low →
+   wheel, connectors → straights), so verify `nutCategory` before adding any more.
+   Watch-out fixed: three test loops graded EVERY M0 drill as `category` (throws on
+   board-only nuts drills) — they now pick the response kind per `drill.ask`.
+   Browser-verified: correct ("Correct — the nuts is a flush") and wrong ("The nuts
+   is a straight · off by 1"). REMAINING deferred idea: street-aware villain (item 5).
 
 ## Machine-specific notes for macOS
 

@@ -6,7 +6,7 @@
 import {
   STARTER_DRILLS, loadSession, serializeSession, gradeDrill,
   buildTree, actionEVs, truth, outs, calibration, leakReport,
-  rankOf, suitOf, RNAMES, score7, madeHand, drawSuit,
+  rankOf, suitOf, RNAMES, score7, madeHand, drawSuit, nutCategory,
 } from "../engine.ts";
 import { MODULES, PRIMER, EXPLAIN, moduleStatus, currentStreak } from "../curriculum.ts";
 import type { Drill, Response, Action, State, Module } from "../contract.ts";
@@ -361,12 +361,13 @@ function buildControls(controls: HTMLElement, drill: Drill, onAnswer: (r: Respon
     const label = el("label", "prompt", "How many outs?") as HTMLLabelElement;
     label.htmlFor = "ans-outs";
     controls.append(label, input, go);
-  } else if (drill.ask === "category") {
-    controls.append(el("label", "prompt", "Name your made hand:"));
+  } else if (drill.ask === "category" || drill.ask === "nuts") {
+    const nuts = drill.ask === "nuts";
+    controls.append(el("label", "prompt", nuts ? "Best possible hand here (the nuts)?" : "Name your made hand:"));
     const grid = el("div", "cats");
     CATEGORY.forEach((name, i) => {
       const b = el("button", "cat", `${i} · ${name}`);
-      b.onclick = () => onAnswer({ kind: "category", value: i });
+      b.onclick = () => onAnswer(nuts ? { kind: "nuts", value: i } : { kind: "category", value: i });
       grid.append(b);
     });
     controls.append(grid);
@@ -407,6 +408,10 @@ function renderFeedback(drill: Drill, out: ReturnType<typeof gradeDrill>, contLa
     line = r.estimateError === 0 ? `Correct — ${t} outs` : `True outs: ${t} · off by ${r.estimateError}`;
   }
   else if (drill.ask === "category") line = r.estimateError === 0 ? "Correct!" : `Off by ${r.estimateError} categor${r.estimateError === 1 ? "y" : "ies"}`;
+  else if (drill.ask === "nuts") {
+    const cat = CATEGORY[nutCategory(drill.state.board)];
+    line = r.estimateError === 0 ? `Correct — the nuts is a ${cat}` : `The nuts is a ${cat} · off by ${r.estimateError}`;
+  }
   else line = r.regretBb <= 1e-9 ? "Optimal." : `Regret ${r.regretBb.toFixed(2)} bb`;
   // The raw leak tag (e.g. "p2.bets_into_strong_range") is internal taxonomy; the
   // EXPLAIN text below carries the actual teaching, so beginners don't see the tag.
