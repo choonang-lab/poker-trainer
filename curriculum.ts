@@ -221,9 +221,9 @@ export const MODULES: Module[] = [
       { term: "Initiative", def: "being the last aggressor (the bettor/raiser), which lets you keep applying pressure." },
       { term: "Check-fold", def: "checking, then folding to a bet — the cheapest way to give up." },
     ],
-    objectives: ["Understand why position realizes more equity", "Check-fold weak hands out of position", "Avoid spewing chips with no equity OOP"],
+    objectives: ["Understand why position realizes more equity", "Check-fold weak hands out of position", "Take a free card in position to realize a draw"],
     example: "Out of position with no equity, check-fold (lose nothing) beats bluffing into a caller.",
-    drillIds: ["p0-oop-no-equity"],
+    drillIds: ["p0-oop-no-equity", "p0-ip-realize-equity"],
   },
   {
     id: "P1", track: "P2", title: "Preflop ranges",
@@ -367,6 +367,27 @@ export const EXPLAIN: Record<string, string> = {
   "m56-true-implied-odds": "The overbet needs 40% now and you have ~37% — but villain pays you again on the turn when the flush lands. Future bets rescue the call.",
   "m56-no-implied-odds": "You need 50% and have ~37% — and with nothing left to win later, implied odds can't make up the gap. Fold.",
   "m56-reverse-implied": "Your 'outs' complete villain's BIGGER flush — hitting often means losing more, not winning. Fold.",
+  // P0 — position and realization
+  "p0-oop-no-equity": "No equity, and a villain who bets when you check but never folds — betting only loses more. Out of position you can't take a free showdown, so check and fold. In position you could have checked it down; that's what position buys you.",
+  "p0-ip-realize-equity": "Acting last, a check ends the round and buys a free river — you realize your full draw (9 outs, about 20%). Betting is a trap: this villain never folds, so a semi-bluff with no fold equity just burns chips. Out of position that same check would face a bet and realize nothing — the free card is what position buys you.",
+  // P1 — preflop ranges
+  "p1-aa-vs-kk-preflop": "Aces over kings is the classic crush — about 82%. The underdog is drawing almost entirely to one of the two remaining kings.",
+  "p1-akx-vs-qq-race": "Two overcards against a pair is the classic 'race': suited A-K is a hair under a coin flip (~46%) versus the bigger pair.",
+  // P2 — bet sizing
+  "p2-bet-or-check": "Two ways to win: villain folds about half the time, and when called your open-ender still gets there. Betting beats checking.",
+  "p2-size-up-nuts": "With the nuts and a villain who always calls, the bigger bet simply wins more — size up. The small bet leaves value behind.",
+  "p2-thin-value": "A worse hand will call, so a value bet prints even with 'thin' top pair. Checking wins the same pot but for fewer chips.",
+  // P3 — multi-street lines
+  "p3-value-two-streets": "Unbeatable hand, guaranteed caller: bet every street. Each street you check is money you'll never get back.",
+  "p3-3bet-the-nuts": "Facing a bet with the nuts, raising (a 3-bet) builds the pot; flat-calling under-extracts. Raise for value.",
+  // P4 — multiway pots
+  "p4-multiway-field": "Two opponents who both play the same board split the pot more ways — the field approximation drops your share of the chop to about a quarter.",
+  "p4-strong-multiway": "Top pair top kicker is strong, but every extra opponent is another hand that can beat you — the field trims your equity a little below the heads-up number (~84%).",
+  // P5 — exploit vs balance
+  "p5-exploit-overfolder": "A hand with no showdown value only wins by making villain fold — and this villain folds often. Bet as a bluff; checking just gives up.",
+  "p5-value-vs-raiser": "Villain raises whenever you bet, so lead out with the nuts and let them raise into you. Checking wastes a raise-happy opponent.",
+  "p5-vs-checkraise-range": "Villain raises only hands that beat you and folds the rest, so betting gets raised when you're behind and folds out what you beat. Check and take a free showdown.",
+  "p5-thin-value-vs-range": "Villain continues only with better hands, so betting gets called only when you're beat. Check to show down and beat the hands that would have folded.",
 };
 
 // A module is "done" once every one of its drills has been graded at least once

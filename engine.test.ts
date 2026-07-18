@@ -740,8 +740,8 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
   ok("M4 check regret == 3 bb", approx(m4check.result.regretBb, 3), `got ${m4check.result.regretBb}`);
   ok("M4 check -> m4.misses_street_sequence", m4check.result.leakTag === "m4.misses_street_sequence");
 
-  ok("STARTER_DRILLS now spans 72 drills incl M0/M3.5/M4/M5.6/P0/P1/P3/P4/P5",
-    STARTER_DRILLS.length === 72 &&
+  ok("STARTER_DRILLS now spans 73 drills incl M0/M3.5/M4/M5.6/P0/P1/P3/P4/P5",
+    STARTER_DRILLS.length === 73 &&
     ["M0", "M3.5", "M4", "M5.6", "P0", "P1", "P3", "P4", "P5"].every((m) => STARTER_DRILLS.some((d) => d.module === m)));
 
   // Check-raise-range drill: villain raises only what beats hero (policy + raise).
@@ -962,9 +962,39 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
   ok("P0 best action is check", bestAction(buildTree(p0.state)).kind === "check");
 
   const betGrade = gradeDrill(session, p0.id, { kind: "action", action: { kind: "bet", size: 1.0 } }, 0);
-  ok("P0 bet regret 1 -> p0.bets_oop_without_equity",
-    betGrade.result.regretBb === 1 && betGrade.result.leakTag === "p0.bets_oop_without_equity",
+  ok("P0 bet regret 1 -> p0.bets_without_fold_equity",
+    betGrade.result.regretBb === 1 && betGrade.result.leakTag === "p0.bets_without_fold_equity",
     `${betGrade.result.regretBb} ${betGrade.result.leakTag}`);
+
+  // P0 in-position mirror: no villainLeads, so a hero check ENDS the street (free
+  // river). The same 9-out draw realizes its full equity (check EV 9/44,
+  // realizationFactor 1); betting has no fold equity vs a never-folder (EV -17/44).
+  // This is the positive half of the position lesson: IP you realize, OOP you don't.
+  const p0ip = byId("p0-ip-realize-equity");
+  ok("P0-IP default builder: hero-check -> showdown (not VILL)",
+    buildTree(p0ip.state).children![0].node.kind !== "VILL");
+  const ipEvs = actionEVs(buildTree(p0ip.state));
+  const ipCk = ipEvs.find((e) => e.action.kind === "check")!;
+  const ipBt = ipEvs.find((e) => e.action.kind === "bet")!;
+  ok("P0-IP check EV == 9/44 (free river realizes the draw)", approx(ipCk.ev, 9 / 44, 1e-9), `got ${ipCk.ev}`);
+  ok("P0-IP bet EV == -17/44 (no fold equity vs a never-folder)", approx(ipBt.ev, -17 / 44, 1e-9), `got ${ipBt.ev}`);
+  ok("P0-IP best action is check", bestAction(buildTree(p0ip.state)).kind === "check");
+  ok("P0-IP realizationFactor == 1 (position realizes full equity)", approx(realizationFactor(p0ip.state), 1, 1e-9));
+  // The falsifiable contrast: the SAME draw, moved out of position, realizes 0 --
+  // the check now faces a bet and folds. Build the OOP mirror inline (villainLeads
+  // + a villain that bets when checked to) so the comparison is hand-for-hand.
+  const p0oopMirror = {
+    ...p0ip.state,
+    villain: {
+      range: [{ combo: hand("Ah", "Td"), weight: 1 }],
+      strategy: (_s: any, legal: any[]) =>
+        legal.map((a: any) => ({ action: a, weight: (a.kind === "bet" || a.kind === "call") ? 1 : 0 })),
+    },
+    abstraction: { ...p0ip.state.abstraction, villainLeads: true },
+  };
+  const oopCk = actionEVs(buildTree(p0oopMirror)).find((e) => e.action.kind === "check")!;
+  ok("position pays: same draw realizes 9/44 IP but 0 OOP",
+    approx(ipCk.ev, 9 / 44, 1e-9) && oopCk.ev === 0, `IP ${ipCk.ev} OOP ${oopCk.ev}`);
 
   // True multi-street implied odds: hero faces an overbet at the root (fold|call);
   // immediate odds say fold a ~37% draw, but villain pays off the turn -> calling +EV.
@@ -1348,13 +1378,19 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
     MODULES.every((m) => m.concepts.length >= 2 && m.concepts.every((c) => c.term.length > 0 && c.def.length > 0)));
   ok("primer has sections with non-empty heading + body",
     PRIMER.length >= 5 && PRIMER.every((s) => s.heading.length > 0 && s.body.length > 0 && s.body.every((p) => p.length > 0)));
-  // Every Pillar-1 drill has a post-answer explanation, and no entry is orphaned.
-  const p1Ids = MODULES.filter((m) => m.track === "P1").flatMap((m) => m.drillIds);
-  ok("every Pillar-1 drill has an EXPLAIN entry",
-    p1Ids.every((id) => (EXPLAIN[id] ?? "").length > 0),
-    p1Ids.filter((id) => !(EXPLAIN[id] ?? "").length).join(","));
+  // Every drill (both pillars) has a post-answer explanation, and no entry is orphaned.
+  ok("every drill has an EXPLAIN entry",
+    STARTER_DRILLS.every((d) => (EXPLAIN[d.id] ?? "").length > 0),
+    STARTER_DRILLS.filter((d) => !(EXPLAIN[d.id] ?? "").length).map((d) => d.id).join(","));
   ok("no EXPLAIN entry points at a missing drill",
     Object.keys(EXPLAIN).every((id) => STARTER_DRILLS.some((d) => d.id === id)));
+  // A Pillar-2 action drill's best line depends on the villain's hidden strategy,
+  // so each must carry a read that surfaces that tendency to the player.
+  const p2ActionIds = MODULES.filter((m) => m.track === "P2").flatMap((m) => m.drillIds)
+    .map((id) => STARTER_DRILLS.find((d) => d.id === id)!).filter((d) => d.ask === "action");
+  ok("every Pillar-2 action drill carries a villain read",
+    p2ActionIds.every((d) => (d.read ?? "").length > 0),
+    p2ActionIds.filter((d) => !(d.read ?? "").length).map((d) => d.id).join(","));
   // Pillar 1 modules all precede Pillar 2 (so P2 unlocks only after P1).
   const lastP1 = MODULES.map((m, i) => (m.track === "P1" ? i : -1)).reduce((a, b) => Math.max(a, b), -1);
   const firstP2 = MODULES.findIndex((m) => m.track === "P2");

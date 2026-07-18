@@ -37,7 +37,7 @@ repetition) with a guided-curriculum PWA on top.
 5. **The ship checklist** (after every approved change):
    `node engine.test.ts` → both tsc checks →
    `npx -p esbuild esbuild web/app.ts --bundle --format=esm --minify --outfile=docs/app.js`
-   → bump `CACHE` in `docs/sw.js` (v19 as of this writing) → update
+   → bump `CACHE` in `docs/sw.js` (v20 as of this writing) → update
    HANDOFF.md counts → commit (message style: `feat(scope): ...` with body,
    end with the Claude co-author line) → push → poll the live site until
    `docs/app.js` byte-size matches. If GitHub Pages sticks in "building",
@@ -55,7 +55,7 @@ repetition) with a guided-curriculum PWA on top.
 
 ## State as of 2026-07 (commit 6b80618)
 
-- **358 tests passing**, both type-checks clean, deployed bundle in sync.
+- **365 tests passing**, both type-checks clean, deployed bundle in sync.
 - **Pillar 1 content complete** (57 drills): M0 hand reading (12 — full 0–8
   category ladder incl. misread traps), M1 counting outs (11 — gutshot/OESD/
   overcards/combo/double-gutshot/tainted, second instances of high-error
@@ -64,8 +64,15 @@ repetition) with a guided-curriculum PWA on top.
   equity (5 — same draw bet-vs-check by villain fold%), M4 sequencing (4 —
   incl. way-behind check-back), M5 equity vs range (8 — weighted range,
   condensed vs polarized, domination), M5.6 implied odds (4 — incl. reverse
-  implied). Pillar-2 drills exist (P0–P5, 15 drills) but have NOT had the
-  coverage audit.
+  implied). **Pillar 2 audited (2026-07-18):** 15 drills (P0 ×2, P1 ×2, P2 ×3,
+  P3 ×2, P4 ×2, P5 ×4). Every best action / equity re-verified against the
+  engine (all correct); de-spoiled the leaky action-drill titles; added a
+  villain `read:` to all 10 action drills and EXPLAIN text to every P-drill;
+  added a P0 in-position drill (`p0-ip-realize-equity`) — the free-card mirror
+  of the OOP check-fold (same 9-out draw realizes 9/44 IP vs 0 OOP). Renamed
+  the P0 bet leak to the position-neutral `p0.bets_without_fold_equity`.
+  Integrity tests now require an EXPLAIN entry on EVERY drill and a `read:` on
+  every Pillar-2 action drill, so the parity can't regress.
 - **UI (web/app.ts → docs/):** guided Learn path (module map with lock/
   progress → intro with preface + key terms + objectives + worked example →
   gated lessons with progress bar → recap), Review tab (SM-2 due queue),
@@ -98,10 +105,10 @@ repetition) with a guided-curriculum PWA on top.
 
 ## Next up (agreed or suggested, not started)
 
-1. **Pillar 2 audit (P0–P5)** — same coverage lens as Pillar 1: verify each
-   best action against the engine, add discrimination contrasts, add
-   `read:` text to every strategy-dependent drill, write EXPLAIN entries for
-   all P-drills (currently Pillar 1 only), de-spoil any leaky titles.
+1. ~~**Pillar 2 audit (P0–P5)**~~ — DONE 2026-07-18 (see "State as of" above).
+   Remaining thin spots if more P depth is wanted: P3 has only bet-bet value +
+   3-bet lines — a "bet flop, check turn" pot-control contrast would round it
+   out (verify a clean EV where the second barrel is −EV before authoring).
 2. **Made-hand highlight** (medium): after answering, highlight which five
    cards form the made hand (M0) or tint the drawing suit (M1/M2). Needs a
    small engine helper to report the winning five cards.
@@ -114,6 +121,9 @@ repetition) with a guided-curriculum PWA on top.
   `node engine.test.ts` type-stripping, GitHub CLI (`brew install gh`,
   then `gh auth login` as choonang-lab), no npm install needed — typescript/
   esbuild run via `npx -p` from the npx cache.
+- On this Mac, Node **v24.18.0** lives at `~/.local/node/bin` but is NOT on the
+  default PATH. Prefix commands with `export PATH="$HOME/.local/node/bin:$PATH"`
+  (there is no Homebrew / system node). `npx` resolves from the same dir.
 - `.claude/launch.json` in this repo has **Windows** paths for the preview
   server; recreate it on Mac (e.g. `python3 -m http.server 5050 --directory
   <repo>/docs`) or just use `python3 -m http.server` directly.

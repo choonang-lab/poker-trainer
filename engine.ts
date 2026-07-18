@@ -912,7 +912,7 @@ const LEAK_TABLE: Record<string, string> = {
   "M5:overestimate": "m5.overrates_vs_range",
   "M5:underestimate": "m5.underrates_vs_range",
   "M0:miscategorized": "m0.misreads_hand",
-  "P0:overbet": "p0.bets_oop_without_equity",
+  "P0:overbet": "p0.bets_without_fold_equity",
   "P0:overfold": "p0.overfolds_in_position",
   "P1:overestimate": "p1.overvalues_holding",
   "P1:underestimate": "p1.undervalues_holding",
@@ -1046,8 +1046,9 @@ export const STARTER_DRILLS: Drill[] = [
   {
     id: "p2-bet-or-check",
     module: "P2",
-    title: "Bet sizing with fold equity vs a 50/50 caller",
+    title: "Fold equity: an open-ended draw on the turn",
     ask: "action",
+    read: "Villain folds to a bet about half the time.",
     state: {
       heroHand: hand("Ks", "Qd"), board: hand("Jh", "Th", "2c", "3s"),
       pot: 1, toAct: "hero",
@@ -1102,8 +1103,9 @@ export const STARTER_DRILLS: Drill[] = [
   {
     id: "p3-value-two-streets",
     module: "P3",
-    title: "Multi-street value: betting the nuts on flop and turn",
+    title: "Multi-street lines: a flopped nut hand, two streets to play",
     ask: "action",
+    read: "Villain calls any bet (never folds, never raises).",
     state: {
       heroHand: hand("Js", "Ts"), board: hand("As", "Ks", "Qs"), // flopped royal flush
       pot: 1, toAct: "hero",
@@ -1118,7 +1120,7 @@ export const STARTER_DRILLS: Drill[] = [
   {
     id: "p4-multiway-field",
     module: "P4",
-    title: "Multiway: realizing a chop against a two-opponent field",
+    title: "Multiway: an unimprovable hand against a two-opponent field",
     ask: "estimate",
     state: {
       heroHand: hand("3h", "4d"), board: hand("As", "Ks", "Qd", "Jc", "2h"),
@@ -1130,8 +1132,9 @@ export const STARTER_DRILLS: Drill[] = [
   {
     id: "p5-exploit-overfolder",
     module: "P5",
-    title: "Exploit: bluffing into a villain who over-folds",
+    title: "Exploit: no showdown value against a fold-happy villain",
     ask: "action",
+    read: "Villain folds to a bet very often.",
     state: {
       heroHand: hand("7h", "2d"), board: hand("As", "Ks", "Qd", "4c"),
       pot: 1, toAct: "hero",
@@ -1201,8 +1204,9 @@ export const STARTER_DRILLS: Drill[] = [
   {
     id: "p0-oop-no-equity",
     module: "P0",
-    title: "Position: out of position with no equity, check-fold beats bluffing",
+    title: "Position: out of position with a worthless hand on the turn",
     ask: "action",
+    read: "If you check, villain bets; villain never folds and always bets when checked to.",
     // villainLeads: if hero checks, villain bets and hero can check-fold (EV 0);
     // betting into a calling villain with 0 equity just spews (EV -1).
     state: {
@@ -1214,6 +1218,27 @@ export const STARTER_DRILLS: Drill[] = [
           legal.map((a) => ({ action: a, weight: (a.kind === "bet" || a.kind === "call") ? 1 : 0 })),
       },
       abstraction: { sizes: [1.0], streets: ["turn"], players: 2, villainLeads: true },
+    },
+  },
+  {
+    id: "p0-ip-realize-equity",
+    module: "P0",
+    title: "Position: a flush draw on the turn, last to act",
+    ask: "action",
+    read: "You're in position (last to act), and villain never folds to a bet.",
+    // The IP mirror of p0-oop-no-equity: no villainLeads, so a hero check ENDS the
+    // street -> a free river. Hero realizes the full 9/44 draw equity (check EV
+    // 9/44, realizationFactor 1). Betting has no fold equity here, so it just burns
+    // chips (EV -17/44). OOP the same check would face a bet and realize 0.
+    state: {
+      heroHand: hand("8s", "9s"), board: hand("As", "Ks", "4d", "Jc"), // spade flush draw, 9 outs
+      pot: 1, toAct: "hero",
+      villain: {
+        range: [{ combo: hand("Ah", "Td"), weight: 1 }], // a pair of aces; loses only to the flush
+        strategy: (_s: NodeState, legal: Action[]) =>
+          legal.map((a) => ({ action: a, weight: a.kind === "call" ? 1 : 0 })),
+      },
+      abstraction: { sizes: [1.0], streets: ["turn"], players: 2 },
     },
   },
   {
@@ -1233,8 +1258,9 @@ export const STARTER_DRILLS: Drill[] = [
   {
     id: "p5-value-vs-raiser",
     module: "P5",
-    title: "Exploit a raise-happy villain: bet your nuts to get raised",
+    title: "Exploit: the nuts on the turn against a raise-happy villain",
     ask: "action",
+    read: "Villain raises whenever you bet.",
     // villainRaises + a raise-always villain: betting the nuts (EV 5) crushes
     // checking (EV 1) because hero re-calls the raise. Checking misses the value.
     state: {
@@ -1251,8 +1277,9 @@ export const STARTER_DRILLS: Drill[] = [
   {
     id: "p2-size-up-nuts",
     module: "P2",
-    title: "Sizing: size up with the nuts (bet big for value)",
+    title: "Sizing: the nuts on the turn with two bet sizes available",
     ask: "action",
+    read: "Villain calls any bet.",
     // Two sizes; a calling villain. The nuts wants the BIGGER bet (EV 2 vs 1.5);
     // betting small is now tagged distinctly as an underbet (p2.bets_too_small).
     state: {
@@ -1269,8 +1296,9 @@ export const STARTER_DRILLS: Drill[] = [
   {
     id: "p5-vs-checkraise-range",
     module: "P5",
-    title: "Don't bet into a check-raise range: villain raises only what beats you",
+    title: "Exploit: top pair facing a villain who raises only monsters",
     ask: "action",
+    read: "Villain only raises hands that beat you; everything else gives up.",
     // Villain raises monsters (sets / AK, all beat AJ) and folds QQ/JT. Betting gets
     // raised exactly when behind and folds out the hands you beat (EV -0.2);
     // checking shows down vs the full range (EV ~0.41). Showcases policy + raise.
@@ -1295,8 +1323,9 @@ export const STARTER_DRILLS: Drill[] = [
   {
     id: "p5-thin-value-vs-range",
     module: "P5",
-    title: "Range narrowing: don't bet thin into a strong calling range",
+    title: "Exploit: top pair against a range that continues only with better",
     ask: "action",
+    read: "Villain calls only with a better hand and folds worse.",
     // Villain calls only with AK (which beats AJ) and folds QQ. So betting gets
     // called only when behind (range narrows); checking shows down vs the full
     // range and wins vs QQ. Check (EV ~0.51) beats betting (~0.10).
@@ -1317,8 +1346,9 @@ export const STARTER_DRILLS: Drill[] = [
   {
     id: "p3-3bet-the-nuts",
     module: "P3",
-    title: "Raise lines: 3-bet the nuts for value instead of just calling",
+    title: "Raise lines: facing a bet on the turn with the nuts",
     ask: "action",
+    read: "Villain has bet; villain will call a raise but never re-raises.",
     // heroFacesBet + raiseCap 1: hero faces villain's pot bet holding the nuts.
     // Re-raising (3-bet, EV 5) beats flatting (EV 2); flatting under-extracts.
     state: {
@@ -1373,7 +1403,7 @@ export const STARTER_DRILLS: Drill[] = [
   {
     id: "p1-akx-vs-qq-race",
     module: "P1",
-    title: "Preflop ranges: AK suited vs a pocket pair (a coinflip)",
+    title: "Preflop ranges: suited AK vs a bigger pocket pair",
     ask: "estimate",
     state: {
       heroHand: hand("As", "Ks"), board: [],
@@ -1769,8 +1799,9 @@ export const STARTER_DRILLS: Drill[] = [
   {
     id: "p2-thin-value",
     module: "P2",
-    title: "Sizing: bet thin for value when a worse hand calls",
+    title: "Sizing: top pair on a dry turn against a loose caller",
     ask: "action",
+    read: "Villain is a station who calls any bet, even with a worse hand.",
     state: {
       heroHand: hand("As", "Js"), board: hand("Ad", "8c", "3h", "2s"), // top pair
       pot: 1, toAct: "hero",
