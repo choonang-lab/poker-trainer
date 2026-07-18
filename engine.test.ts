@@ -365,6 +365,26 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
   ok("multi-street == L2 equity (cross-street identity)", ev === equity(hero, flop, villC));
 }
 
+// The same identity at MID equity (0 < e < 1), where the CHANCE mean must actually
+// average DISTINCT per-runout leaves — the drawing-dead(0)/nuts(1) cases above are
+// trivially exact because every leaf is identical. Hero (AK) checks a 2-street tree
+// through to showdown vs a set; the check line integrates to exactly the L2 equity
+// (to float precision — the two summation orders differ by ~1e-17, so approx).
+{
+  const hero = hand("As", "Ks");
+  const flop = hand("Qh", "7h", "2d");
+  const villC = hand("7c", "7d"); // set of sevens
+  const tree = buildTree({
+    heroHand: hero, board: flop, pot: 1, toAct: "hero",
+    villain: { range: [{ combo: villC, weight: 1 }], strategy: callStrat },
+    abstraction: { sizes: [1.0], streets: ["flop", "turn"], players: 2 },
+  });
+  const eq = equity(hero, flop, villC);
+  const checkEV = actionEVs(tree).find((e) => e.action.kind === "check")!.ev;
+  ok("mid-equity spot is non-trivial (0 < e < 1)", eq > 0 && eq < 1, `eq ${eq}`);
+  ok("mid-equity check-line == L2 equity (cross-street identity)", approx(checkEV, eq, 1e-12), `${checkEV} vs ${eq}`);
+}
+
 // 3-STREET proof + value-betting the nuts vs a never-folding villain.
 // Hero flops a royal flush (eq=1 on every runout); pot-size bets get called each
 // street. pots: 1 ->(bet1,call) 3 ->(bet3,call) 9 ->(bet9,call) 27; hero invests
@@ -443,6 +463,8 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
     throws(() => validateAbstraction({ sizes: [1.0], streets: ["turn"], players: 1 })));
   ok("rejects board/street mismatch",
     throws(() => validateAbstraction({ sizes: [1.0], streets: ["turn"], players: 2 }, hand("As", "Ks", "Qd"))));
+  ok("rejects multiway (players > 2) with a betting tree",
+    throws(() => validateAbstraction({ sizes: [1.0], streets: ["turn"], players: 3 }, hand("Jh", "Th", "2c", "3s"))));
   ok("buildTree enforces the budget",
     throws(() => buildTree({ heroHand: hand("Ks", "Qd"), board: hand("As", "Ks", "Qd"), pot: 1, toAct: "hero",
       villain: { range: [] },
@@ -460,6 +482,21 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
     villain: { range: [] }, abstraction: { sizes: [], streets: [], players: 2 } };
   ok("truth throws on empty villain range", throws(() => truth(emptyVill)));
   ok("realizationFactor throws on empty villain range", throws(() => realizationFactor(emptyVill)));
+
+  // Authoring guards: reject malformed shapes instead of grading them incoherently.
+  const villC = hand("Ah", "Ad");
+  ok("outs rejects a non-flop/turn board (river = 5 cards)",
+    throws(() => outs(heroH, hand("As", "Ks", "Qd", "Jc", "2h"), villC)));
+  ok("outs accepts a flop and a turn",
+    !throws(() => outs(heroH, hand("As", "Ks", "Qd"), villC)) &&
+    !throws(() => outs(heroH, board4, villC)));
+  // An estimate response on a tree spot (non-empty abstraction) would compare a
+  // [0,1] guess to a bb EV -> grade must reject it.
+  const treeSpot: State = { heroHand: heroH, board: board4, pot: 1, toAct: "hero",
+    villain: { range: [{ combo: villC, weight: 1 }], strategy: (_s, lg) => lg.map((a) => ({ action: a, weight: a.kind === "call" ? 1 : 0 })) },
+    abstraction: { sizes: [1.0], streets: ["turn"], players: 2 } };
+  ok("grade rejects an estimate on a non-empty abstraction",
+    throws(() => grade(treeSpot, { kind: "estimate", value: 0.5 })));
 
   // Drawing dead (raw all-in equity 0) -> realization ratio undefined -> throws.
   const dead: State = { heroHand: hand("7h", "2d"), board: hand("As", "Ah", "Ad", "Kc", "Kd"), pot: 1,

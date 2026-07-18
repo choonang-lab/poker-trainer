@@ -37,7 +37,7 @@ repetition) with a guided-curriculum PWA on top.
 5. **The ship checklist** (after every approved change):
    `node engine.test.ts` → both tsc checks →
    `npx -p esbuild esbuild web/app.ts --bundle --format=esm --minify --outfile=docs/app.js`
-   → bump `CACHE` in `docs/sw.js` (v22 as of this writing) → update
+   → bump `CACHE` in `docs/sw.js` (v24 as of this writing) → update
    HANDOFF.md counts → commit (message style: `feat(scope): ...` with body,
    end with the Claude co-author line) → push → poll the live site until
    `docs/app.js` byte-size matches. If GitHub Pages sticks in "building",
@@ -55,7 +55,7 @@ repetition) with a guided-curriculum PWA on top.
 
 ## State as of 2026-07 (commit 6b80618)
 
-- **369 tests passing**, both type-checks clean, deployed bundle in sync.
+- **375 tests passing**, both type-checks clean, deployed bundle in sync.
 - **Review fixes (2026-07-18, post-audit), cache v21:** (1) `m2-combo-draw`
   board was `9s 8h 2c` (an 8-out spot, 36.9%) but its title/EXPLAIN teach the
   15-out flush+open-ender combo — fixed to `9s 8s 2c` (56.3%); a learner who
@@ -153,10 +153,16 @@ repetition) with a guided-curriculum PWA on top.
    contrast tweak (#d62b3a ~4.0:1) was intentionally NOT applied to avoid changing
    the card red. A 512px PNG icon was skipped (SVG covers Android maskable); add
    later if a splash icon is wanted.
-4. **Review Tier 4 — robustness:** the "one engine" cross-street identity is only
-   tested at equity 0 and 1; add one mid-equity assertion (check-line EV of a
-   built 2-street tree === equity() for a mid-equity hero). Minor authoring guards
-   (`outs` board-length, estimate-drill-with-abstraction).
+4. ~~**Review Tier 4 — robustness**~~ — DONE 2026-07-18 (cache v24, 375 tests).
+   Added the mid-equity "one engine" identity test (AK vs a set: a 2-street tree's
+   check-line EV == equity() to float precision — NOTE it's `approx`, not `===`;
+   the two summation orders differ by ~1e-17, so the reviewer's "===" was wrong).
+   Added three authoring guards, each with a throws-test: `outs` rejects a board
+   that isn't a flop/turn (3/4 cards — an 8-card `best()` was silently misbehaving);
+   `validateAbstraction` rejects multiway (players > 2) with a betting tree (sizes);
+   `grade` rejects an estimate response on a non-empty abstraction (would compare a
+   [0,1] guess to a bb EV). All guards are no-ops for shipped content (nothing
+   violates them) — engine.ts changed, so the bundle was rebuilt to stay in sync.
 5. **Made-hand highlight** (medium): after answering, highlight which five
    cards form the made hand (M0) or tint the drawing suit (M1/M2). Needs a
    small engine helper to report the winning five cards.

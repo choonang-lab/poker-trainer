@@ -243,6 +243,10 @@ export function equityVsRange(hero: Combo, board: Board, range: Range): number |
 // outs: count single next cards that make hero best vs a FIXED villain hand.
 // Defined for one card to come from the current board (board length 3 or 4).
 export function outs(hero: Combo, board: Board, villain: Combo): number {
+  // Single-card-to-come, so only a flop (turn card) or turn (river card) makes
+  // sense; other lengths feed best() an out-of-range hand and misbehave silently.
+  if (board.length !== 3 && board.length !== 4)
+    throw new Error(`outs: board must be a flop or turn (3 or 4 cards); got ${board.length}`);
   const known = new Set<Card>([...hero, ...board, ...villain]);
   const unseen = FULL_DECK.filter((c) => !known.has(c));
   let n = 0;
@@ -457,6 +461,8 @@ export function validateAbstraction(abstraction: Abstraction, board: Board = [])
   if (!Number.isInteger(players) || players < 2)
     throw new Error(`abstraction.players must be an integer >= 2 (got ${players})`);
   if (sizes.length === 0) return true; // pillar 1: no tree to bound
+  if (players > 2)
+    throw new Error(`multiway (players > 2) is an estimate-only field approximation; a betting tree (sizes) requires heads-up (players = 2)`);
   for (const s of sizes)
     if (!(s > 0)) throw new Error(`bet sizes must be > 0 (got ${s})`);
   if (sizes.length > ABSTRACTION_LIMITS.maxSizes)
@@ -815,6 +821,10 @@ function outsLeak(error: number): string {
 
 export function grade(state: State, response: Response): Result {
   if (response.kind === "estimate") {
+    // Estimates are graded against equity in [0,1]; a tree spot's truth() is a bb
+    // EV, so an estimate on a non-empty abstraction would be graded incoherently.
+    if (state.abstraction.sizes.length > 0)
+      throw new Error("grade: an estimate response requires a pillar-1 spot (empty abstraction)");
     const t = truth(state); // throws on a malformed spot
     const error = response.value - t;
     return { regretBb: 0, estimateError: Math.abs(error), leakTag: estimateLeak(error) };
