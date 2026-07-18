@@ -37,7 +37,7 @@ repetition) with a guided-curriculum PWA on top.
 5. **The ship checklist** (after every approved change):
    `node engine.test.ts` → both tsc checks →
    `npx -p esbuild esbuild web/app.ts --bundle --format=esm --minify --outfile=docs/app.js`
-   → bump `CACHE` in `docs/sw.js` (v27 as of this writing) → update
+   → bump `CACHE` in `docs/sw.js` (v28 as of this writing) → update
    HANDOFF.md counts → commit (message style: `feat(scope): ...` with body,
    end with the Claude co-author line) → push → poll the live site until
    `docs/app.js` byte-size matches. If GitHub Pages sticks in "building",
@@ -55,7 +55,7 @@ repetition) with a guided-curriculum PWA on top.
 
 ## State as of 2026-07 (commit 6b80618)
 
-- **394 tests passing**, both type-checks clean, deployed bundle in sync.
+- **395 tests passing**, both type-checks clean, deployed bundle in sync.
 - **Review fixes (2026-07-18, post-audit), cache v21:** (1) `m2-combo-draw`
   board was `9s 8h 2c` (an 8-out spot, 36.9%) but its title/EXPLAIN teach the
   15-out flush+open-ender combo — fixed to `9s 8s 2c` (56.3%); a learner who
@@ -77,7 +77,9 @@ repetition) with a guided-curriculum PWA on top.
   contrast), M3.5 fold equity (6 — incl. the semi-bluff moved from P2 in Tier 2),
   M4 sequencing (4 —
   incl. way-behind check-back), M5 equity vs range (8 — weighted range,
-  condensed vs polarized, domination), M5.6 implied odds (4 — incl. reverse
+  condensed vs polarized, domination), M5.6 implied odds (4 — now ALL genuine
+  multi-street trees after the effective-pot fake was rebuilt as a real OESD
+  implied-odds tree; a flush-draw real tree, a no-implied fold, and reverse
   implied). **Pillar 2 audited (2026-07-18):** 15 drills (P0 ×2, P1 ×3, P2 ×2,
   P3 ×2, P4 ×2, P5 ×4) — P1 gained the AK-vs-AQ domination drill in Tier 5, and
   Tier-2 moved the semi-bluff `p2-bet-or-check` to M3.5. Every best action /
@@ -137,10 +139,8 @@ repetition) with a guided-curriculum PWA on top.
    a single-size semi-bluff, so MOVED from P2 (sizing) → M3.5 (fold equity); this
    also fixed its leak label (`p2.misses_thin_value` → `m35.gives_up_fold_equity`).
    Id keeps its legacy "p2-" prefix (stable key). P2 now has 2 sizing drills, M3.5
-   has 6. Deeper caveat left for later: the M5.6 "implied odds" drills fake implied
-   odds via an inflated pot because the engine has no villain-leads multi-street
-   implied-odds tree; `m56-implied-odds-flushdraw` is still close to a plain M3
-   pot-odds call. A true fix needs engine work (out of Tier-2 content-only scope).
+   has 6. Deeper caveat (LATER RESOLVED — see item 8): the M5.6 `m56-implied-odds-
+   flushdraw` faked implied odds via an inflated pot rather than a real tree.
 3. ~~**Review Tier 3 — UX/mobile**~~ — DONE 2026-07-18 (cache v23). Fixed:
    estimate feedback reused `out.truth` (was re-enumerating — halved the preflop
    grade wait; browser-verified ~4s = one enumeration, not two) + a "Checking…"
@@ -199,7 +199,21 @@ repetition) with a guided-curriculum PWA on top.
    Watch-out fixed: three test loops graded EVERY M0 drill as `category` (throws on
    board-only nuts drills) — they now pick the response kind per `drill.ask`.
    Browser-verified: correct ("Correct — the nuts is a flush") and wrong ("The nuts
-   is a straight · off by 1"). REMAINING deferred idea: street-aware villain (item 5).
+   is a straight · off by 1").
+8. ~~**Real implied-odds tree**~~ — DONE 2026-07-18 (cache v28, 395 tests). Replaced
+   the last faked drill: `m56-implied-odds-flushdraw` (effective-pot shortcut, a near
+   duplicate of `m56-true-implied-odds`) → `m56-implied-odds-oesd`, a GENUINE
+   multi-street `heroFacesBet` tree. Hero Th9c on Qd Jc 4h (open-ender, no flush — 3
+   of the 4 M5.6 drills were flush draws, so a straight adds variety), villain AhQh
+   with the pay-off `callStrat`, `heroFacesBet: 1.5`. Immediate price 37.5% > the
+   ~31.5% draw (immediate odds reject), but the turn payoff makes calling +0.36 →
+   best=call, fold leaks `m56.folds_with_implied_odds` (verified). No engine change
+   was needed — the `heroFacesBet` + multi-street tree already models it; only the
+   drill's data + a real-tree test assertion changed. Id renamed (content changed
+   fundamentally). Browser-verified: call → "Optimal.". REMAINING deferred idea:
+   street-aware villain / the "bet flop, check turn" pot-control line (item 5) — the
+   only idea left, and it's genuine engine surgery (turn is a CHANCE average; policy
+   is street-independent).
 
 ## Machine-specific notes for macOS
 

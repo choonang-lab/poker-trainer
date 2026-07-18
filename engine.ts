@@ -1234,21 +1234,27 @@ export const STARTER_DRILLS: Drill[] = [
     },
   },
   {
-    id: "m56-implied-odds-flushdraw",
+    id: "m56-implied-odds-oesd",
     module: "M5.6",
-    title: "Implied odds: counting future winnings makes a marginal draw a call",
+    title: "Implied odds: an open-ender facing a big bet",
+    read: "Villain bets big and pays off the turn when your straight completes.",
     ask: "action",
-    read: "The pot shown includes the chips you expect to win later when the draw hits.",
-    // `pot` is the EFFECTIVE pot — current pot plus the winnings hero expects to
-    // collect on later streets when the draw hits. callEV multiplies it by equity,
-    // so this is exactly the implied-odds EV. (A real villain-leads multi-street
-    // tree is a separate future enhancement.) eq ~0.35 > toCall/(pot+toCall),
-    // so calling is +EV; folding is the implied-odds leak.
+    // A REAL multi-street implied-odds tree (NOT an effective-pot shortcut). Hero
+    // Th9c on Qd Jc 4h has an open-ended straight draw (K or 8, ~31.5%); no flush is
+    // possible. heroFacesBet 1.5 -> the immediate price is 1.5/(1+2*1.5) = 37.5%, so
+    // on price alone the call is rejected. But the callStrat villain pays off a turn
+    // bet when the straight hits, and that future money makes calling +EV (~+0.36);
+    // folding is the implied-odds leak. Contrast m56-no-implied-odds (no future bets
+    // -> fold) and m56-true-implied-odds (the flush-draw instance of the same idea).
     state: {
-      heroHand: hand("8s", "9s"), board: hand("As", "Ks", "4d"),
-      pot: 3, toCall: 1, toAct: "hero",
-      villain: { range: [{ combo: hand("Ah", "Td"), weight: 1 }] },
-      abstraction: { sizes: [], streets: [], players: 2 },
+      heroHand: hand("Th", "9c"), board: hand("Qd", "Jc", "4h"),
+      pot: 1, toAct: "hero",
+      villain: {
+        range: [{ combo: hand("Ah", "Qh"), weight: 1 }],
+        strategy: (_s: NodeState, legal: Action[]) =>
+          legal.map((a) => ({ action: a, weight: a.kind === "call" ? 1 : 0 })),
+      },
+      abstraction: { sizes: [1.0], streets: ["flop", "turn"], players: 2, heroFacesBet: 1.5 },
     },
   },
   {

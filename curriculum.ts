@@ -206,7 +206,7 @@ export const MODULES: Module[] = [
     objectives: ["Add expected future winnings to the price", "Call draws that immediate odds reject", "Recognize when implied odds aren't really there"],
     example: "Calling a big bet with a flush draw can be +EV if you get paid off when it comes in.",
     drillIds: [
-      "m56-implied-odds-flushdraw", "m56-true-implied-odds",
+      "m56-implied-odds-oesd", "m56-true-implied-odds",
       "m56-no-implied-odds", "m56-reverse-implied",
     ],
   },
@@ -368,7 +368,7 @@ export const EXPLAIN: Record<string, string> = {
   "m5-weighted-range": "3 bluff combos for every value combo: ¾ of the time you're crushing it, ¼ near-dead — the weighted average is ~70%, not the 50% an unweighted glance suggests.",
   "m5-dominated-kicker": "Both A-K combos out-kick your A-J; only KK is behind — domination cuts top pair down to ~40%.",
   // M5.6 — implied odds
-  "m56-implied-odds-flushdraw": "Counting the chips you'll win later when the flush hits, the effective price justifies the call — the immediate pot alone wouldn't.",
+  "m56-implied-odds-oesd": "Facing a big bet you'd need about 38% to call on price alone, but your open-ender is only ~31% — the immediate odds say fold. Every time you complete the straight, though, villain pays off, and those extra chips tip calling into +EV. That's implied odds: count the money you'll win later, not just what's already in the pot.",
   "m56-true-implied-odds": "The overbet needs 40% now and you have ~37% — but villain pays you again on the turn when the flush lands. Future bets rescue the call.",
   "m56-no-implied-odds": "You need 50% and have ~37% — and with nothing left to win later, implied odds can't make up the gap. Fold.",
   "m56-reverse-implied": "Your 'outs' complete villain's BIGGER flush — hitting often means losing more, not winning. Fold.",

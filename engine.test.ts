@@ -916,8 +916,12 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
   const p1 = STARTER_DRILLS.find((d) => d.module === "P1")!;
   ok("P1 drill is a preflop estimate", p1.ask === "estimate" && p1.state.board.length === 0);
 
-  // M5.6 implied odds: with the effective pot, calling the draw is +EV; folding leaks.
-  const m56 = byId("m56-implied-odds-flushdraw");
+  // M5.6 implied odds — a REAL multi-street tree (heroFacesBet + a villain that pays
+  // off the turn), not an effective-pot shortcut: the immediate price rejects the
+  // open-ender, but the future payoff makes calling +EV; folding leaks.
+  const m56 = byId("m56-implied-odds-oesd");
+  ok("M5.6 implied-odds drill is a genuine tree (heroFacesBet, non-empty abstraction)",
+    m56.state.abstraction.sizes.length > 0 && m56.state.abstraction.heroFacesBet !== undefined);
   const m56call = gradeDrill(session, m56.id, { kind: "action", action: { kind: "call" } }, 0);
   const m56fold = gradeDrill(session, m56.id, { kind: "action", action: { kind: "fold" } }, 0);
   ok("M5.6 call (implied odds) is optimal", m56call.result.regretBb === 0, `got ${m56call.result.regretBb}`);
