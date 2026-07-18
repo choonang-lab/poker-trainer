@@ -138,15 +138,21 @@ repetition) with a guided-curriculum PWA on top.
    odds via an inflated pot because the engine has no villain-leads multi-street
    implied-odds tree; `m56-implied-odds-flushdraw` is still close to a plain M3
    pot-odds call. A true fix needs engine work (out of Tier-2 content-only scope).
-3. **Review Tier 3 — UX/mobile** (needs web/app.ts + docs rebuild). NOTE: the
-   deck stays **2-color by choice** (owner prefers the traditional look; the docs
-   were corrected to stop claiming "4-color" — do NOT re-flag this). Remaining:
-   estimate feedback recomputes `truth()` a 2nd time
-   (`app.ts:337`, ~3s freeze on preflop — reuse `out.truth`); service worker
-   caches error responses / returns HTML for any failed asset (`sw.js:23-27` —
-   guard `res.ok` + navigate-only fallback); a11y wins (aria-live feedback, input
-   labels + inputmode, 44px tap targets, red-suit contrast, :focus-visible, hide
-   raw leak tags); iOS home-screen icon is SVG-only (add PNG 180/192/512).
+3. ~~**Review Tier 3 — UX/mobile**~~ — DONE 2026-07-18 (cache v23). Fixed:
+   estimate feedback reused `out.truth` (was re-enumerating — halved the preflop
+   grade wait; browser-verified ~4s = one enumeration, not two) + a "Checking…"
+   state on submit; service worker now guards `res.ok` before caching and only
+   falls back to index.html for navigations; a11y — `role=status`/`aria-live` on
+   feedback, input `aria-label`+`for`/`id`+`inputmode`, 44px nav tap targets,
+   `:focus-visible` ring, raw leak tags hidden from per-drill feedback and
+   humanized in Stats; iOS icon — added `icon-180.png` (apple-touch-icon) and
+   `icon-192.png` (rasterized from icon.svg via canvas), wired into manifest +
+   index.html + SW SHELL. All browser-verified on a mobile viewport.
+   NOTE: the deck stays **2-color by choice** (owner prefers the traditional look;
+   docs corrected — do NOT re-flag). Also DEFERRED by that choice: the red-suit
+   contrast tweak (#d62b3a ~4.0:1) was intentionally NOT applied to avoid changing
+   the card red. A 512px PNG icon was skipped (SVG covers Android maskable); add
+   later if a splash icon is wanted.
 4. **Review Tier 4 — robustness:** the "one engine" cross-street identity is only
    tested at equity 0 and 1; add one mid-equity assertion (check-line EV of a
    built 2-street tree === equity() for a mid-equity hero). Minor authoring guards

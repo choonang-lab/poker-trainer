@@ -3,6 +3,7 @@
   --accent: #4c9aff; --good: #2ecc71; --bad: #ff6b6b; --line: #2c3744;
 }
 * { box-sizing: border-box; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 body {
   margin: 0; background: var(--bg); color: var(--text);
   font: 16px/1.5 system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
@@ -56,6 +57,7 @@ main { width: 100%; max-width: 460px; display: flex; flex-direction: column; gap
 .hero .pcard:last-of-type { transform: rotate(4deg); margin-left: -.35em; }
 
 .controls { margin-top: 16px; display: flex; flex-direction: column; gap: 10px; }
+.calc { color: var(--muted); font-size: 15px; padding: 8px 0; }
 .prompt { font-size: 14px; color: var(--muted); }
 input {
   background: var(--panel2); border: 1px solid var(--line); color: var(--text);
@@ -99,6 +101,7 @@ body { padding-bottom: 78px; }
 .navbtn {
   flex: 1; background: none; border: none; color: var(--muted);
   font-size: 14px; padding: 10px 6px; border-radius: 10px;
+  min-height: 44px; display: inline-flex; align-items: center; justify-content: center;
 }
 @media (hover: hover) {
   .navbtn:hover { border: none; color: var(--text); }

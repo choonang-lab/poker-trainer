@@ -44,7 +44,7 @@
   localStorage persistence (`pt-reviews`/`pt-history`/`pt-days`), 2-color cards (conventional red/black). The engine stays clean
   — `web/` only imports `engine.ts` + `curriculum.ts`.
 - **`docs/`** — the DEPLOYED static site (GitHub Pages serves `main` /docs): app shell + PWA bits
-  (`manifest.webmanifest`, `sw.js`, `icon.svg`) + the committed, minified `docs/app.js` (built from
+  (`manifest.webmanifest`, `sw.js`, `icon.svg` + PNG `icon-180.png`/`icon-192.png` for iOS/Android home-screen) + the committed, minified `docs/app.js` (built from
   `web/app.ts` via esbuild). Installable + offline (the engine is fully client-side). See "Run it".
 - **`cli.ts`** — L7 CLI trainer. Dependency-free (Node readline async-iterator); the IO boundary that
   drives the L6 session loop (present → read → grade → schedule → repeat). Type-checked by `tsc`

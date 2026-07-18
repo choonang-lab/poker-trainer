@@ -64,6 +64,11 @@ const withCardTiles = (text: string): string =>
 const drillById = (id: string): Drill => STARTER_DRILLS.find((d) => d.id === id)!;
 
 const CATEGORY = ["high card", "pair", "two pair", "trips", "straight", "flush", "full house", "quads", "straight flush"];
+// A leak tag is "<module>.<snake_case>"; show a readable phrase, not the raw key.
+const humanLeak = (tag: string): string => {
+  const s = tag.slice(tag.indexOf(".") + 1).replace(/_/g, " ");
+  return s ? s.charAt(0).toUpperCase() + s.slice(1) : tag;
+};
 const actionLabel = (a: Action): string =>
   a.kind === "bet" ? (a.size === undefined ? "bet" : `bet ${a.size}`) : a.kind;
 
@@ -265,11 +270,20 @@ function playDrill(drill: Drill, tagText: string, contLabel: string, onCont: () 
   if (drill.read) sec.append(el("div", "read", `Read — ${drill.read}`));
   const controls = el("div", "controls");
   buildControls(controls, drill, (resp) => {
-    let out: ReturnType<typeof gradeDrill>;
-    try { out = gradeAndRecord(drill, resp); } catch { return; }
-    sec.querySelector(".controls")?.remove();
-    sec.append(renderFeedback(drill, out, contLabel, onCont));
-    (sec.querySelector(".feedback button") as HTMLButtonElement | null)?.focus();
+    const finish = (): void => {
+      let out: ReturnType<typeof gradeDrill>;
+      try { out = gradeAndRecord(drill, resp); } catch { return; }
+      sec.querySelector(".controls")?.remove();
+      sec.append(renderFeedback(drill, out, contLabel, onCont));
+      (sec.querySelector(".feedback button") as HTMLButtonElement | null)?.focus();
+    };
+    // A preflop grade enumerates a full 5-card runout (seconds on some devices).
+    // Swap the controls for a "Checking…" note and defer, so the UI repaints
+    // before the synchronous enumeration blocks the main thread.
+    if (drill.state.board.length === 0) {
+      (sec.querySelector(".controls") as HTMLElement | null)?.replaceChildren(el("div", "calc", "Checking…"));
+      setTimeout(finish, 30);
+    } else finish();
   });
   sec.append(controls);
   app.append(sec);
@@ -280,6 +294,7 @@ function buildControls(controls: HTMLElement, drill: Drill, onAnswer: (r: Respon
   if (drill.ask === "estimate") {
     const input = el("input") as HTMLInputElement;
     input.type = "number"; input.min = "0"; input.max = "100"; input.step = "0.01"; input.placeholder = "0.36 or 36 (%)";
+    input.id = "ans-estimate"; input.inputMode = "decimal"; input.setAttribute("aria-label", "Your equity estimate");
     const go = el("button", "primary", "Submit");
     const submit = () => {
       let v = Number(input.value);
@@ -289,15 +304,20 @@ function buildControls(controls: HTMLElement, drill: Drill, onAnswer: (r: Respon
     };
     go.onclick = submit;
     input.onkeydown = (e) => { if ((e as KeyboardEvent).key === "Enter") submit(); };
-    controls.append(el("label", "prompt", "Your equity estimate:"), input, go);
+    const label = el("label", "prompt", "Your equity estimate:") as HTMLLabelElement;
+    label.htmlFor = "ans-estimate";
+    controls.append(label, input, go);
   } else if (drill.ask === "outs") {
     const input = el("input") as HTMLInputElement;
     input.type = "number"; input.min = "0"; input.max = "20"; input.step = "1"; input.placeholder = "e.g. 9";
+    input.id = "ans-outs"; input.inputMode = "numeric"; input.setAttribute("aria-label", "How many outs");
     const go = el("button", "primary", "Submit");
     const submit = () => { const v = Math.round(Number(input.value)); if (Number.isFinite(v) && input.value !== "") onAnswer({ kind: "outs", value: v }); };
     go.onclick = submit;
     input.onkeydown = (e) => { if ((e as KeyboardEvent).key === "Enter") submit(); };
-    controls.append(el("label", "prompt", "How many outs?"), input, go);
+    const label = el("label", "prompt", "How many outs?") as HTMLLabelElement;
+    label.htmlFor = "ans-outs";
+    controls.append(label, input, go);
   } else if (drill.ask === "category") {
     controls.append(el("label", "prompt", "Name your made hand:"));
     const grid = el("div", "cats");
@@ -333,15 +353,21 @@ function renderFeedback(drill: Drill, out: ReturnType<typeof gradeDrill>, contLa
   const r = out.result;
   const ok = r.leakTag.endsWith(".ok");
   const fb = el("div", `feedback ${ok ? "good" : "bad"}`);
+  fb.setAttribute("role", "status");        // announce the result to screen readers
+  fb.setAttribute("aria-live", "polite");
   let line = "";
-  if (drill.ask === "estimate") line = `True equity ${truth(drill.state).toFixed(3)} · error ${(r.estimateError ?? 0).toFixed(3)}`;
+  // Reuse the equity gradeDrill already enumerated (out.truth) — never re-enumerate
+  // here (a fresh truth() for a preflop drill is another multi-second runout).
+  if (drill.ask === "estimate") line = `True equity ${(out.truth ?? truth(drill.state)).toFixed(3)} · error ${(r.estimateError ?? 0).toFixed(3)}`;
   else if (drill.ask === "outs") {
     const t = outs(drill.state.heroHand!, drill.state.board, drill.state.villain.range[0].combo);
     line = r.estimateError === 0 ? `Correct — ${t} outs` : `True outs: ${t} · off by ${r.estimateError}`;
   }
   else if (drill.ask === "category") line = r.estimateError === 0 ? "Correct!" : `Off by ${r.estimateError} categor${r.estimateError === 1 ? "y" : "ies"}`;
   else line = r.regretBb <= 1e-9 ? "Optimal." : `Regret ${r.regretBb.toFixed(2)} bb`;
-  fb.append(el("div", "fb-line", line), el("div", "leak", r.leakTag));
+  // The raw leak tag (e.g. "p2.bets_into_strong_range") is internal taxonomy; the
+  // EXPLAIN text below carries the actual teaching, so beginners don't see the tag.
+  fb.append(el("div", "fb-line", line));
   const why = EXPLAIN[drill.id];
   if (why) fb.append(el("div", "explain", withCardTiles(why)));
   fb.append(el("div", "next-review", `next review in ${out.review.intervalDays}d`));
@@ -375,7 +401,7 @@ function renderStats(): HTMLElement {
   wrap.append(el("h3", undefined, "Top leaks (decisions)"));
   if (!lr.leaks.length) wrap.append(el("p", "muted", "No leaks recorded — nice."));
   else for (const l of lr.leaks.slice(0, 6))
-    wrap.append(el("div", "leakrow", `${l.leakTag} · ×${l.count} · ${l.totalRegret.toFixed(2)} bb`));
+    wrap.append(el("div", "leakrow", `${humanLeak(l.leakTag)} · ×${l.count} · ${l.totalRegret.toFixed(2)} bb`));
   return wrap;
 }
 
