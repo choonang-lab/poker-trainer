@@ -1439,6 +1439,31 @@ export const STARTER_DRILLS: Drill[] = [
     },
   },
   {
+    id: "p3-pot-control",
+    module: "P3",
+    title: "Multi-street lines: a medium top pair on the turn",
+    read: "You bet the flop and were called. Villain continues only with a hand that beats you; the rest is near-dead.",
+    ask: "action",
+    // Pot control. Hero KsQd = top pair (queens) with only a king kicker. A turn bet
+    // gets called only by the BETTER part of the range (AQ, which dominates the
+    // kicker) and folds out the near-dead part (88, ~2 outs) -> betting into strength
+    // for no value. Checking realizes showdown value vs the whole range and keeps the
+    // pot small. Check (EV 0.511) beats bet (0.102); betting is p3.overbets_multistreet.
+    state: {
+      heroHand: hand("Ks", "Qd"), board: hand("Qc", "9h", "5d", "2s"),
+      pot: 1, toAct: "hero",
+      villain: {
+        range: [{ combo: hand("Ac", "Qh"), weight: 1 }, { combo: hand("8s", "8d"), weight: 1 }],
+        policy: (combo: Combo) => {
+          const ace = rankOf(combo[0]) === 14 || rankOf(combo[1]) === 14;
+          return [{ action: { kind: "fold" }, weight: ace ? 0 : 1 },
+                  { action: { kind: "call" }, weight: ace ? 1 : 0 }];
+        },
+      },
+      abstraction: { sizes: [1.0], streets: ["turn"], players: 2 },
+    },
+  },
+  {
     id: "m0-read-two-pair",
     module: "M0",
     title: "Hand reading: a high, two-tone board",

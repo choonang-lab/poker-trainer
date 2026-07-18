@@ -815,8 +815,8 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
   ok("M4 check regret == 3 bb", approx(m4check.result.regretBb, 3), `got ${m4check.result.regretBb}`);
   ok("M4 check -> m4.misses_street_sequence", m4check.result.leakTag === "m4.misses_street_sequence");
 
-  ok("STARTER_DRILLS now spans 78 drills incl M0/M3.5/M4/M5.6/P0/P1/P3/P4/P5",
-    STARTER_DRILLS.length === 78 &&
+  ok("STARTER_DRILLS now spans 79 drills incl M0/M3.5/M4/M5.6/P0/P1/P3/P4/P5",
+    STARTER_DRILLS.length === 79 &&
     ["M0", "M3.5", "M4", "M5.6", "P0", "P1", "P3", "P4", "P5"].every((m) => STARTER_DRILLS.some((d) => d.module === m)));
 
   // Check-raise-range drill: villain raises only what beats hero (policy + raise).
@@ -840,6 +840,14 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
     approx(actionEVs(buildTree(tv.state)).find((e) => e.action.kind === "check")!.ev,
       equityVsRange(hand("As", "Js"), hand("Ad", "8c", "3h", "2s"),
         [{ combo: hand("Ah", "Kh"), weight: 1 }, { combo: hand("Qh", "Qc"), weight: 1 }]) ?? -1));
+
+  // Pot control (P3): a medium top pair on the turn -> checking beats betting into a
+  // range whose callers all beat you and whose folders are near-dead.
+  const pc = byId("p3-pot-control");
+  ok("pot control: best action is check", bestAction(buildTree(pc.state)).kind === "check");
+  const betPc = gradeDrill(session, pc.id, { kind: "action", action: { kind: "bet", size: 1.0 } }, 0);
+  ok("pot control: betting a medium hand -> p3.overbets_multistreet",
+    betPc.result.regretBb > 0 && betPc.result.leakTag === "p3.overbets_multistreet", betPc.result.leakTag);
 
   // Deeper raise trees: 3-bet the nuts at the root (heroFacesBet + raiseCap 1).
   const tb = byId("p3-3bet-the-nuts");

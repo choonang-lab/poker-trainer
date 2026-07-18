@@ -266,7 +266,7 @@ export const MODULES: Module[] = [
     ],
     objectives: ["Value-bet across multiple streets", "Re-raise (3-bet) the nuts instead of flatting", "Think one street ahead"],
     example: "Facing a bet with the nuts, raising extracts more than calling and showing down.",
-    drillIds: ["p3-value-two-streets", "p3-3bet-the-nuts"],
+    drillIds: ["p3-value-two-streets", "p3-3bet-the-nuts", "p3-pot-control"],
   },
   {
     id: "P4", track: "P2", title: "Multiway pots",
@@ -386,6 +386,7 @@ export const EXPLAIN: Record<string, string> = {
   // P3 — multi-street lines
   "p3-value-two-streets": "Unbeatable hand, guaranteed caller: bet every street. Each street you check is money you'll never get back.",
   "p3-3bet-the-nuts": "Facing a bet with the nuts, raising (a 3-bet) builds the pot; flat-calling under-extracts. Raise for value.",
+  "p3-pot-control": "You have top pair — but only a so-so kicker. If you bet, the hands that call all beat you (a better kicker), while the hands you crush are nearly drawing dead and simply fold. So betting wins nothing from the weak hands and only loses to the strong ones. Checking keeps the pot small and lets your pair win a cheap showdown against the weak part of the range. That's pot control: a medium made hand often prefers a cheap showdown to building a big pot.",
   // P4 — multiway pots
   "p4-multiway-field": "Two opponents who both play the same board split the pot more ways — the field approximation drops your share of the chop to about a quarter.",
   "p4-strong-multiway": "Top pair top kicker is strong, but every extra opponent is another hand that can beat you — the field trims your equity a little below the heads-up number (~84%).",

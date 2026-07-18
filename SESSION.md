@@ -37,7 +37,7 @@ repetition) with a guided-curriculum PWA on top.
 5. **The ship checklist** (after every approved change):
    `node engine.test.ts` → both tsc checks →
    `npx -p esbuild esbuild web/app.ts --bundle --format=esm --minify --outfile=docs/app.js`
-   → bump `CACHE` in `docs/sw.js` (v28 as of this writing) → update
+   → bump `CACHE` in `docs/sw.js` (v29 as of this writing) → update
    HANDOFF.md counts → commit (message style: `feat(scope): ...` with body,
    end with the Claude co-author line) → push → poll the live site until
    `docs/app.js` byte-size matches. If GitHub Pages sticks in "building",
@@ -55,7 +55,7 @@ repetition) with a guided-curriculum PWA on top.
 
 ## State as of 2026-07 (commit 6b80618)
 
-- **395 tests passing**, both type-checks clean, deployed bundle in sync.
+- **397 tests passing**, both type-checks clean, deployed bundle in sync.
 - **Review fixes (2026-07-18, post-audit), cache v21:** (1) `m2-combo-draw`
   board was `9s 8h 2c` (an 8-out spot, 36.9%) but its title/EXPLAIN teach the
   15-out flush+open-ender combo — fixed to `9s 8s 2c` (56.3%); a learner who
@@ -80,9 +80,10 @@ repetition) with a guided-curriculum PWA on top.
   condensed vs polarized, domination), M5.6 implied odds (4 — now ALL genuine
   multi-street trees after the effective-pot fake was rebuilt as a real OESD
   implied-odds tree; a flush-draw real tree, a no-implied fold, and reverse
-  implied). **Pillar 2 audited (2026-07-18):** 15 drills (P0 ×2, P1 ×3, P2 ×2,
-  P3 ×2, P4 ×2, P5 ×4) — P1 gained the AK-vs-AQ domination drill in Tier 5, and
-  Tier-2 moved the semi-bluff `p2-bet-or-check` to M3.5. Every best action /
+  implied). **Pillar 2 audited (2026-07-18):** 16 drills (P0 ×2, P1 ×3, P2 ×2,
+  P3 ×3, P4 ×2, P5 ×4) — P1 gained the AK-vs-AQ domination drill in Tier 5, P3
+  gained the `p3-pot-control` check-the-turn drill, and Tier-2 moved the semi-bluff
+  `p2-bet-or-check` to M3.5. Every best action /
   equity re-verified against the
   engine (all correct); de-spoiled the leaky action-drill titles; added a
   villain `read:` to all 10 action drills and EXPLAIN text to every P-drill;
@@ -171,12 +172,15 @@ repetition) with a guided-curriculum PWA on top.
    suite still ~2s total, the fast score7 makes preflop cheap) and `m0-nut-broadway`
    (hero's ten completes A-K-Q-J-T — a category-4 drill framed on nut recognition,
    serving M0's "spot the nuts" objective). 75 drills now.
-   The nut-IDENTIFICATION idea below was later BUILT (see item 7).
-   STILL OPEN: the M4/P3 "bet flop, check turn" pot-control line — DEFERRED because
-   it doesn't fit the engine cleanly: the turn is a CHANCE average (no single scare
-   card to react to) and the per-combo `policy` is street-independent, so you can't
-   make flop-bet +EV but turn-bet −EV without a street-aware villain model (an
-   engine change). Out of "additive content" scope.
+   The nut-IDENTIFICATION idea below was later BUILT (see item 7). The pot-control
+   idea below was ADDRESSED via a turn-rooted drill (see item 9).
+   NOTE on the "bet flop, check turn" pot-control LINE: modelling the two-street line
+   FAITHFULLY (engine computes bet-then-check as optimal) doesn't fit cleanly — the
+   turn is a CHANCE average (no single scare card) and the per-combo `policy` is
+   street-independent, so you can't make flop-bet +EV but turn-bet −EV without a
+   street-aware villain + a pinned turn card (invasive core-seam surgery, big
+   regression surface, low perceptible payoff). DECLINED — see item 9 for the cheap
+   turn-rooted alternative that teaches the same decision without engine changes.
 6. ~~**Made-hand highlight**~~ — DONE 2026-07-18 (cache v26, 384 tests). Added two
    pure engine helpers (in `contract.ts` + `engine.ts`, conformance-checked):
    `madeHand(cards)` (best-scoring 5 of 5–7; tested by `score5(madeHand)===score7`)
@@ -210,10 +214,22 @@ repetition) with a guided-curriculum PWA on top.
    best=call, fold leaks `m56.folds_with_implied_odds` (verified). No engine change
    was needed — the `heroFacesBet` + multi-street tree already models it; only the
    drill's data + a real-tree test assertion changed. Id renamed (content changed
-   fundamentally). Browser-verified: call → "Optimal.". REMAINING deferred idea:
-   street-aware villain / the "bet flop, check turn" pot-control line (item 5) — the
-   only idea left, and it's genuine engine surgery (turn is a CHANCE average; policy
-   is street-independent).
+   fundamentally). Browser-verified: call → "Optimal.".
+9. ~~**Pot-control turn drill**~~ — DONE 2026-07-18 (cache v29, 397 tests). The cheap
+   alternative to the declined "bet flop, check turn" engine work (item 5): a
+   turn-rooted single-decision drill teaches the same lesson with ZERO engine change.
+   `p3-pot-control` (P3, which had no check-line drill): hero KsQd = top pair, only a
+   king kicker, on Qc 9h 5d 2s. Villain range {AcQh (better, calls), 8s8d (~2 outs,
+   near-dead, folds)}, policy call-if-ace. Betting gets called only by the better
+   hand and folds out the near-dead one → bets into strength for no value; checking
+   realizes showdown value and keeps the pot small. Check (EV 0.511) beats bet
+   (0.102); betting tags `p3.overbets_multistreet`. `read` supplies the flop-bet
+   backstory. Distinct from `p5-thin-value-vs-range` (same check-is-best mechanic,
+   but framed as a multi-street LINE in P3 vs an exploit in P5) and from
+   `m4-way-behind-check` (give-up vs a medium hand with showdown value). Verified
+   against the engine before authoring; browser-verified (check → "Optimal.", the
+   made-hand highlight rings the pair). Only remaining idea: the faithful two-street
+   pot-control LINE (item 5), DECLINED as not worth the engine surgery.
 
 ## Machine-specific notes for macOS
 
