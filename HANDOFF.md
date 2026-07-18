@@ -6,7 +6,9 @@
   - **L1** card model + 5/7-card hand evaluator (`score5`, `score7`, `cmpScore`). `score7` is a direct
     rank-count/suit-bitmask evaluator (~60-70x faster than the 21-subset scan, byte-identical results);
     the scan is retained as `score7slow`, the cross-validation oracle.
-  - **L2** exact equity by enumeration (`equity`, `equityVsRange`, `outs`)
+  - **L2** exact equity by enumeration (`equity`, `equityVsRange`, `outs`). Plus two UI-reporting
+    helpers: `madeHand(cards)` returns the best-scoring 5 of 5–7 (so the UI can highlight a made hand);
+    `drawSuit(hero, board)` returns the suit of a 4-card flush draw (else null).
   - **L3** game tree: `bestResponseEV` (expectimax), `bestAction`, `truth()` router, `equityLeaf`,
     multiway `fieldEquity` (labelled aggregated-field approx), `realizationFactor`, multi-street
     `buildTree`, and authoring-time `validateAbstraction` (`ABSTRACTION_LIMITS`)
@@ -41,8 +43,10 @@
   bottom nav: **Learn** (module map → intro with preface/objectives/worked example → gated lessons →
   recap; completing a module unlocks the next and drops its drills into review), **Review** (SM-2 over
   drills already learned and due today), **Stats** (modules-completed, streak, M6 calibration, P6 leaks).
-  localStorage persistence (`pt-reviews`/`pt-history`/`pt-days`), 2-color cards (conventional red/black). The engine stays clean
-  — `web/` only imports `engine.ts` + `curriculum.ts`.
+  localStorage persistence (`pt-reviews`/`pt-history`/`pt-days`), 2-color cards (conventional red/black).
+  After answering, the board + hole cards highlight the made hand's five cards (green ring, via
+  `madeHand`) and any flush draw (blue ring, via `drawSuit`, flop/turn only), dimming the rest, with a
+  small colour legend. The engine stays clean — `web/` only imports `engine.ts` + `curriculum.ts`.
 - **`docs/`** — the DEPLOYED static site (GitHub Pages serves `main` /docs): app shell + PWA bits
   (`manifest.webmanifest`, `sw.js`, `icon.svg` + PNG `icon-180.png`/`icon-192.png` for iOS/Android home-screen) + the committed, minified `docs/app.js` (built from
   `web/app.ts` via esbuild). Installable + offline (the engine is fully client-side). See "Run it".
@@ -51,7 +55,7 @@
   (minimal ambient `node:readline`/`node:fs` decls in `globals.d.ts`); not in the unit suite (it reads stdin).
   Persists progress to `$POKER_SAVE` (default `.poker-trainer.json`, git-ignored) via the pure engine
   primitives `serializeSession`/`loadSession`; `now` is a real day-number (override with `$POKER_NOW`).
-- **`engine.test.ts`** — 378 assertions, all passing. Exact/hand-checkable, not approximate:
+- **`engine.test.ts`** — 384 assertions, all passing. Exact/hand-checkable, not approximate:
   - full category ladder (high card → royal), wheel straight, kicker tiebreaks
   - `equity` against exact rationals: straight draw = **6/44**, drawing dead = **0**, chop = **0.5**, made hand = **1.0**
   - L3 identities: CHANCE-of-showdowns **==** `equity` (one-engine), cross-street tree **==** `equity`,
@@ -63,7 +67,7 @@
 
 ## Run it
 ```
-node engine.test.ts            # expect: 378 passed, 0 failed (Node strips types at runtime)
+node engine.test.ts            # expect: 384 passed, 0 failed (Node strips types at runtime)
 npx -p typescript tsc --noEmit  # expect: exit 0 (type-check; uses npx cache, adds NO repo dependency)
 node bench.ts                   # AA vs KK preflop = 82.64% in ~3s (was ~190s pre-fast-evaluator)
 node validate-evaluator.ts      # deep cross-check (500k hands) + fast-vs-slow perf (~70x)

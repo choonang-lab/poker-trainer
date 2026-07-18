@@ -2,7 +2,7 @@
 import {
   score5, score7, score7slow, cmpScore, equity, equityVsRange, outs,
   breakEven, callEV, decisionRegret, regret, estimateError, withinBand, brier, calibration, leakReport,
-  hand, parseCard, card, rankOf, FULL_DECK,
+  hand, parseCard, card, rankOf, suitOf, FULL_DECK, madeHand, drawSuit,
   equityLeaf, bestResponseEV, bestAction, truth, buildTree, realizationFactor,
   fieldEquity, validateAbstraction, ABSTRACTION_LIMITS,
   actionEVs, grade,
@@ -102,6 +102,27 @@ ok("score7 finds flush",
   const villain = hand("Ah", "Kc");     // top pair
   ok("flush draw has 9 outs", outs(hero, board, villain) === 9,
     `got ${outs(hero, board, villain)}`);
+}
+
+// ---------- madeHand + drawSuit (UI: highlight the made hand / flush draw) ----------
+{
+  const throws = (fn: () => unknown): boolean => { try { fn(); return false; } catch { return true; } };
+  // madeHand returns exactly 5 cards that score identically to best(7).
+  const twoPair = [...hand("Ac", "Kd"), ...hand("Ah", "Kh", "7c", "3d", "2s")];
+  ok("madeHand: 5 cards scoring identically to score7 (two pair)",
+    madeHand(twoPair).length === 5 && cmpScore(score5(madeHand(twoPair)), score7(twoPair)) === 0);
+  // broadway: picks A-K-Q-J-T (the ten plays; the 9 and the off 5 do not).
+  const broadway = [...hand("Tc", "5d"), ...hand("As", "Kd", "Qc", "Jh", "9s")];
+  const bw = new Set(madeHand(broadway));
+  ok("madeHand: broadway uses the ten, not the 9 or the 5",
+    bw.size === 5 && bw.has(hand("Tc", "5d")[0]) && !bw.has(hand("9s")[0]) && !bw.has(hand("5d")[0]));
+  ok("madeHand throws on fewer than 5 cards", throws(() => madeHand(hand("As", "Ks"))));
+
+  // drawSuit: exactly 4 of a suit is a draw; 5 is a made flush; rainbow is none.
+  ok("drawSuit: a 4-card flush draw returns its suit",
+    drawSuit(hand("Ah", "4h"), hand("Kh", "7h", "2c")) === suitOf(hand("Ah")[0]));
+  ok("drawSuit: a made flush (5) is not a draw", drawSuit(hand("Ah", "4h"), hand("Kh", "7h", "2h")) === null);
+  ok("drawSuit: a rainbow board has no flush draw", drawSuit(hand("Ah", "4d"), hand("Kh", "7c", "2s")) === null);
 }
 
 // ---------- L4 grading ----------

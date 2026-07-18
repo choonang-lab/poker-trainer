@@ -16,6 +16,7 @@ export declare function suitOf(c: Card): number;
 export declare function score5(cards: Card[]): Score;     // exactly 5 cards
 export declare function score7(cards: Card[]): Score;     // best 5 of 7
 export declare function cmpScore(a: Score, b: Score): number;  // <0,0,>0
+export declare function madeHand(cards: Card[]): Card[];        // the best-scoring 5 of 5-7 cards
 
 // ===========================================================================
 // L2 — equity by exact enumeration (implemented, tested)
@@ -27,6 +28,7 @@ export type Range = { combo: Combo; weight: number }[];
 export declare function equity(hero: Combo, board: Board, villain: Combo): number;        // [0,1]
 export declare function equityVsRange(hero: Combo, board: Board, range: Range): number | null;
 export declare function outs(hero: Combo, board: Board, villain: Combo): number;          // 1 to come
+export declare function drawSuit(hero: Combo, board: Board): number | null;               // suit of a 4-card flush draw, else null
 
 // ===========================================================================
 // L4 — grading primitives (implemented, tested)

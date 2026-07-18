@@ -6,7 +6,7 @@
 import {
   STARTER_DRILLS, loadSession, serializeSession, gradeDrill,
   buildTree, actionEVs, truth, outs, calibration, leakReport,
-  rankOf, suitOf, RNAMES,
+  rankOf, suitOf, RNAMES, score7, madeHand, drawSuit,
 } from "../engine.ts";
 import { MODULES, PRIMER, EXPLAIN, moduleStatus, currentStreak } from "../curriculum.ts";
 import type { Drill, Response, Action, State, Module } from "../contract.ts";
@@ -52,10 +52,17 @@ const el = (tag: string, cls?: string, html?: string): HTMLElement => {
 };
 const rankLabel = (r: number): string => (r === 10 ? "10" : RNAMES[r] ?? String(r)); // beginners read "10", not "T"
 // a mini playing-card face: rank+suit index in the top-left corner, big faint suit pip center-right.
-const tileHTML = (rank: string, s: number): string =>
-  `<span class="pcard s${s}"><span class="idx"><span class="pr">${rank}</span><span class="ps">${SUIT_SYM[s]}</span></span><span class="pip">${SUIT_SYM[s]}</span></span>`;
-const cardHTML = (c: number): string => tileHTML(rankLabel(rankOf(c)), suitOf(c));
-const cards = (cs: number[]): string => cs.map(cardHTML).join("");
+const tileHTML = (rank: string, s: number, extra = ""): string =>
+  `<span class="pcard s${s}${extra}"><span class="idx"><span class="pr">${rank}</span><span class="ps">${SUIT_SYM[s]}</span></span><span class="pip">${SUIT_SYM[s]}</span></span>`;
+// post-answer highlight: `made` cards ring green, flush-draw cards ring blue, the
+// rest dim so the relevant cards pop. Undefined -> plain tiles (before answering).
+type Highlight = { made: Set<number>; draw: number | null };
+const cardHTML = (c: number, hl?: Highlight): string => {
+  let extra = "";
+  if (hl) extra = hl.made.has(c) ? " hi" : hl.draw !== null && suitOf(c) === hl.draw ? " draw" : " dim";
+  return tileHTML(rankLabel(rankOf(c)), suitOf(c), extra);
+};
+const cards = (cs: number[], hl?: Highlight): string => cs.map((c) => cardHTML(c, hl)).join("");
 // turn rank+suit tokens in curriculum prose (e.g. "A♦", "9♠", "10♥") into the same tiles.
 // (content is trusted, so injecting spans into innerHTML is safe here.)
 const withCardTiles = (text: string): string =>
@@ -254,6 +261,35 @@ function renderReview(): void {
   playDrill(queue[0], `${queue[0].module} · review`, "Next →", () => renderAll());
 }
 
+// After answering, work out what to highlight: the made hand's five cards (only
+// when it's a pair or better — highlighting "high card" isn't instructive) and a
+// flush draw's suit. Null before the flop or when there's nothing worth marking.
+function highlightFor(drill: Drill): Highlight | null {
+  const s = drill.state;
+  if (!s.heroHand || s.board.length < 3) return null;
+  const all = [...s.heroHand, ...s.board];
+  const made = new Set<number>();
+  if (score7(all)[0] >= 1) for (const c of madeHand(all)) made.add(c);
+  // A flush draw only exists with a card still to come (flop/turn); on a 5-card
+  // board four of a suit just missed — it is not a draw, so never tint it.
+  const draw = s.board.length < 5 ? drawSuit(s.heroHand, s.board) : null;
+  return made.size === 0 && draw === null ? null : { made, draw };
+}
+// repaint the board + hole rows with the highlight, and describe the colours.
+function applyHighlight(sec: HTMLElement, drill: Drill, hl: Highlight): void {
+  const s = drill.state;
+  const boardEl = sec.querySelector(".board");
+  if (boardEl && s.board.length) boardEl.innerHTML = cards(s.board, hl);
+  const heroEl = sec.querySelector(".hero");
+  if (heroEl && s.heroHand) heroEl.innerHTML = `You: ${cards(s.heroHand, hl)}`;
+}
+function highlightLegend(hl: Highlight): HTMLElement {
+  const parts: string[] = [];
+  if (hl.made.size) parts.push(`<span class="lg lg-made"></span> your best five`);
+  if (hl.draw !== null) parts.push(`<span class="lg lg-draw"></span> your flush draw`);
+  return el("div", "hl-legend", parts.join("&nbsp;&nbsp;·&nbsp;&nbsp;"));
+}
+
 // ---- shared drill player ----------------------------------------------------
 function playDrill(drill: Drill, tagText: string, contLabel: string, onCont: () => void): void {
   const s = drill.state;
@@ -274,7 +310,14 @@ function playDrill(drill: Drill, tagText: string, contLabel: string, onCont: () 
       let out: ReturnType<typeof gradeDrill>;
       try { out = gradeAndRecord(drill, resp); } catch { return; }
       sec.querySelector(".controls")?.remove();
-      sec.append(renderFeedback(drill, out, contLabel, onCont));
+      const fb = renderFeedback(drill, out, contLabel, onCont);
+      const hl = highlightFor(drill);
+      if (hl) {
+        applyHighlight(sec, drill, hl);
+        const btn = fb.querySelector("button");
+        if (btn) fb.insertBefore(highlightLegend(hl), btn);
+      }
+      sec.append(fb);
       (sec.querySelector(".feedback button") as HTMLButtonElement | null)?.focus();
     };
     // A preflop grade enumerates a full 5-card runout (seconds on some devices).

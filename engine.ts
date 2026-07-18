@@ -271,6 +271,36 @@ function best(cards: Card[]): Score {
   return bestS!;
 }
 
+// The actual 5 cards forming the best hand (which best()/score7 only score). Used
+// by the UI to highlight a made hand. Scans all C(n,5) subsets (n<=7 -> <=21) and
+// returns the highest-scoring five; score5(madeHand(x)) always equals best(x).
+export function madeHand(cards: Card[]): Card[] {
+  if (cards.length < 5 || cards.length > 7)
+    throw new Error(`madeHand needs 5 to 7 cards; got ${cards.length}`);
+  const n = cards.length;
+  let bestFive: Card[] | null = null, bestS: Score | null = null;
+  for (let a = 0; a < n; a++)
+    for (let b = a + 1; b < n; b++)
+      for (let c = b + 1; c < n; c++)
+        for (let d = c + 1; d < n; d++)
+          for (let e = d + 1; e < n; e++) {
+            const five = [cards[a], cards[b], cards[c], cards[d], cards[e]];
+            const s = score5(five);
+            if (bestS === null || cmpScore(s, bestS) > 0) { bestS = s; bestFive = five; }
+          }
+  return bestFive!;
+}
+
+// The suit of a flush DRAW: a suit held exactly 4 times across hero+board (5+ is a
+// made flush, not a draw). Single-suit by design, matching the engine's flush model;
+// straight draws have no suit to report. Used by the UI to tint the drawing cards.
+export function drawSuit(hero: Combo, board: Board): number | null {
+  const counts = [0, 0, 0, 0];
+  for (const c of [...hero, ...board]) counts[suitOf(c)]++;
+  for (let s = 0; s < 4; s++) if (counts[s] === 4) return s;
+  return null;
+}
+
 // ---- L4: grading primitives ----------------------------------------------
 export const breakEven = (pot: number, call: number): number => call / (pot + call);
 

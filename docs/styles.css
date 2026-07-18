@@ -52,6 +52,15 @@ main { width: 100%; max-width: 460px; display: flex; flex-direction: column; gap
 .pcard.s2 { color: #d62b3a; }  /* diamonds — red   */
 .pcard.s3 { color: #1a1a1a; }  /* clubs    — black */
 
+/* post-answer highlight: made hand rings green, flush draw rings blue, rest dim */
+.pcard.hi { box-shadow: 0 0 0 2px var(--good), 0 0 7px rgba(46,204,113,.6); }
+.pcard.draw { box-shadow: 0 0 0 2px var(--accent), 0 0 7px rgba(76,154,255,.55); }
+.pcard.dim { opacity: .38; }
+.hl-legend { font-size: 13px; color: var(--muted); display: flex; align-items: center; flex-wrap: wrap; }
+.hl-legend .lg { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 5px; vertical-align: middle; }
+.hl-legend .lg-made { background: var(--good); }
+.hl-legend .lg-draw { background: var(--accent); }
+
 /* hand hierarchy: bigger board, hole cards fanned like a held hand */
 .hero .pcard:first-of-type { transform: rotate(-4deg) translateY(.04em); }
 .hero .pcard:last-of-type { transform: rotate(4deg); margin-left: -.35em; }
