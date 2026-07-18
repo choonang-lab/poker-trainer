@@ -37,7 +37,7 @@ repetition) with a guided-curriculum PWA on top.
 5. **The ship checklist** (after every approved change):
    `node engine.test.ts` → both tsc checks →
    `npx -p esbuild esbuild web/app.ts --bundle --format=esm --minify --outfile=docs/app.js`
-   → bump `CACHE` in `docs/sw.js` (v24 as of this writing) → update
+   → bump `CACHE` in `docs/sw.js` (v25 as of this writing) → update
    HANDOFF.md counts → commit (message style: `feat(scope): ...` with body,
    end with the Claude co-author line) → push → poll the live site until
    `docs/app.js` byte-size matches. If GitHub Pages sticks in "building",
@@ -55,7 +55,7 @@ repetition) with a guided-curriculum PWA on top.
 
 ## State as of 2026-07 (commit 6b80618)
 
-- **375 tests passing**, both type-checks clean, deployed bundle in sync.
+- **378 tests passing**, both type-checks clean, deployed bundle in sync.
 - **Review fixes (2026-07-18, post-audit), cache v21:** (1) `m2-combo-draw`
   board was `9s 8h 2c` (an 8-out spot, 36.9%) but its title/EXPLAIN teach the
   15-out flush+open-ender combo — fixed to `9s 8s 2c` (56.3%); a learner who
@@ -68,17 +68,19 @@ repetition) with a guided-curriculum PWA on top.
   reviewer findings (EXPLAIN accuracy in m3-bad-odds-fold/m3-chop-potodds,
   4-color-deck-is-actually-2-color, double-`truth()` preflop freeze, SW caching
   error responses, a11y) are logged below as Tier 2/3 next-ups.
-- **Pillar 1 content complete** (57 drills): M0 hand reading (12 — full 0–8
-  category ladder incl. misread traps), M1 counting outs (11 — gutshot/OESD/
-  overcards/combo/double-gutshot/tainted, second instances of high-error
-  types), M2 rule of 2&4 (8 — incl. same-draw flop ×4 vs turn ×2 contrast),
-  M3 pot odds (6 — same flush draw call-vs-fold price contrast), M3.5 fold
-  equity (5 — same draw bet-vs-check by villain fold%), M4 sequencing (4 —
+- **Pillar 1 content complete** (60 drills): M0 hand reading (13 — full 0–8
+  category ladder incl. misread traps + a nut-recognition broadway), M1 counting
+  outs (11 — gutshot/OESD/overcards/combo/double-gutshot/tainted, second
+  instances of high-error types), M2 rule of 2&4 (8 — incl. same-draw flop ×4 vs
+  turn ×2 contrast), M3 pot odds (6 — same flush draw call-vs-fold price
+  contrast), M3.5 fold equity (6 — incl. the semi-bluff moved from P2 in Tier 2),
+  M4 sequencing (4 —
   incl. way-behind check-back), M5 equity vs range (8 — weighted range,
   condensed vs polarized, domination), M5.6 implied odds (4 — incl. reverse
-  implied). **Pillar 2 audited (2026-07-18):** 14 drills (P0 ×2, P1 ×2, P2 ×2,
-  P3 ×2, P4 ×2, P5 ×4) after Tier-2 moved the semi-bluff `p2-bet-or-check` to
-  M3.5. Every best action / equity re-verified against the
+  implied). **Pillar 2 audited (2026-07-18):** 15 drills (P0 ×2, P1 ×3, P2 ×2,
+  P3 ×2, P4 ×2, P5 ×4) — P1 gained the AK-vs-AQ domination drill in Tier 5, and
+  Tier-2 moved the semi-bluff `p2-bet-or-check` to M3.5. Every best action /
+  equity re-verified against the
   engine (all correct); de-spoiled the leaky action-drill titles; added a
   villain `read:` to all 10 action drills and EXPLAIN text to every P-drill;
   added a P0 in-position drill (`p0-ip-realize-equity`) — the free-card mirror
@@ -163,12 +165,21 @@ repetition) with a guided-curriculum PWA on top.
    `grade` rejects an estimate response on a non-empty abstraction (would compare a
    [0,1] guess to a bb EV). All guards are no-ops for shipped content (nothing
    violates them) — engine.ts changed, so the bundle was rebuilt to stay in sync.
-5. **Made-hand highlight** (medium): after answering, highlight which five
+5. **Coverage (Tier 5) — PARTIALLY DONE 2026-07-18 (cache v25):** added
+   `p1-ak-vs-aq` (AKo vs AQo, ~74% — the domination the P1 glossary/example teach;
+   suite still ~2s total, the fast score7 makes preflop cheap) and `m0-nut-broadway`
+   (hero's ten completes A-K-Q-J-T — a category-4 drill framed on nut recognition,
+   serving M0's "spot the nuts" objective). 75 drills now.
+   STILL OPEN: the M4/P3 "bet flop, check turn" pot-control line — DEFERRED because
+   it doesn't fit the engine cleanly: the turn is a CHANCE average (no single scare
+   card to react to) and the per-combo `policy` is street-independent, so you can't
+   make flop-bet +EV but turn-bet −EV without a street-aware villain model (an
+   engine change). A true nut-IDENTIFICATION question (name the best hand the board
+   allows, not your own) would also need a new response kind. Both are engine work,
+   out of "additive content" scope.
+6. **Made-hand highlight** (medium): after answering, highlight which five
    cards form the made hand (M0) or tint the drawing suit (M1/M2). Needs a
    small engine helper to report the winning five cards.
-6. **Coverage:** P1 domination (in glossary/example, undrilled — add AK vs AQ,
-   ~3s preflop); an M0 nut-identification drill; the M4/P3 "bet flop, check turn"
-   pot-control line. M4 pot-control archetype; watermark/fan angles are one-line CSS.
 
 ## Machine-specific notes for macOS
 

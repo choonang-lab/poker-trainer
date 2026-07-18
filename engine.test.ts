@@ -656,7 +656,7 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
   // once here, and we validate AA-vs-KK equity from its estimate error instead of
   // a second enumeration.)
   let s = session0;
-  let preflopErr = -1;
+  let preflopErr = -1, domErr = -1;
   for (const d of STARTER_DRILLS) {
     const resp: Response = d.ask === "estimate"
       ? { kind: "estimate", value: 0.5 }
@@ -670,11 +670,14 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
     const out = gradeDrill(s, d.id, resp, 0);
     s = out.session;
     if (d.id === "p1-aa-vs-kk-preflop" && out.result.estimateError !== undefined) preflopErr = out.result.estimateError;
+    if (d.id === "p1-ak-vs-aq" && out.result.estimateError !== undefined) domErr = out.result.estimateError;
   }
   ok("nothing due immediately after grading the whole library", nextDrill(s, 0) === null);
   ok("drills come due again at now=1", nextDrill(s, 1) !== null);
   ok("preflop AA vs KK truth ~0.826 (error from a 0.5 estimate)", approx(preflopErr, 0.8264 - 0.5, 0.005),
     `err ${preflopErr}`);
+  ok("preflop AK vs AQ domination truth ~0.740 (error from a 0.5 estimate)", approx(domErr, 0.7402 - 0.5, 0.005),
+    `err ${domErr}`);
 
   ok("gradeDrill throws on an unknown drill id",
     throws(() => gradeDrill(session0, "no-such-drill", { kind: "estimate", value: 0.5 }, 0)));
@@ -777,8 +780,8 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
   ok("M4 check regret == 3 bb", approx(m4check.result.regretBb, 3), `got ${m4check.result.regretBb}`);
   ok("M4 check -> m4.misses_street_sequence", m4check.result.leakTag === "m4.misses_street_sequence");
 
-  ok("STARTER_DRILLS now spans 73 drills incl M0/M3.5/M4/M5.6/P0/P1/P3/P4/P5",
-    STARTER_DRILLS.length === 73 &&
+  ok("STARTER_DRILLS now spans 75 drills incl M0/M3.5/M4/M5.6/P0/P1/P3/P4/P5",
+    STARTER_DRILLS.length === 75 &&
     ["M0", "M3.5", "M4", "M5.6", "P0", "P1", "P3", "P4", "P5"].every((m) => STARTER_DRILLS.some((d) => d.module === m)));
 
   // Check-raise-range drill: villain raises only what beats hero (policy + raise).
@@ -1256,6 +1259,9 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
   ok("M0 quads under-read as full house", cat("m0-quads", 6) === "m0.misreads_hand");
   ok("M0 high card -> cat 0", cat("m0-high-card", 0) === "m0.ok");
   ok("M0 high card over-read as a pair", cat("m0-high-card", 1) === "m0.misreads_hand");
+  // Nut recognition: hero's ten completes broadway on A-K-Q-J-9 -> the nut straight (4).
+  ok("M0 broadway nuts -> straight (cat 4)", cat("m0-nut-broadway", 4) === "m0.ok");
+  ok("M0 broadway misread as high card", cat("m0-nut-broadway", 0) === "m0.misreads_hand");
   // every rung of the 0..8 ladder now has a drill whose true category is that rung.
   // (derive each drill's true category via the grader, which handles any board size.)
   const trueCat = (id: string): number => {

@@ -88,7 +88,7 @@ export const MODULES: Module[] = [
     drillIds: [
       "m0-read-two-pair", "m0-counts-board-pair", "m0-trips", "m0-read-straight", "m0-wheel",
       "m0-play-the-board-straight", "m0-high-card", "m0-flush-trap", "m0-flush-count",
-      "m0-fullhouse-pocket-pair", "m0-quads", "m0-straight-flush",
+      "m0-fullhouse-pocket-pair", "m0-quads", "m0-straight-flush", "m0-nut-broadway",
     ],
   },
   {
@@ -238,7 +238,7 @@ export const MODULES: Module[] = [
     ],
     objectives: ["Estimate preflop equity between holdings", "Recognize coinflips and big favorites", "Value pocket pairs vs overcards"],
     example: "AA vs KK is about 82%; AK vs QQ is a near coinflip (~46%).",
-    drillIds: ["p1-aa-vs-kk-preflop", "p1-akx-vs-qq-race"],
+    drillIds: ["p1-aa-vs-kk-preflop", "p1-akx-vs-qq-race", "p1-ak-vs-aq"],
   },
   {
     id: "P2", track: "P2", title: "Bet sizing",
@@ -306,6 +306,7 @@ export const EXPLAIN: Record<string, string> = {
   "m0-counts-board-pair": "The board's pair counts as yours: K-K-8-8-A is two pair even though only one king is in your hand.",
   "m0-trips": "Three nines and no second pair is three of a kind — a full house needs a pair to go with the trips.",
   "m0-read-straight": "Your 10-9 connects with 8-7-6: a ten-high straight.",
+  "m0-nut-broadway": "Your ten completes A-K-Q-J-T — a straight. With no pair or flush possible on this board, that's the best hand there is: the nuts. Spotting when you hold the nuts matters as much as reading your own hand.",
   "m0-wheel": "A-2-3-4-5 is the wheel — the ace plays low. Easy to dismiss as ace-high.",
   "m0-play-the-board-straight": "The board itself is a 5-6-7-8-9 straight — your best five cards ARE the board. The pair of twos is irrelevant.",
   "m0-high-card": "No pair, no straight, no flush — just ace-high. Don't talk yourself into more.",
@@ -373,6 +374,7 @@ export const EXPLAIN: Record<string, string> = {
   // P1 — preflop ranges
   "p1-aa-vs-kk-preflop": "Aces over kings is the classic crush — about 82%. The underdog is drawing almost entirely to one of the two remaining kings.",
   "p1-akx-vs-qq-race": "Two overcards against a pair is the classic 'race': suited A-K is a hair under a coin flip (~46%) versus the bigger pair.",
+  "p1-ak-vs-aq": "You both hold an ace, so your king outkicks their queen — that's 'domination.' The dominated hand is drawing thin (mostly to a queen), leaving you around 74%.",
   // P2 — bet sizing
   "p2-bet-or-check": "Two ways to win: villain folds about half the time, and when called your open-ender still gets there. Betting beats checking.",
   "p2-size-up-nuts": "With the nuts and a villain who always calls, the bigger bet simply wins more — size up. The small bet leaves value behind.",

@@ -1429,12 +1429,40 @@ export const STARTER_DRILLS: Drill[] = [
     },
   },
   {
+    id: "p1-ak-vs-aq",
+    module: "P1",
+    title: "Preflop ranges: ace-king against ace-queen",
+    ask: "estimate",
+    // Domination: they share the ace, so hero's king outkicks the queen. The
+    // dominated hand is drawing thin (mostly a queen) -> ~74% (a full runout, ~3s).
+    state: {
+      heroHand: hand("As", "Kh"), board: [],
+      pot: 1, toAct: "hero",
+      villain: { range: [{ combo: hand("Ad", "Qc"), weight: 1 }] },
+      abstraction: { sizes: [], streets: [], players: 2 },
+    },
+  },
+  {
     id: "m0-read-straight",
     module: "M0",
     title: "Hand reading: a low connected board",
     ask: "category",
     state: {
       heroHand: hand("Ts", "9d"), board: hand("8c", "7h", "6s"), // T-9-8-7-6 straight (cat 4)
+      pot: 1, toAct: "hero",
+      villain: { range: [] },
+      abstraction: { sizes: [], streets: [], players: 2 },
+    },
+  },
+  {
+    id: "m0-nut-broadway",
+    module: "M0",
+    title: "Hand reading: a high, connected board",
+    ask: "category",
+    // Hero's ten completes A-K-Q-J-T (broadway) -> a straight (cat 4), and with no
+    // pair or flush on the board it is the NUTS. Teaches recognizing the best hand.
+    state: {
+      heroHand: hand("Tc", "5d"), board: hand("As", "Kd", "Qc", "Jh", "9s"),
       pot: 1, toAct: "hero",
       villain: { range: [] },
       abstraction: { sizes: [], streets: [], players: 2 },
