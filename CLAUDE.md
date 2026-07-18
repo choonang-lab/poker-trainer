@@ -89,7 +89,7 @@ test red, stop and fix the leak — do NOT edit the test to make it pass.
   via the raise chain. Mixed strategies & weighted ranges were already supported. P5 thin-value +
   check-raise-range drills showcase it. 31 drills.
 - DONE: L7 web PWA — `web/app.ts` is the TS SOURCE (over the same pure seam: loadSession → nextDrill →
-  gradeDrill → persist; localStorage, 4-color cards, M6/P6 stats). `docs/` is the DEPLOYED static site
+  gradeDrill → persist; localStorage, 2-color cards (conventional red/black), M6/P6 stats). `docs/` is the DEPLOYED static site
   (shell + committed, minified `docs/app.js`) — GitHub Pages serves `main` /docs.
   Build: `npx -p esbuild esbuild web/app.ts --bundle --format=esm --minify --outfile=docs/app.js`.
   Type-check: `npx -p typescript tsc -p web/tsconfig.json`. Preview: serve `docs/` over http.

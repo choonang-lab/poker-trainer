@@ -41,7 +41,7 @@
   bottom nav: **Learn** (module map → intro with preface/objectives/worked example → gated lessons →
   recap; completing a module unlocks the next and drops its drills into review), **Review** (SM-2 over
   drills already learned and due today), **Stats** (modules-completed, streak, M6 calibration, P6 leaks).
-  localStorage persistence (`pt-reviews`/`pt-history`/`pt-days`), 4-color cards. The engine stays clean
+  localStorage persistence (`pt-reviews`/`pt-history`/`pt-days`), 2-color cards (conventional red/black). The engine stays clean
   — `web/` only imports `engine.ts` + `curriculum.ts`.
 - **`docs/`** — the DEPLOYED static site (GitHub Pages serves `main` /docs): app shell + PWA bits
   (`manifest.webmanifest`, `sw.js`, `icon.svg`) + the committed, minified `docs/app.js` (built from

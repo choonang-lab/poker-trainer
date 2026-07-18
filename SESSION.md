@@ -138,9 +138,10 @@ repetition) with a guided-curriculum PWA on top.
    odds via an inflated pot because the engine has no villain-leads multi-street
    implied-odds tree; `m56-implied-odds-flushdraw` is still close to a plain M3
    pot-odds call. A true fix needs engine work (out of Tier-2 content-only scope).
-3. **Review Tier 3 — UX/mobile** (needs web/app.ts + docs rebuild): the "4-color"
-   deck is actually 2-color (hearts=diamonds red, `styles.css:50-51` — give
-   clubs/diamonds own hues); estimate feedback recomputes `truth()` a 2nd time
+3. **Review Tier 3 — UX/mobile** (needs web/app.ts + docs rebuild). NOTE: the
+   deck stays **2-color by choice** (owner prefers the traditional look; the docs
+   were corrected to stop claiming "4-color" — do NOT re-flag this). Remaining:
+   estimate feedback recomputes `truth()` a 2nd time
    (`app.ts:337`, ~3s freeze on preflop — reuse `out.truth`); service worker
    caches error responses / returns HTML for any failed asset (`sw.js:23-27` —
    guard `res.ok` + navigate-only fallback); a11y wins (aria-live feedback, input
