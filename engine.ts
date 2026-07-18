@@ -414,13 +414,19 @@ export function bestResponseEV(node: TreeNode): number {
       if (!strat) throw new Error("VILL node requires villain.strategy");
       const legal: Action[] = kids.map((ch) => ch.action!).filter(Boolean);
       const dist = strat(node.state, legal);
-      let ev = 0;
+      // The declared strategy is a probability distribution over the villain's
+      // legal actions; normalize by the total assigned weight so authoring weights
+      // need not pre-sum to 1 (a strategy summing to != 1 must not silently scale
+      // the EV). Mirrors villainPolicyNode's `weight / total`.
+      let ev = 0, total = 0;
       for (const { action, weight } of dist) {
         if (weight === 0) continue;
         const child = kids.find((ch) => sameAction(ch.action, action));
-        if (child) ev += weight * bestResponseEV(child.node);
+        if (child) { ev += weight * bestResponseEV(child.node); total += weight; }
       }
-      return ev;
+      if (total === 0)
+        throw new Error("VILL node: villain.strategy assigns no weight to any legal action");
+      return ev / total;
     }
     default:
       throw new Error(`bestResponseEV: unhandled node kind ${node.kind}`);
@@ -1380,7 +1386,7 @@ export const STARTER_DRILLS: Drill[] = [
     title: "Rule of 2&4 with the big-draw correction (open-ender + flush draw)",
     ask: "estimate",
     state: {
-      heroHand: hand("Js", "Ts"), board: hand("9s", "8h", "2c"), // ~15 outs; naive 4x over-counts
+      heroHand: hand("Js", "Ts"), board: hand("9s", "8s", "2c"), // ~15 outs (flush + open-ender); naive 4x over-counts
       pot: 1, toAct: "hero",
       villain: { range: [{ combo: hand("Ah", "Ad"), weight: 1 }] },
       abstraction: { sizes: [], streets: [], players: 2 },

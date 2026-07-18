@@ -37,7 +37,7 @@ repetition) with a guided-curriculum PWA on top.
 5. **The ship checklist** (after every approved change):
    `node engine.test.ts` → both tsc checks →
    `npx -p esbuild esbuild web/app.ts --bundle --format=esm --minify --outfile=docs/app.js`
-   → bump `CACHE` in `docs/sw.js` (v20 as of this writing) → update
+   → bump `CACHE` in `docs/sw.js` (v21 as of this writing) → update
    HANDOFF.md counts → commit (message style: `feat(scope): ...` with body,
    end with the Claude co-author line) → push → poll the live site until
    `docs/app.js` byte-size matches. If GitHub Pages sticks in "building",
@@ -55,7 +55,19 @@ repetition) with a guided-curriculum PWA on top.
 
 ## State as of 2026-07 (commit 6b80618)
 
-- **365 tests passing**, both type-checks clean, deployed bundle in sync.
+- **369 tests passing**, both type-checks clean, deployed bundle in sync.
+- **Review fixes (2026-07-18, post-audit), cache v21:** (1) `m2-combo-draw`
+  board was `9s 8h 2c` (an 8-out spot, 36.9%) but its title/EXPLAIN teach the
+  15-out flush+open-ender combo — fixed to `9s 8s 2c` (56.3%); a learner who
+  applied the taught lesson had been graded wrong. Test now pins ~0.563.
+  (2) `bestResponseEV` VILL branch consumed villain `strategy` weights RAW
+  (unnormalized) — a distribution summing to ≠1 silently scaled EV (2× weights
+  → 2× EV). Now normalized by total weight (mirrors `villainPolicyNode`);
+  all-zero dist throws. No-op for shipped content (all summed to 1), but closes
+  an authoring landmine. Found via a 3-agent read-only review; remaining
+  reviewer findings (EXPLAIN accuracy in m3-bad-odds-fold/m3-chop-potodds,
+  4-color-deck-is-actually-2-color, double-`truth()` preflop freeze, SW caching
+  error responses, a11y) are logged below as Tier 2/3 next-ups.
 - **Pillar 1 content complete** (57 drills): M0 hand reading (12 — full 0–8
   category ladder incl. misread traps), M1 counting outs (11 — gutshot/OESD/
   overcards/combo/double-gutshot/tainted, second instances of high-error
@@ -109,11 +121,31 @@ repetition) with a guided-curriculum PWA on top.
    Remaining thin spots if more P depth is wanted: P3 has only bet-bet value +
    3-bet lines — a "bet flop, check turn" pot-control contrast would round it
    out (verify a clean EV where the second barrel is −EV before authoring).
-2. **Made-hand highlight** (medium): after answering, highlight which five
+2. **Review Tier 2 — EXPLAIN accuracy** (content-only, verified): `m3-bad-odds-fold`
+   EXPLAIN says "~15%" but true equity is 1.5% (villain's A♥ blocks the flush);
+   `m3-chop-potodds` EXPLAIN claims "the straight on the board" but there is no
+   straight (both play A-K-Q-J-4 high card); `m56-implied-odds-flushdraw` uses an
+   effective pot so immediate odds already say call (doesn't isolate implied odds
+   — rework or fold into `m56-true-implied-odds`); `p2-bet-or-check` is a
+   fold-equity semi-bluff shelved as the first P2 *sizing* drill (reframe or move).
+3. **Review Tier 3 — UX/mobile** (needs web/app.ts + docs rebuild): the "4-color"
+   deck is actually 2-color (hearts=diamonds red, `styles.css:50-51` — give
+   clubs/diamonds own hues); estimate feedback recomputes `truth()` a 2nd time
+   (`app.ts:337`, ~3s freeze on preflop — reuse `out.truth`); service worker
+   caches error responses / returns HTML for any failed asset (`sw.js:23-27` —
+   guard `res.ok` + navigate-only fallback); a11y wins (aria-live feedback, input
+   labels + inputmode, 44px tap targets, red-suit contrast, :focus-visible, hide
+   raw leak tags); iOS home-screen icon is SVG-only (add PNG 180/192/512).
+4. **Review Tier 4 — robustness:** the "one engine" cross-street identity is only
+   tested at equity 0 and 1; add one mid-equity assertion (check-line EV of a
+   built 2-street tree === equity() for a mid-equity hero). Minor authoring guards
+   (`outs` board-length, estimate-drill-with-abstraction).
+5. **Made-hand highlight** (medium): after answering, highlight which five
    cards form the made hand (M0) or tint the drawing suit (M1/M2). Needs a
    small engine helper to report the winning five cards.
-3. Optional: M4 could take one more pot-control archetype; watermark/fan
-   angles are one-line CSS tweaks if the user wants them dialed.
+6. **Coverage:** P1 domination (in glossary/example, undrilled — add AK vs AQ,
+   ~3s preflop); an M0 nut-identification drill; the M4/P3 "bet flop, check turn"
+   pot-control line. M4 pot-control archetype; watermark/fan angles are one-line CSS.
 
 ## Machine-specific notes for macOS
 

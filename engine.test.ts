@@ -810,6 +810,9 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
   const m2c = gradeDrill(session, "m2-combo-draw", { kind: "estimate", value: 0.95 }, 0);
   ok("M2 big-draw overestimate -> m2.overestimates_equity",
     m2c.result.leakTag === "m2.overestimates_equity" && (m2c.truth ?? 1) < 0.95, m2c.result.leakTag);
+  // Pin the board: Js Ts on 9s 8s 2c is the 15-out combo (flush + open-ender) the
+  // title/EXPLAIN teach -> 56.3%. Guards the 8h/8s typo that made it an 8-out spot.
+  ok("M2 combo draw is the 15-out flush+straight (~0.563)", approx(m2c.truth ?? 0, 0.563, 0.005), `${m2c.truth}`);
   const m5w = gradeDrill(session, "m5-wide-range", { kind: "estimate", value: 0.95 }, 0);
   ok("M5 wide-range overestimate -> m5.overrates_vs_range",
     m5w.result.leakTag === "m5.overrates_vs_range" && (m5w.truth ?? 1) < 0.95, m5w.result.leakTag);
@@ -938,6 +941,28 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
   // action drills carry no truth value
   const act = gradeDrill(newSession(STARTER_DRILLS), "m3-chop-potodds", { kind: "action", action: { kind: "call" } }, 0);
   ok("gradeDrill has no truth for actions", act.truth === undefined);
+}
+
+// ---------- Villain strategy is a distribution: EV is normalized ----------
+{
+  // A declared strategy is a probability distribution over the villain's legal
+  // actions; bestResponseEV must normalize by the total weight, so authoring
+  // weights that don't pre-sum to 1 can't silently scale the EV. KsQd vs AA with
+  // one pot bet: a 50/50 fold/call villain yields the true 9/44. Doubling both
+  // weights (sum 2) must give the SAME EV, not 2x; an all-zero dist must throw.
+  const mk = (strategy: (s: NodeState, legal: Action[]) => { action: Action; weight: number }[]): State => ({
+    heroHand: hand("Ks", "Qd"), board: hand("Jh", "Th", "2c", "3s"), pot: 1, toAct: "hero",
+    villain: { range: [{ combo: hand("Ah", "Ad"), weight: 1 }], strategy },
+    abstraction: { sizes: [1.0], streets: ["turn"], players: 2 },
+  });
+  const betEV = (s: State): number => actionEVs(buildTree(s)).find((e) => e.action.kind === "bet")!.ev;
+  const w = (v: number) => (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action: a, weight: v }));
+  ok("villain strategy summing to 1 gives 9/44", approx(betEV(mk(w(0.5))), 9 / 44, 1e-9), `${betEV(mk(w(0.5)))}`);
+  ok("doubling all weights (sum 2) gives the SAME EV, not 2x",
+    approx(betEV(mk(w(1.0))), betEV(mk(w(0.5))), 1e-9), `${betEV(mk(w(1.0)))}`);
+  let threw = false;
+  try { betEV(mk(w(0))); } catch { threw = true; }
+  ok("an all-zero villain distribution throws (malformed)", threw);
 }
 
 // ---------- Villain-leads builder (flag-gated) + P0 ----------

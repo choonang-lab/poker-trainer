@@ -51,7 +51,7 @@
   (minimal ambient `node:readline`/`node:fs` decls in `globals.d.ts`); not in the unit suite (it reads stdin).
   Persists progress to `$POKER_SAVE` (default `.poker-trainer.json`, git-ignored) via the pure engine
   primitives `serializeSession`/`loadSession`; `now` is a real day-number (override with `$POKER_NOW`).
-- **`engine.test.ts`** — 365 assertions, all passing. Exact/hand-checkable, not approximate:
+- **`engine.test.ts`** — 369 assertions, all passing. Exact/hand-checkable, not approximate:
   - full category ladder (high card → royal), wheel straight, kicker tiebreaks
   - `equity` against exact rationals: straight draw = **6/44**, drawing dead = **0**, chop = **0.5**, made hand = **1.0**
   - L3 identities: CHANCE-of-showdowns **==** `equity` (one-engine), cross-street tree **==** `equity`,
@@ -63,7 +63,7 @@
 
 ## Run it
 ```
-node engine.test.ts            # expect: 365 passed, 0 failed (Node strips types at runtime)
+node engine.test.ts            # expect: 369 passed, 0 failed (Node strips types at runtime)
 npx -p typescript tsc --noEmit  # expect: exit 0 (type-check; uses npx cache, adds NO repo dependency)
 node bench.ts                   # AA vs KK preflop = 82.64% in ~3s (was ~190s pre-fast-evaluator)
 node validate-evaluator.ts      # deep cross-check (500k hands) + fast-vs-slow perf (~70x)
