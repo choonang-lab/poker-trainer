@@ -1050,8 +1050,8 @@ export const STARTER_DRILLS: Drill[] = [
     },
   },
   {
-    id: "p2-bet-or-check",
-    module: "P2",
+    id: "p2-bet-or-check", // id keeps its legacy "p2-" prefix (stable key); it lives in M3.5
+    module: "M3.5",        // a single-size semi-bluff decision -> fold equity, not sizing
     title: "Fold equity: an open-ended draw on the turn",
     ask: "action",
     read: "Villain folds to a bet about half the time.",
@@ -1172,7 +1172,7 @@ export const STARTER_DRILLS: Drill[] = [
   {
     id: "m56-implied-odds-flushdraw",
     module: "M5.6",
-    title: "Implied odds: call a flush draw the immediate price doesn't justify",
+    title: "Implied odds: counting future winnings makes a marginal draw a call",
     ask: "action",
     read: "The pot shown includes the chips you expect to win later when the draw hits.",
     // `pot` is the EFFECTIVE pot — current pot plus the winnings hero expects to
@@ -1703,7 +1703,7 @@ export const STARTER_DRILLS: Drill[] = [
     ask: "action",
     state: {
       heroHand: hand("7h", "6h"), board: hand("As", "Ks", "2c"),
-      pot: 1, toCall: 1, toAct: "hero", // need 50%, hero ~15% -> fold; calling is the leak
+      pot: 1, toCall: 1, toAct: "hero", // need 50%, hero ~1.5% (near-dead) -> fold; calling is the leak
       villain: { range: [{ combo: hand("Ah", "Tc"), weight: 1 }] },
       abstraction: { sizes: [], streets: [], players: 2 },
     },

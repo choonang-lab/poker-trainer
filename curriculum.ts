@@ -158,7 +158,7 @@ export const MODULES: Module[] = [
     example: "Betting a flush draw wins now when they fold, and later when you hit.",
     drillIds: [
       "m35-semibluff-flushdraw", "m35-no-fold-equity", "m35-oesd-semibluff",
-      "m35-weak-draw-check", "m35-turn-semibluff",
+      "m35-weak-draw-check", "m35-turn-semibluff", "p2-bet-or-check",
     ],
   },
   {
@@ -252,7 +252,7 @@ export const MODULES: Module[] = [
     ],
     objectives: ["Choose a bet size for the spot", "Size up with the nuts for value", "Bet thin only when worse hands call"],
     example: "With the nuts and a caller, a pot-size bet earns more than a half-pot bet.",
-    drillIds: ["p2-bet-or-check", "p2-size-up-nuts", "p2-thin-value"],
+    drillIds: ["p2-size-up-nuts", "p2-thin-value"],
   },
   {
     id: "P3", track: "P2", title: "Multi-street lines",
@@ -336,12 +336,12 @@ export const EXPLAIN: Record<string, string> = {
   "m2-combo-draw-turn": "~15 outs × 2 ≈ 30% with one card to come (exact: 34%).",
   "m2-set-vs-overpair": "You're way ahead — the overpair is drawing to two aces (exact: 91.1% for the set).",
   // M3 — pot odds
-  "m3-chop-potodds": "You can't lose the hand — the straight on the board plays for both, so calling collects your half of the pot.",
+  "m3-chop-potodds": "Neither of you can beat the board's A-K-Q-J — you each just add a 4 as the fifth card, making the identical A-K-Q-J-4. It's a guaranteed chop, so calling collects your half of the pot.",
   "m3-flush-draw-call": "~20% equity vs a break-even of 1/(5+1) ≈ 17%: the price is right — call.",
   "m3-flush-draw-fold": "The same ~20% draw, but a pot-size bet needs 50% equity: the price is wrong — fold.",
   "m3-gutshot-fold": "~9% with one card to come against a 25% break-even: fold. Small draws rarely get the right price.",
   "m3-combo-draw-call": "~34% equity against a 25% break-even: a clear call.",
-  "m3-bad-odds-fold": "A weak draw around 15% facing a 50% price — nowhere close. Fold.",
+  "m3-bad-odds-fold": "This only looks like a draw. Pairing your 6 or 7 still loses to the aces, and 6-7 can't make a straight on this A-K-2 board — the only way to win is to pair BOTH cards or make a set, about 1.5%. Against a 50% price that's a fold, not a call.",
   // M3.5 — fold equity
   "m35-semibluff-flushdraw": "Two ways to win: villain folds often (instant profit), and when called you still hit the flush ~1 in 3.",
   "m35-no-fold-equity": "The same draw, but nobody folds: betting just builds a pot you usually lose. Check and take the free card.",

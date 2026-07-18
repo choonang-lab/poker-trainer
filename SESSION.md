@@ -37,7 +37,7 @@ repetition) with a guided-curriculum PWA on top.
 5. **The ship checklist** (after every approved change):
    `node engine.test.ts` → both tsc checks →
    `npx -p esbuild esbuild web/app.ts --bundle --format=esm --minify --outfile=docs/app.js`
-   → bump `CACHE` in `docs/sw.js` (v21 as of this writing) → update
+   → bump `CACHE` in `docs/sw.js` (v22 as of this writing) → update
    HANDOFF.md counts → commit (message style: `feat(scope): ...` with body,
    end with the Claude co-author line) → push → poll the live site until
    `docs/app.js` byte-size matches. If GitHub Pages sticks in "building",
@@ -76,8 +76,9 @@ repetition) with a guided-curriculum PWA on top.
   equity (5 — same draw bet-vs-check by villain fold%), M4 sequencing (4 —
   incl. way-behind check-back), M5 equity vs range (8 — weighted range,
   condensed vs polarized, domination), M5.6 implied odds (4 — incl. reverse
-  implied). **Pillar 2 audited (2026-07-18):** 15 drills (P0 ×2, P1 ×2, P2 ×3,
-  P3 ×2, P4 ×2, P5 ×4). Every best action / equity re-verified against the
+  implied). **Pillar 2 audited (2026-07-18):** 14 drills (P0 ×2, P1 ×2, P2 ×2,
+  P3 ×2, P4 ×2, P5 ×4) after Tier-2 moved the semi-bluff `p2-bet-or-check` to
+  M3.5. Every best action / equity re-verified against the
   engine (all correct); de-spoiled the leaky action-drill titles; added a
   villain `read:` to all 10 action drills and EXPLAIN text to every P-drill;
   added a P0 in-position drill (`p0-ip-realize-equity`) — the free-card mirror
@@ -121,13 +122,22 @@ repetition) with a guided-curriculum PWA on top.
    Remaining thin spots if more P depth is wanted: P3 has only bet-bet value +
    3-bet lines — a "bet flop, check turn" pot-control contrast would round it
    out (verify a clean EV where the second barrel is −EV before authoring).
-2. **Review Tier 2 — EXPLAIN accuracy** (content-only, verified): `m3-bad-odds-fold`
-   EXPLAIN says "~15%" but true equity is 1.5% (villain's A♥ blocks the flush);
-   `m3-chop-potodds` EXPLAIN claims "the straight on the board" but there is no
-   straight (both play A-K-Q-J-4 high card); `m56-implied-odds-flushdraw` uses an
-   effective pot so immediate odds already say call (doesn't isolate implied odds
-   — rework or fold into `m56-true-implied-odds`); `p2-bet-or-check` is a
-   fold-equity semi-bluff shelved as the first P2 *sizing* drill (reframe or move).
+2. ~~**Review Tier 2 — EXPLAIN accuracy**~~ — DONE 2026-07-18 (cache v22).
+   `m3-bad-odds-fold`: rewrote EXPLAIN — true equity is 1.5% (no straight/flush is
+   even possible; only runner-runner two-pair or a set beats the aces), NOT the
+   "~15%" it claimed (and not the A♥-flush mechanism a reviewer guessed — verified
+   by full runout enumeration). `m3-chop-potodds`: EXPLAIN claimed a board straight
+   that doesn't exist — corrected to "both play the identical A-K-Q-J-4."
+   `m56-implied-odds-flushdraw`: retitled (it showed the EFFECTIVE pot, so the old
+   title "the immediate price doesn't justify" contradicted its own numbers; the
+   `read` already flags the pot includes future winnings). `p2-bet-or-check`: it's
+   a single-size semi-bluff, so MOVED from P2 (sizing) → M3.5 (fold equity); this
+   also fixed its leak label (`p2.misses_thin_value` → `m35.gives_up_fold_equity`).
+   Id keeps its legacy "p2-" prefix (stable key). P2 now has 2 sizing drills, M3.5
+   has 6. Deeper caveat left for later: the M5.6 "implied odds" drills fake implied
+   odds via an inflated pot because the engine has no villain-leads multi-street
+   implied-odds tree; `m56-implied-odds-flushdraw` is still close to a plain M3
+   pot-odds call. A true fix needs engine work (out of Tier-2 content-only scope).
 3. **Review Tier 3 — UX/mobile** (needs web/app.ts + docs rebuild): the "4-color"
    deck is actually 2-color (hearts=diamonds red, `styles.css:50-51` — give
    clubs/diamonds own hues); estimate feedback recomputes `truth()` a 2nd time
