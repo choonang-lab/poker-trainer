@@ -37,7 +37,7 @@ repetition) with a guided-curriculum PWA on top.
 5. **The ship checklist** (after every approved change):
    `node engine.test.ts` → both tsc checks →
    `npx -p esbuild esbuild web/app.ts --bundle --format=esm --minify --outfile=docs/app.js`
-   → bump `CACHE` in `docs/sw.js` (v31 as of this writing) → update
+   → bump `CACHE` in `docs/sw.js` (v32 as of this writing) → update
    HANDOFF.md counts → commit (message style: `feat(scope): ...` with body,
    end with the Claude co-author line) → push → poll the live site until
    `docs/app.js` byte-size matches. If GitHub Pages sticks in "building",
@@ -55,7 +55,7 @@ repetition) with a guided-curriculum PWA on top.
 
 ## State as of 2026-07 (commit 6b80618)
 
-- **406 tests passing**, both type-checks clean, deployed bundle in sync.
+- **412 tests passing**, both type-checks clean, deployed bundle in sync.
 - **Review fixes (2026-07-18, post-audit), cache v21:** (1) `m2-combo-draw`
   board was `9s 8h 2c` (an 8-out spot, 36.9%) but its title/EXPLAIN teach the
   15-out flush+open-ender combo — fixed to `9s 8s 2c` (56.3%); a learner who
@@ -80,11 +80,12 @@ repetition) with a guided-curriculum PWA on top.
   condensed vs polarized, domination), M5.6 implied odds (4 — now ALL genuine
   multi-street trees after the effective-pot fake was rebuilt as a real OESD
   implied-odds tree; a flush-draw real tree, a no-implied fold, and reverse
-  implied). **Pillar 2 audited (2026-07-18):** 20 drills (P0 ×2, P1 ×3, P2 ×2,
+  implied). **Pillar 2 audited (2026-07-18):** 23 drills (P0 ×2, P1 ×3, P2 ×5,
   P3 ×3, P3.5 ×4, P4 ×2, P5 ×4) — P1 gained the AK-vs-AQ domination drill in Tier 5,
-  P3 gained the `p3-pot-control` check-the-turn drill, a NEW P3.5 "River decisions"
-  module (raise / call-thin / bluff-catch / multiway-fold) was added, and Tier-2
-  moved the semi-bluff `p2-bet-or-check` to M3.5. Every best action /
+  P2 gained 3 sizing-depth drills (bet small for thin value / bet big to deny equity
+  / overbet a capped range), P3 gained the `p3-pot-control` check-the-turn drill, a
+  NEW P3.5 "River decisions" module was added, and Tier-2 moved the semi-bluff
+  `p2-bet-or-check` to M3.5. Every best action /
   equity re-verified against the
   engine (all correct); de-spoiled the leaky action-drill titles; added a
   villain `read:` to all 10 action drills and EXPLAIN text to every P-drill;
@@ -255,6 +256,29 @@ repetition) with a guided-curriculum PWA on top.
    raise "Optimal.", multiway → fold "Optimal.". This was the "4 villains + river"
    idea, delivered as the pragmatic heads-up-vs-condensed-range approximation (a true
    multiway betting tree stays engine-forbidden by the Tier-4 guard, by design).
+11. ~~**Bet-sizing depth (expand P2)**~~ — DONE 2026-07-18 (cache v32, 412 tests).
+   P2 had only ONE real size-choice drill (size-up-nuts). Added 3, all verified,
+   each teaching a distinct sizing MOTIVE via a SIZE-DEPENDENT villain (the `policy`
+   reads `baseState.pot`, which reflects hero's bet — a supported, realistic use, not
+   a hack; real opponents play size-sensitively): (1) `p2-bet-small-thin-value` —
+   AsKd top pair; worse aces (weight 3) call small / fold big, a set (weight 1) calls
+   anything → bet ⅓ (0.83) > pot (0.50) > check (0.70): size DOWN for thin value.
+   (2) `p2-bet-big-deny-equity` — KsKd overpair (73%) vs a flush draw that calls small
+   / folds big → bet 1.5× (1.00) > half (0.955) > check (0.73): size UP to deny a
+   draw's equity. (3) `p2-overbet-capped-range` — AsTs royal vs a set that calls a pot
+   bet and a 2× overbet but folds a 3× → bet 2× (3.0) is best, NOT the 3× (folds him):
+   overbet as much as they'll pay, no more (an interior optimum, not "biggest wins").
+   Renamed the `P2:overbet` leak `p2.bets_without_equity` → `p2.bets_too_big` so
+   sizing leaks read coherently (too_small / too_big / misses_thin_value); updated the
+   one test that pinned the old label. KEY ENABLER for future sizing/exploit content:
+   a size-dependent villain IS expressible — `policy(combo, state)` gets `state.pot`,
+   so "calls small, folds big" is authorable. Browser-verified on mobile.
+   REMAINING from the "what decisions are missing" analysis: raise-SIZING choice
+   (needs a contained engine change — raiseNode emits one pot-sized raise), a preflop
+   DECISION module (open/3-bet/fold; ~3s/grade cost), c-bet/check-raise/donk drills
+   (engine supports them — content only). GTO/balance, ICM, true multiway = different
+   engines, out of scope by design (the fixed app-declared villain is what makes
+   everything auto-gradeable).
 
 ## Machine-specific notes for macOS
 

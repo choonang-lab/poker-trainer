@@ -733,7 +733,7 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
   ok("M3 overfold -> folds_when_priced_in", tag("M3", "p1.overfold") === "m3.folds_when_priced_in");
   ok("M3 spew -> calls_when_overpriced", tag("M3", "p1.spew") === "m3.calls_when_overpriced");
   ok("P2 missed_bet -> misses_thin_value", tag("P2", "p2.missed_bet") === "p2.misses_thin_value");
-  ok("P2 overbet -> bets_without_equity", tag("P2", "p2.overbet") === "p2.bets_without_equity");
+  ok("P2 overbet -> bets_too_big", tag("P2", "p2.overbet") === "p2.bets_too_big");
   ok("P1 over -> overvalues_holding", tag("P1", "p1.overestimate") === "p1.overvalues_holding");
   ok("P1 under -> undervalues_holding", tag("P1", "p1.underestimate") === "p1.undervalues_holding");
   // Fallbacks: 'ok' and unmapped modules become module-scoped structural tags.
@@ -815,8 +815,8 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
   ok("M4 check regret == 3 bb", approx(m4check.result.regretBb, 3), `got ${m4check.result.regretBb}`);
   ok("M4 check -> m4.misses_street_sequence", m4check.result.leakTag === "m4.misses_street_sequence");
 
-  ok("STARTER_DRILLS now spans 83 drills incl M0/M3.5/M4/M5.6/P0/P1/P3/P3.5/P4/P5",
-    STARTER_DRILLS.length === 83 &&
+  ok("STARTER_DRILLS now spans 86 drills incl M0/M3.5/M4/M5.6/P0/P1/P2/P3/P3.5/P4/P5",
+    STARTER_DRILLS.length === 86 &&
     ["M0", "M3.5", "M4", "M5.6", "P0", "P1", "P3", "P4", "P5"].every((m) => STARTER_DRILLS.some((d) => d.module === m)));
 
   // Check-raise-range drill: villain raises only what beats hero (policy + raise).
@@ -912,6 +912,18 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
   ok("sizing: best size -> regret 0, p2.ok", big.result.regretBb === 0 && big.result.leakTag === "p2.ok");
   const chk = gradeDrill(session, sz.id, { kind: "action", action: { kind: "check" } }, 0);
   ok("sizing: checking the nuts -> p2.misses_thin_value", chk.result.leakTag === "p2.misses_thin_value");
+
+  // Sizing DEPTH (size-dependent villains): small for thin value, big to deny equity, overbet a capped range.
+  const bestSz = (id: string): string => { const b = bestAction(buildTree(byId(id).state)); return b.kind === "bet" ? `bet${b.size}` : b.kind; };
+  ok("sizing: thin value -> bet SMALL (0.33) is best", bestSz("p2-bet-small-thin-value") === "bet0.33");
+  ok("sizing: thin value over-sizing -> p2.bets_too_big",
+    gradeDrill(session, "p2-bet-small-thin-value", { kind: "action", action: { kind: "bet", size: 1.0 } }, 0).result.leakTag === "p2.bets_too_big");
+  ok("sizing: deny equity -> bet BIG (1.5) is best", bestSz("p2-bet-big-deny-equity") === "bet1.5");
+  ok("sizing: deny equity under-sizing -> p2.bets_too_small",
+    gradeDrill(session, "p2-bet-big-deny-equity", { kind: "action", action: { kind: "bet", size: 0.5 } }, 0).result.leakTag === "p2.bets_too_small");
+  ok("sizing: overbet a capped range -> bet 2x is best (not the 3x)", bestSz("p2-overbet-capped-range") === "bet2");
+  ok("sizing: overbet too much (3x) -> p2.bets_too_big",
+    gradeDrill(session, "p2-overbet-capped-range", { kind: "action", action: { kind: "bet", size: 3.0 } }, 0).result.leakTag === "p2.bets_too_big");
 
   // Added module depth: M2 big-draw, M5 wider range (cheap), P1 race (preflop).
   const m2c = gradeDrill(session, "m2-combo-draw", { kind: "estimate", value: 0.95 }, 0);

@@ -996,7 +996,7 @@ const LEAK_TABLE: Record<string, string> = {
   "M5.6:spew": "m56.chases_without_odds",
   "P2:missed_bet": "p2.misses_thin_value",
   "P2:underbet": "p2.bets_too_small",
-  "P2:overbet": "p2.bets_without_equity",
+  "P2:overbet": "p2.bets_too_big",
   "P3:missed_bet": "p3.misses_multistreet_value",
   "P3:overbet": "p3.overbets_multistreet",
   "P3:passive": "p3.flats_instead_of_raising",
@@ -2076,6 +2076,75 @@ export const STARTER_DRILLS: Drill[] = [
           legal.map((a) => ({ action: a, weight: a.kind === "call" ? 1 : 0 })),
       },
       abstraction: { sizes: [1.0], streets: ["turn"], players: 2 },
+    },
+  },
+  // ---- P2 sizing depth: size DOWN for thin value, UP to deny equity, and overbet a capped range ----
+  {
+    id: "p2-bet-small-thin-value",
+    module: "P2",
+    title: "Sizing: top pair against hands that call small",
+    read: "The worse hands that pay you off call a small bet but fold a big one; the one hand that beats you calls anything.",
+    ask: "action",
+    // Hero AsKd top pair (K kicker) on Ac 8d 4s 2c. Worse aces (Ah9c, weight 3) call SMALL, fold BIG; a
+    // set (44, weight 1) calls anything. A 1/3 bet milks the worse aces (EV 0.83); a pot bet folds them
+    // and only the set calls (0.50); checking (0.70) gives up the thin value. Size DOWN for thin value.
+    state: {
+      heroHand: hand("As", "Kd"), board: hand("Ac", "8d", "4s", "2c"),
+      pot: 1, toAct: "hero",
+      villain: {
+        range: [{ combo: hand("Ah", "9c"), weight: 3 }, { combo: hand("4h", "4d"), weight: 1 }],
+        policy: (combo: Combo, s: NodeState) => {
+          if (rankOf(combo[0]) === 4 || rankOf(combo[1]) === 4)
+            return [{ action: { kind: "fold" }, weight: 0 }, { action: { kind: "call" }, weight: 1 }];
+          const small = s.pot <= 1.4; // pot 1 + 0.33 bet = 1.33 (small) vs 1 + 1.0 = 2.0 (big)
+          return [{ action: { kind: "fold" }, weight: small ? 0 : 1 }, { action: { kind: "call" }, weight: small ? 1 : 0 }];
+        },
+      },
+      abstraction: { sizes: [0.33, 1.0], streets: ["turn"], players: 2 },
+    },
+  },
+  {
+    id: "p2-bet-big-deny-equity",
+    module: "P2",
+    title: "Sizing: an overpair on a wet board against a draw",
+    read: "Villain is on a draw — a small bet gives a fair price, a big bet folds it out.",
+    ask: "action",
+    // Hero KsKd overpair (~73%) on Qh 8h 4s 2c vs a flush draw (AhJh) that calls a small bet but folds a
+    // big one. Betting big (1.5x, EV 1.00) folds the draw and denies its equity; a half-pot bet (0.955)
+    // lets it draw; checking (0.73) gives a free card. Size UP to deny equity / protect the hand.
+    state: {
+      heroHand: hand("Ks", "Kd"), board: hand("Qh", "8h", "4s", "2c"),
+      pot: 1, toAct: "hero",
+      villain: {
+        range: [{ combo: hand("Ah", "Jh"), weight: 1 }],
+        policy: (_combo: Combo, s: NodeState) => {
+          const small = s.pot <= 1.7; // 1 + 0.5 = 1.5 (small) vs 1 + 1.5 = 2.5 (big)
+          return [{ action: { kind: "fold" }, weight: small ? 0 : 1 }, { action: { kind: "call" }, weight: small ? 1 : 0 }];
+        },
+      },
+      abstraction: { sizes: [0.5, 1.5], streets: ["turn"], players: 2 },
+    },
+  },
+  {
+    id: "p2-overbet-capped-range",
+    module: "P2",
+    title: "Sizing: the nuts against a hand that can't fold",
+    read: "Villain has a strong hand he won't fold to a big bet — but an enormous one would still scare him off.",
+    ask: "action",
+    // Hero AsTs = a royal flush (the nuts) on Ks Qs Js 4h. Villain KhKd (a set) calls a pot bet OR a 2x
+    // overbet, but folds to a 3x. So the 2x OVERBET extracts the most (EV 3.0); a pot bet (2.0) leaves
+    // value on the table; the 3x (1.0) folds him out. Overbet as much as they'll pay — not so much they fold.
+    state: {
+      heroHand: hand("As", "Ts"), board: hand("Ks", "Qs", "Js", "4h"),
+      pot: 1, toAct: "hero",
+      villain: {
+        range: [{ combo: hand("Kh", "Kd"), weight: 1 }],
+        policy: (_combo: Combo, s: NodeState) => {
+          const calls = s.pot <= 3.1; // pot 1: +1.0->2.0 (call), +2.0->3.0 (call), +3.0->4.0 (fold)
+          return [{ action: { kind: "fold" }, weight: calls ? 0 : 1 }, { action: { kind: "call" }, weight: calls ? 1 : 0 }];
+        },
+      },
+      abstraction: { sizes: [1.0, 2.0, 3.0], streets: ["turn"], players: 2 },
     },
   },
   {

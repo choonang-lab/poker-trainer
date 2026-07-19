@@ -243,17 +243,17 @@ export const MODULES: Module[] = [
   },
   {
     id: "P2", track: "P2", title: "Bet sizing",
-    preface: "How much you bet matters as much as whether you bet. Size up with strong hands for value; don't bet into ranges that continue only when they beat you.",
+    preface: "How much you bet matters as much as whether you bet. Bet big for value or to deny a draw its equity; bet small to keep worse hands in; and overbet a range that can't fold — but not so big it folds.",
     concepts: [
       { term: "Bet size", def: "how much you bet, usually as a fraction of the pot." },
       { term: "Pot-sized / half-pot bet", def: "common reference sizes; bigger bets pressure more and win more when called." },
-      { term: "Sizing up", def: "betting bigger with very strong hands to win more." },
-      { term: "Thin value", def: "a small value bet that only slightly-worse hands will call." },
-      { term: "Overbet", def: "betting more than the pot, usually with a polarized range (nuts or bluffs)." },
+      { term: "Thin value", def: "a small value bet that only slightly-worse hands will call — bet small so they don't fold." },
+      { term: "Denying equity", def: "betting big so a draw either pays a bad price or folds, surrendering its chance to improve." },
+      { term: "Overbet", def: "betting more than the pot — good with a very strong hand against a range that can't fold." },
     ],
-    objectives: ["Choose a bet size for the spot", "Size up with the nuts for value", "Bet thin only when worse hands call"],
+    objectives: ["Match your bet size to the spot", "Size down for thin value so worse hands still call", "Size up to deny a draw's equity, and overbet a range that can't fold"],
     example: "With the nuts and a caller, a pot-size bet earns more than a half-pot bet.",
-    drillIds: ["p2-size-up-nuts", "p2-thin-value"],
+    drillIds: ["p2-size-up-nuts", "p2-thin-value", "p2-bet-small-thin-value", "p2-bet-big-deny-equity", "p2-overbet-capped-range"],
   },
   {
     id: "P3", track: "P2", title: "Multi-street lines",
@@ -396,6 +396,9 @@ export const EXPLAIN: Record<string, string> = {
   "p2-bet-or-check": "Two ways to win: villain folds about half the time, and when called your open-ender still gets there. Betting beats checking.",
   "p2-size-up-nuts": "With the nuts and a villain who always calls, the bigger bet simply wins more — size up. The small bet leaves value behind.",
   "p2-thin-value": "A worse hand will call, so a value bet prints even with 'thin' top pair. Checking wins the same pot but for fewer chips.",
+  "p2-bet-small-thin-value": "The hands you beat will pay a small bet but fold a big one — so bet small and keep them in. A pot-size bet folds out your customers and gets called only by the one hand that beats you. With a thin value hand, size DOWN.",
+  "p2-bet-big-deny-equity": "Your overpair is well ahead now, but the flush draw gets to improve if you let it in cheaply. Bet big: either it folds (and you've denied its equity), or it pays a bad price to chase. A small bet just gives the draw a fair price. Against a draw, size UP to protect.",
+  "p2-overbet-capped-range": "Villain's hand is strong enough that he'll call even an overbet — so charge him. A pot-size bet leaves value behind; the 2×-pot overbet wins the most. But there's a ceiling: bet 3× and even he folds, and you win nothing extra. Overbet as much as they'll pay, no more.",
   // P3 — multi-street lines
   "p3-value-two-streets": "Unbeatable hand, guaranteed caller: bet every street. Each street you check is money you'll never get back.",
   "p3-3bet-the-nuts": "Facing a bet with the nuts, raising (a 3-bet) builds the pot; flat-calling under-extracts. Raise for value.",
