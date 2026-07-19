@@ -1574,6 +1574,51 @@ export const STARTER_DRILLS: Drill[] = [
       abstraction: { sizes: [1.0], streets: ["river"], players: 2, heroFacesBet: 1.0, raiseCap: 1 },
     },
   },
+  // ---- P3.5 read the bet SIZE: small = bluffy (call), overbet = value (fold) ----
+  {
+    id: "p35-call-small-bet",
+    module: "P3.5",
+    title: "River decisions: a small bet with top pair",
+    read: "A small bet is cheap and often a bluff — villain fires his busted draws this size too.",
+    ask: "action",
+    // Reading the size. Hero KcQd = top pair (a bluff-catcher) on Ks 8h 3c 2d 7s. A SMALL (⅓-pot) bet
+    // comes from a bluffy range {a set (value), a busted draw QhJh (bluff)}: you beat half of it at a cheap
+    // price -> CALL (0.50). Folding over-folds; raising folds out the bluff you beat (−0.33).
+    state: {
+      heroHand: hand("Kc", "Qd"), board: hand("Ks", "8h", "3c", "2d", "7s"),
+      pot: 1, toAct: "hero",
+      villain: {
+        range: [{ combo: hand("3s", "3d"), weight: 1 }, { combo: hand("Qh", "Jh"), weight: 1 }],
+        policy: (combo: Combo) => {
+          const set = rankOf(combo[0]) === 3 || rankOf(combo[1]) === 3 || rankOf(combo[0]) === 8 || rankOf(combo[1]) === 8;
+          return [{ action: { kind: "fold" }, weight: set ? 0 : 1 }, { action: { kind: "call" }, weight: set ? 1 : 0 }];
+        },
+      },
+      abstraction: { sizes: [1.0], streets: ["river"], players: 2, heroFacesBet: 0.33, raiseCap: 1 },
+    },
+  },
+  {
+    id: "p35-fold-an-overbet",
+    module: "P3.5",
+    title: "River decisions: a big overbet with the same top pair",
+    read: "A big overbet is expensive and usually value — few players overbet as a bluff.",
+    ask: "action",
+    // SAME KcQd top pair, same board — but a 1.5x OVERBET. Big bets come from a value-heavy range {two
+    // sets, one lone bluff}: you beat only a third at a bad price -> FOLD (calling is −0.17). The size reads
+    // the range: small = bluffy (call, see p35-call-small-bet), big = strong (fold). Discrimination pair.
+    state: {
+      heroHand: hand("Kc", "Qd"), board: hand("Ks", "8h", "3c", "2d", "7s"),
+      pot: 1, toAct: "hero",
+      villain: {
+        range: [{ combo: hand("3s", "3d"), weight: 1 }, { combo: hand("8s", "8c"), weight: 1 }, { combo: hand("Qh", "Jh"), weight: 1 }],
+        policy: (combo: Combo) => {
+          const set = rankOf(combo[0]) === 3 || rankOf(combo[1]) === 3 || rankOf(combo[0]) === 8 || rankOf(combo[1]) === 8;
+          return [{ action: { kind: "fold" }, weight: set ? 0 : 1 }, { action: { kind: "call" }, weight: set ? 1 : 0 }];
+        },
+      },
+      abstraction: { sizes: [1.0], streets: ["river"], players: 2, heroFacesBet: 1.5, raiseCap: 1 },
+    },
+  },
   {
     id: "m0-read-two-pair",
     module: "M0",

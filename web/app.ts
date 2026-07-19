@@ -81,7 +81,8 @@ const humanLeak = (tag: string): string => {
 const actionLabel = (a: Action, facingBet = false): string => {
   if (a.kind !== "bet") return a.kind;
   const verb = facingBet ? "raise" : "bet";
-  return a.size === undefined ? verb : `${verb} ${a.size}`;
+  // Round to 2 dp and strip float noise (a chain-computed raise size can be 1.6600000…).
+  return a.size === undefined ? verb : `${verb} ${parseFloat(a.size.toFixed(2))}`;
 };
 
 function legalActions(d: Drill): Action[] {

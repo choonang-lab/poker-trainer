@@ -37,7 +37,7 @@ repetition) with a guided-curriculum PWA on top.
 5. **The ship checklist** (after every approved change):
    `node engine.test.ts` → both tsc checks →
    `npx -p esbuild esbuild web/app.ts --bundle --format=esm --minify --outfile=docs/app.js`
-   → bump `CACHE` in `docs/sw.js` (v35 as of this writing) → update
+   → bump `CACHE` in `docs/sw.js` (v36 as of this writing) → update
    HANDOFF.md counts → commit (message style: `feat(scope): ...` with body,
    end with the Claude co-author line) → push → poll the live site until
    `docs/app.js` byte-size matches. If GitHub Pages sticks in "building",
@@ -55,7 +55,7 @@ repetition) with a guided-curriculum PWA on top.
 
 ## State as of 2026-07 (commit 6b80618)
 
-- **429 tests passing**, both type-checks clean, deployed bundle in sync.
+- **434 tests passing**, both type-checks clean, deployed bundle in sync.
 - **Review fixes (2026-07-18, post-audit), cache v21:** (1) `m2-combo-draw`
   board was `9s 8h 2c` (an 8-out spot, 36.9%) but its title/EXPLAIN teach the
   15-out flush+open-ender combo — fixed to `9s 8s 2c` (56.3%); a learner who
@@ -80,8 +80,8 @@ repetition) with a guided-curriculum PWA on top.
   condensed vs polarized, domination), M5.6 implied odds (4 — now ALL genuine
   multi-street trees after the effective-pot fake was rebuilt as a real OESD
   implied-odds tree; a flush-draw real tree, a no-implied fold, and reverse
-  implied). **Pillar 2 audited (2026-07-18):** 30 drills (P0 ×2, P1 ×3, P2 ×6, P2.5 ×3,
-  P3 ×3, P3.4 ×3, P3.5 ×4, P4 ×2, P5 ×4) — P1 gained the AK-vs-AQ domination drill in
+  implied). **Pillar 2 audited (2026-07-18):** 32 drills (P0 ×2, P1 ×3, P2 ×6, P2.5 ×3,
+  P3 ×3, P3.4 ×3, P3.5 ×6, P4 ×2, P5 ×4) — P1 gained the AK-vs-AQ domination drill in
   Tier 5, P2 gained 4 sizing-depth drills (bet small / bet big to deny equity / overbet
   a capped range / raise-sizing), a NEW P2.5 "Taking the lead" module (c-bet / donk /
   check-raise), a NEW P3.4 "Barreling" module (value / bluff / give-up), P3 gained the
@@ -324,6 +324,18 @@ repetition) with a guided-curriculum PWA on top.
    this. Remaining gaps (true multiway, GTO, ICM, preflop 3-bet trees, scare-card
    pinning, combo-count question, effective-stack/SPR) are engine work or
    different-engine — see the "what else is missing" outline (chat) for the full map.
+15. ~~**Size-response drills (read the bet size)**~~ — DONE 2026-07-18 (cache v36,
+   434 tests). From the "addable content" tier. NOTE: M3 already teaches the POT-ODDS
+   size response for a DRAW (m3-flush-draw-call pot5/call1 → call; m3-flush-draw-fold
+   pot2/call2 → fold). The NEW part is the RANGE-driven version for a BLUFF-CATCHER,
+   added to P3.5: `p35-call-small-bet` (KcQd top pair, ⅓ bet from a bluffy range {set +
+   busted draw} → CALL 0.50) and `p35-fold-an-overbet` (SAME KcQd, 1.5× overbet from a
+   value-heavy range {2 sets + 1 bluff} → FOLD; calling is −0.17). Discrimination pair:
+   same hand, the SIZE reads the range — small = bluffy (call), big = value (fold).
+   Reuses P3.5 leaks (overfolds_the_river / pays_off_the_river). P3.5 now 6 drills.
+   ALSO fixed a UI blemish surfaced here: a chain-computed raise size rendered as
+   "raise 1.6600000000000001"; `actionLabel` now does `parseFloat(size.toFixed(2))`
+   → "raise 1.66". Browser-verified both.
 
 ## Machine-specific notes for macOS
 

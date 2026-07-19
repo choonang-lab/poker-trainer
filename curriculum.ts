@@ -302,10 +302,11 @@ export const MODULES: Module[] = [
       { term: "Bluff-catcher", def: "a medium hand that beats a bluff but loses to real value — made for calling, not raising." },
       { term: "Value raise", def: "raising a strong hand so a worse one pays you off." },
       { term: "Polarized bet", def: "a bet that's either a strong hand or a pure bluff, with little in between." },
+      { term: "Reading the size", def: "letting the bet size hint at the range — small bets are often bluffs, big overbets are usually value." },
     ],
-    objectives: ["Raise the river for value when worse hands will call", "Call as a bluff-catcher instead of raising or folding", "Fold when the betting range is all value — and tighten up multiway"],
-    example: "With top pair you call a bettor who might be bluffing — but fold in a four-way pot where the range is all value.",
-    drillIds: ["p35-river-value-raise", "p35-river-thin-value", "p35-river-bluff-catch", "p35-river-multiway-fold"],
+    objectives: ["Raise the river for value when worse hands will call", "Call as a bluff-catcher, but fold when the range is all value (multiway or a big bet)", "Let the bet size read the range: call small, fold big"],
+    example: "With top pair you call a small bet that might be a bluff — but fold the same hand to a big overbet.",
+    drillIds: ["p35-river-value-raise", "p35-river-thin-value", "p35-river-bluff-catch", "p35-river-multiway-fold", "p35-call-small-bet", "p35-fold-an-overbet"],
   },
   {
     id: "P4", track: "P2", title: "Multiway pots",
@@ -439,6 +440,8 @@ export const EXPLAIN: Record<string, string> = {
   "p35-river-thin-value": "You have two pair — a real hand — but think about what a raise accomplishes. The only hands that call a raise are the ones that beat you; the worse hands you're ahead of just fold. So raising folds out your customers and pays off the nuts. Flat-call instead: let the worse hands keep betting into you.",
   "p35-river-bluff-catch": "Your top pair can't beat a real value hand, but villain also bets his busted draws. Against a bet that's 'the nuts or nothing,' your hand only has to beat the bluffs — so call. Don't raise (you'd fold out the bluffs and get called only when beaten), and don't fold (you'd let the bluffs win).",
   "p35-river-multiway-fold": "Same top pair, same board — but now three players called ahead of the bet. A hand that keeps firing into four people is almost never bluffing; the range is all value, and your top pair beats none of it. The bluff-catch that was a call heads-up is a fold multiway. More players in the pot means a stronger range: tighten up.",
+  "p35-call-small-bet": "A small bet is cheap, and players fire this size with their busted draws as well as their winners — so your top pair only has to beat the bluffs to call profitably. Don't fold (you'd give up to a bluff), and don't raise (you'd fold out the very bluffs you beat and get called only when you're behind). Just call.",
+  "p35-fold-an-overbet": "Same hand, same board — but the size flipped the read. Almost nobody overbets a bluff; a big overbet is nearly always the goods. Now your top pair beats too little of the range to pay that price, so let it go. The lesson: read the bet size. Call the small bet (it's often a bluff), fold the overbet (it's usually value).",
   "p3-pot-control": "You have top pair — but only a so-so kicker. If you bet, the hands that call all beat you (a better kicker), while the hands you crush are nearly drawing dead and simply fold. So betting wins nothing from the weak hands and only loses to the strong ones. Checking keeps the pot small and lets your pair win a cheap showdown against the weak part of the range. That's pot control: a medium made hand often prefers a cheap showdown to building a big pot.",
   // P4 — multiway pots
   "p4-multiway-field": "Two opponents who both play the same board split the pot more ways — the field approximation drops your share of the chop to about a quarter.",

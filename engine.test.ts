@@ -815,8 +815,8 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
   ok("M4 check regret == 3 bb", approx(m4check.result.regretBb, 3), `got ${m4check.result.regretBb}`);
   ok("M4 check -> m4.misses_street_sequence", m4check.result.leakTag === "m4.misses_street_sequence");
 
-  ok("STARTER_DRILLS now spans 93 drills incl M0/M3.5/M4/M5.6/P0/P1/P2/P2.5/P3/P3.4/P3.5/P4/P5",
-    STARTER_DRILLS.length === 93 &&
+  ok("STARTER_DRILLS now spans 95 drills incl M0/M3.5/M4/M5.6/P0/P1/P2/P2.5/P3/P3.4/P3.5/P4/P5",
+    STARTER_DRILLS.length === 95 &&
     ["M0", "M3.5", "M4", "M5.6", "P0", "P1", "P3", "P4", "P5"].every((m) => STARTER_DRILLS.some((d) => d.module === m)));
 
   // Check-raise-range drill: villain raises only what beats hero (policy + raise).
@@ -884,6 +884,16 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
   // four-way (range condensed to value) — the module's multiway lesson.
   ok("river discrimination: same top pair -> call heads-up, fold multiway",
     rbest("p35-river-bluff-catch") === "call" && rbest("p35-river-multiway-fold") === "fold");
+
+  // Reading the bet SIZE: same KcQd top pair -> call a small bet (bluffy), fold a big overbet (value).
+  ok("size read: call a small bet (bluff-catch)", rbest("p35-call-small-bet") === "call");
+  ok("size read: folding the small bet -> p35.overfolds_the_river",
+    rleak("p35-call-small-bet", { kind: "fold" }) === "p35.overfolds_the_river");
+  ok("size read: fold a big overbet (value range)", rbest("p35-fold-an-overbet") === "fold");
+  ok("size read: calling the overbet -> p35.pays_off_the_river",
+    rleak("p35-fold-an-overbet", { kind: "call" }) === "p35.pays_off_the_river");
+  ok("size read discrimination: same hand -> call small, fold overbet",
+    rbest("p35-call-small-bet") === "call" && rbest("p35-fold-an-overbet") === "fold");
 
   // raiseCap 2 builds & evaluates a re-raise chain (hero re-raises villain's raise).
   const deep: State = {
