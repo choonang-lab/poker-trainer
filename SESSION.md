@@ -125,6 +125,53 @@ repetition) with a guided-curriculum PWA on top.
 - M1 "backdoor draw" stays concept-only: `outs()` is single-card-to-come by
   design; don't extend it.
 
+## Outstanding for next session (consolidated 2026-07-19)
+
+Single scan of everything still open after 19 shipped items. The numbered "Next up"
+log below is a DONE-history with declines interleaved; this section is the live to-do.
+Baseline right now: **104 drills, 18 modules, 454 tests, cache v40**, live & in sync.
+
+### A. Addable now — content-only, no engine change (pick any, each ~1 commit)
+- **More depth in any module.** The engine supports far more than is authored; every
+  new drill is content + an EXPLAIN + a leak mapping. No known gaps in *coverage*, so
+  this is polish/volume, not a hole. Good candidates if wanted: a 2nd M4.5 blocker
+  drill (board blocker vs hand blocker), more M5 range spots, more P3.4 barrel runouts.
+- **Single-combo preflop all-in (jam/fold).** The ONE tractable preflop *decision*
+  shape: `streets:["river"]` → one betting round → showdown, no CHANCE (~1s/grade,
+  verified AA vs KK → 3-bet). Owner previously SKIPPED a push/fold module as too narrow
+  (item 12) — revisit only if a preflop-decision drill is specifically wanted.
+- **512px PNG splash icon.** Skipped (SVG covers Android maskable); add only if an
+  iOS/splash icon is wanted (item 3).
+
+### B. Declined — do NOT re-investigate (engine-infeasible or a different engine)
+The fixed, app-declared villain is what makes every drill auto-gradeable; these all
+break that or need a fundamentally different solver. Logged so they aren't re-scoped.
+- **Faithful "bet flop, check turn" pot-control LINE** — needs a street-aware villain
+  + a pinned turn card; invasive core-seam surgery, big regression surface, low payoff.
+  DECLINED (item 5). The *decision* is already taught via a turn-rooted drill
+  (`p3-pot-control`), so the content exists — only the faithful two-street line is out.
+- **Preflop 3-bet MODULE (cash, with postflop play)** — a 3-bet builds a full
+  flop→turn→river tree over an unpruned preflop runout (~1.7M boards); one grade timed
+  out >2 min. Intractable → all preflop content stays estimate-only. DECLINED (item 12).
+- **Scare-card PINNING** (deterministic CHANCE node in a multi-street tree) — only adds
+  fidelity (deriving villain's turn range from flop action vs. declaring it),
+  imperceptible to a beginner. DECLINED (item 18). Scare-card *reactions* already ship
+  as turn-rooted content (`p34-scare-card-shutdown`).
+- **GTO / balance, ICM, true multiway N-player tree** — different engines. P4 multiway
+  stays a labelled field approximation on purpose (items 11–14).
+- **Effective-stack / SPR as an engine feature** — engine work, out of scope; SPR-framed
+  *content* on existing trees is fine, but a stack-depth solver is not.
+
+### C. Deferred by owner choice — do NOT re-flag
+- **2-color deck** — owner prefers the traditional red/black look (item 3). Not a bug.
+- **Red-suit contrast tweak (#d62b3a ~4.0:1)** — intentionally NOT applied to preserve
+  the card red (item 3).
+
+### D. Platform / infra (from CLAUDE.md "NEXT options")
+- **Push notifications** — iOS-limited; not started. App is otherwise feature-complete.
+- `.claude/launch.json` still has Windows paths — recreate on Mac if using the launch
+  config (a plain `python3 -m http.server` in `docs/` also works — see machine notes).
+
 ## Next up (agreed or suggested, not started)
 
 1. ~~**Pillar 2 audit (P0–P5)**~~ — DONE 2026-07-18 (see "State as of" above).
