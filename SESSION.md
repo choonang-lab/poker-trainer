@@ -273,12 +273,28 @@ repetition) with a guided-curriculum PWA on top.
    one test that pinned the old label. KEY ENABLER for future sizing/exploit content:
    a size-dependent villain IS expressible — `policy(combo, state)` gets `state.pot`,
    so "calls small, folds big" is authorable. Browser-verified on mobile.
-   REMAINING from the "what decisions are missing" analysis: raise-SIZING choice
-   (needs a contained engine change — raiseNode emits one pot-sized raise), a preflop
-   DECISION module (open/3-bet/fold; ~3s/grade cost), c-bet/check-raise/donk drills
-   (engine supports them — content only). GTO/balance, ICM, true multiway = different
-   engines, out of scope by design (the fixed app-declared villain is what makes
-   everything auto-gradeable).
+   FROM the "what decisions are missing" analysis: raise-SIZING choice is now DONE
+   (see item 12); c-bet/check-raise/donk drills remain addable (engine supports them —
+   content only). GTO/balance, ICM, true multiway = different engines, out of scope by
+   design (the fixed app-declared villain is what makes everything auto-gradeable).
+12. **Raise sizing — DONE; preflop 3-bet module — DECLINED (infeasible), 2026-07-18.**
+   RAISE SIZING (cache v33, 417 tests): added `Abstraction.raiseSizes` (hero's
+   raise-size choices as multipliers on the pot-sized raise; default [1.0] is
+   byte-identical, so backward-compatible — all raise/re-raise drills unchanged).
+   `raiseNode` loops over them for hero; villain raises stay pot-sized. Drill
+   `p2-raise-sizing` (AsTs royal facing a pot bet, choose the 3-bet size: 1.5/3.0/6.0
+   → best 3.0, the biggest the villain calls; 6.0 folds him). This is a REUSABLE
+   engine capability for any "how big to raise" content.
+   PREFLOP 3-BET MODULE: DECLINED as engine-infeasible. A 3-bet has postflop play, so
+   the engine builds a full flop→turn→river tree; over a PREFLOP runout (no board to
+   prune ~1.7M boards) it is intractable — a single grade TIMED OUT at >2 min. This is
+   WHY all preflop content is estimate-only (single equity enums). What IS tractable:
+   call-or-fold a SHOVE vs a range (~5s/grade — balloons the suite) or single-combo
+   jam/fold all-in (~1s/grade, verified: AA vs KK → 3-bet). Owner chose to SKIP the
+   push/fold module (too narrow vs the cash 3-bet lines that can't be built). So the
+   preflop 3-bet tree joins GTO/ICM/true-multiway on the "different engine, out of
+   scope" list. If ever revisited, the only cheap preflop-decision shape is
+   single-combo all-in (streets:["river"] → one betting round → showdown, no CHANCE).
 
 ## Machine-specific notes for macOS
 
