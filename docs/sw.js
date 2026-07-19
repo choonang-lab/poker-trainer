@@ -1,6 +1,6 @@
 // Cache-first service worker for the app shell (the trainer is fully client-side,
 // so once cached it runs offline). Bump CACHE to ship an update.
-const CACHE = "poker-trainer-v29";
+const CACHE = "poker-trainer-v30";
 const SHELL = [
   "./", "./index.html", "./styles.css", "./manifest.webmanifest",
   "./icon.svg", "./icon-180.png", "./icon-192.png", "./app.js",

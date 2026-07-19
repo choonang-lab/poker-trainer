@@ -269,6 +269,19 @@ export const MODULES: Module[] = [
     drillIds: ["p3-value-two-streets", "p3-3bet-the-nuts", "p3-pot-control"],
   },
   {
+    id: "P3.5", track: "P2", title: "River decisions",
+    preface: "On the river the cards are done — your hand can't change. Every bet now asks one question: do you hold the best hand? Raise when worse hands still pay, call to catch bluffs, and fold when the betting only comes from better.",
+    concepts: [
+      { term: "River", def: "the fifth and final shared card — no more cards come, so hands are final." },
+      { term: "Bluff-catcher", def: "a medium hand that beats a bluff but loses to real value — made for calling, not raising." },
+      { term: "Value raise", def: "raising a strong hand so a worse one pays you off." },
+      { term: "Polarized bet", def: "a bet that's either a strong hand or a pure bluff, with little in between." },
+    ],
+    objectives: ["Raise the river for value when worse hands will call", "Call as a bluff-catcher instead of raising or folding", "Fold when the betting range is all value — and tighten up multiway"],
+    example: "With top pair you call a bettor who might be bluffing — but fold in a four-way pot where the range is all value.",
+    drillIds: ["p35-river-value-raise", "p35-river-thin-value", "p35-river-bluff-catch", "p35-river-multiway-fold"],
+  },
+  {
     id: "P4", track: "P2", title: "Multiway pots",
     preface: "Pots with three or more players are different: to win you must beat everyone, so hands need to be stronger. (The field is modeled as an approximation.)",
     concepts: [
@@ -386,6 +399,10 @@ export const EXPLAIN: Record<string, string> = {
   // P3 — multi-street lines
   "p3-value-two-streets": "Unbeatable hand, guaranteed caller: bet every street. Each street you check is money you'll never get back.",
   "p3-3bet-the-nuts": "Facing a bet with the nuts, raising (a 3-bet) builds the pot; flat-calling under-extracts. Raise for value.",
+  "p35-river-value-raise": "You have a set on the final board, and villain is betting a worse hand that will pay you off. Just calling leaves money behind — raise to get that extra value now, because there are no more streets to bet.",
+  "p35-river-thin-value": "You have two pair — a real hand — but think about what a raise accomplishes. The only hands that call a raise are the ones that beat you; the worse hands you're ahead of just fold. So raising folds out your customers and pays off the nuts. Flat-call instead: let the worse hands keep betting into you.",
+  "p35-river-bluff-catch": "Your top pair can't beat a real value hand, but villain also bets his busted draws. Against a bet that's 'the nuts or nothing,' your hand only has to beat the bluffs — so call. Don't raise (you'd fold out the bluffs and get called only when beaten), and don't fold (you'd let the bluffs win).",
+  "p35-river-multiway-fold": "Same top pair, same board — but now three players called ahead of the bet. A hand that keeps firing into four people is almost never bluffing; the range is all value, and your top pair beats none of it. The bluff-catch that was a call heads-up is a fold multiway. More players in the pot means a stronger range: tighten up.",
   "p3-pot-control": "You have top pair — but only a so-so kicker. If you bet, the hands that call all beat you (a better kicker), while the hands you crush are nearly drawing dead and simply fold. So betting wins nothing from the weak hands and only loses to the strong ones. Checking keeps the pot small and lets your pair win a cheap showdown against the weak part of the range. That's pot control: a medium made hand often prefers a cheap showdown to building a big pot.",
   // P4 — multiway pots
   "p4-multiway-field": "Two opponents who both play the same board split the pot more ways — the field approximation drops your share of the chop to about a quarter.",

@@ -1000,6 +1000,10 @@ const LEAK_TABLE: Record<string, string> = {
   "P3:missed_bet": "p3.misses_multistreet_value",
   "P3:overbet": "p3.overbets_multistreet",
   "P3:passive": "p3.flats_instead_of_raising",
+  "P3.5:passive": "p35.flats_a_value_raise",
+  "P3.5:overbet": "p35.raises_into_better",
+  "P3.5:overfold": "p35.overfolds_the_river",
+  "P3.5:spew": "p35.pays_off_the_river",
   "P4:overestimate": "p4.overrates_field",
   "P4:underestimate": "p4.underrates_field",
   "P5:missed_bet": "p5.misses_exploit",
@@ -1461,6 +1465,95 @@ export const STARTER_DRILLS: Drill[] = [
         },
       },
       abstraction: { sizes: [1.0], streets: ["turn"], players: 2 },
+    },
+  },
+  // ---- P3.5 River decisions: call/raise/fold on a final board (heroFacesBet) ----
+  {
+    id: "p35-river-value-raise",
+    module: "P3.5",
+    title: "River decisions: a strong hand facing a bet",
+    read: "Villain bets a hand you beat and will call a raise.",
+    ask: "action",
+    // Hero 9h9s = a set of nines on Ac 9d 4s 2c 7h (river, hand is final). Villain
+    // bets a worse hand (AK, top pair) and pays off a raise. Raising (EV 5) beats
+    // flat-calling (EV 2): on the river, raise your strong hands for value.
+    state: {
+      heroHand: hand("9h", "9s"), board: hand("Ac", "9d", "4s", "2c", "7h"),
+      pot: 1, toAct: "hero",
+      villain: {
+        range: [{ combo: hand("Ah", "Kd"), weight: 1 }],
+        policy: (_combo: Combo) => [{ action: { kind: "fold" }, weight: 0 }, { action: { kind: "call" }, weight: 1 }],
+      },
+      abstraction: { sizes: [1.0], streets: ["river"], players: 2, heroFacesBet: 1.0, raiseCap: 1 },
+    },
+  },
+  {
+    id: "p35-river-thin-value",
+    module: "P3.5",
+    title: "River decisions: two pair facing a bet",
+    read: "Villain bets some hands you beat and some you don't; only the better ones call a raise.",
+    ask: "action",
+    // Hero As9s = two pair (aces & nines). Villain bets {7s7c set (beats you), AhKd
+    // top pair (you beat)}, but calls a raise only with the set. Raising folds out the
+    // worse hand and gets called only by the better one (EV -1); just CALL (EV 0.5) to
+    // keep the worse value in. A value hand, but raising is too thin. p35.raises_into_better.
+    state: {
+      heroHand: hand("As", "9s"), board: hand("Ac", "9d", "4s", "2c", "7h"),
+      pot: 1, toAct: "hero",
+      villain: {
+        range: [{ combo: hand("7s", "7c"), weight: 1 }, { combo: hand("Ah", "Kd"), weight: 1 }],
+        policy: (combo: Combo) => {
+          const set = rankOf(combo[0]) === 7 || rankOf(combo[1]) === 7;
+          return [{ action: { kind: "fold" }, weight: set ? 0 : 1 },
+                  { action: { kind: "call" }, weight: set ? 1 : 0 }];
+        },
+      },
+      abstraction: { sizes: [1.0], streets: ["river"], players: 2, heroFacesBet: 1.0, raiseCap: 1 },
+    },
+  },
+  {
+    id: "p35-river-bluff-catch",
+    module: "P3.5",
+    title: "River decisions: top pair facing a bet",
+    read: "Villain bets his big hands AND his busted draws.",
+    ask: "action",
+    // Hero AsKd = top pair aces. Villain bets a POLARIZED range {9h9s set (value),
+    // KcQc busted draw (a bluff)}. Calling catches the bluff and shows down (EV 0.5);
+    // raising folds the bluff and is called only by the set (EV -1); folding gives up
+    // vs the bluff. Bluff-catch = CALL. p35.overfolds_the_river / p35.raises_into_better.
+    state: {
+      heroHand: hand("As", "Kd"), board: hand("Ac", "9d", "4s", "2c", "7h"),
+      pot: 1, toAct: "hero",
+      villain: {
+        range: [{ combo: hand("9h", "9s"), weight: 1 }, { combo: hand("Kc", "Qc"), weight: 1 }],
+        policy: (combo: Combo) => {
+          const set = rankOf(combo[0]) === 9 || rankOf(combo[1]) === 9;
+          return [{ action: { kind: "fold" }, weight: set ? 0 : 1 },
+                  { action: { kind: "call" }, weight: set ? 1 : 0 }];
+        },
+      },
+      abstraction: { sizes: [1.0], streets: ["river"], players: 2, heroFacesBet: 1.0, raiseCap: 1 },
+    },
+  },
+  {
+    id: "p35-river-multiway-fold",
+    module: "P3.5",
+    title: "River decisions: top pair in a four-way pot",
+    read: "Three others already called this bet; a range that keeps firing four-way is all value.",
+    ask: "action",
+    // SAME top pair (AsKd) and board as the bluff-catch — but the read makes it a
+    // four-way pot, so the range is CONDENSED to value (two sets + a two pair), no
+    // bluffs. Now calling loses (EV -1) and folding (EV 0) is best. The discrimination
+    // contrast with p35-river-bluff-catch: same hand, stronger range -> call becomes
+    // fold. Multiway, tighten your bluff-catches. Calling is p35.pays_off_the_river.
+    state: {
+      heroHand: hand("As", "Kd"), board: hand("Ac", "9d", "4s", "2c", "7h"),
+      pot: 1, toAct: "hero",
+      villain: {
+        range: [{ combo: hand("9h", "9s"), weight: 1 }, { combo: hand("4h", "4d"), weight: 1 }, { combo: hand("Ah", "9c"), weight: 1 }],
+        policy: (_combo: Combo) => [{ action: { kind: "fold" }, weight: 0 }, { action: { kind: "call" }, weight: 1 }],
+      },
+      abstraction: { sizes: [1.0], streets: ["river"], players: 2, heroFacesBet: 1.0, raiseCap: 1 },
     },
   },
   {

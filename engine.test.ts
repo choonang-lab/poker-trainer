@@ -815,8 +815,8 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
   ok("M4 check regret == 3 bb", approx(m4check.result.regretBb, 3), `got ${m4check.result.regretBb}`);
   ok("M4 check -> m4.misses_street_sequence", m4check.result.leakTag === "m4.misses_street_sequence");
 
-  ok("STARTER_DRILLS now spans 79 drills incl M0/M3.5/M4/M5.6/P0/P1/P3/P4/P5",
-    STARTER_DRILLS.length === 79 &&
+  ok("STARTER_DRILLS now spans 83 drills incl M0/M3.5/M4/M5.6/P0/P1/P3/P3.5/P4/P5",
+    STARTER_DRILLS.length === 83 &&
     ["M0", "M3.5", "M4", "M5.6", "P0", "P1", "P3", "P4", "P5"].every((m) => STARTER_DRILLS.some((d) => d.module === m)));
 
   // Check-raise-range drill: villain raises only what beats hero (policy + raise).
@@ -860,6 +860,30 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
   ok("3-bet: flatting the nuts -> p3.flats_instead_of_raising (regret 3)",
     flat.result.regretBb === 3 && flat.result.leakTag === "p3.flats_instead_of_raising",
     `${flat.result.regretBb} ${flat.result.leakTag}`);
+
+  // P3.5 River decisions: raise / call-thin / call-bluffcatch / fold-multiway, each
+  // graded through the heroFacesBet river tree; wrong actions map to p35.* leaks.
+  const rbest = (id: string): string => bestAction(buildTree(byId(id).state)).kind;
+  const rleak = (id: string, a: Action): string =>
+    gradeDrill(session, id, { kind: "action", action: a }, 0).result.leakTag;
+  // the raise action in a heroFacesBet tree carries a chain-computed size, not 1.0.
+  const raiseOf = (id: string): Action => actionEVs(buildTree(byId(id).state)).find((e) => e.action.kind === "bet")!.action;
+  ok("river value-raise: best is raise", rbest("p35-river-value-raise") === "bet");
+  ok("river value-raise: flatting -> p35.flats_a_value_raise",
+    rleak("p35-river-value-raise", { kind: "call" }) === "p35.flats_a_value_raise");
+  ok("river thin-value: best is call (raising is too thin)", rbest("p35-river-thin-value") === "call");
+  ok("river thin-value: raising -> p35.raises_into_better",
+    rleak("p35-river-thin-value", raiseOf("p35-river-thin-value")) === "p35.raises_into_better");
+  ok("river bluff-catch: best is call", rbest("p35-river-bluff-catch") === "call");
+  ok("river bluff-catch: folding -> p35.overfolds_the_river",
+    rleak("p35-river-bluff-catch", { kind: "fold" }) === "p35.overfolds_the_river");
+  ok("river multiway: best is fold (condensed range)", rbest("p35-river-multiway-fold") === "fold");
+  ok("river multiway: calling -> p35.pays_off_the_river",
+    rleak("p35-river-multiway-fold", { kind: "call" }) === "p35.pays_off_the_river");
+  // The discrimination: SAME hero hand (AsKd top pair) is a CALL heads-up but a FOLD
+  // four-way (range condensed to value) — the module's multiway lesson.
+  ok("river discrimination: same top pair -> call heads-up, fold multiway",
+    rbest("p35-river-bluff-catch") === "call" && rbest("p35-river-multiway-fold") === "fold");
 
   // raiseCap 2 builds & evaluates a re-raise chain (hero re-raises villain's raise).
   const deep: State = {

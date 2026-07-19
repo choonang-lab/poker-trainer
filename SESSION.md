@@ -37,7 +37,7 @@ repetition) with a guided-curriculum PWA on top.
 5. **The ship checklist** (after every approved change):
    `node engine.test.ts` → both tsc checks →
    `npx -p esbuild esbuild web/app.ts --bundle --format=esm --minify --outfile=docs/app.js`
-   → bump `CACHE` in `docs/sw.js` (v29 as of this writing) → update
+   → bump `CACHE` in `docs/sw.js` (v30 as of this writing) → update
    HANDOFF.md counts → commit (message style: `feat(scope): ...` with body,
    end with the Claude co-author line) → push → poll the live site until
    `docs/app.js` byte-size matches. If GitHub Pages sticks in "building",
@@ -55,7 +55,7 @@ repetition) with a guided-curriculum PWA on top.
 
 ## State as of 2026-07 (commit 6b80618)
 
-- **397 tests passing**, both type-checks clean, deployed bundle in sync.
+- **406 tests passing**, both type-checks clean, deployed bundle in sync.
 - **Review fixes (2026-07-18, post-audit), cache v21:** (1) `m2-combo-draw`
   board was `9s 8h 2c` (an 8-out spot, 36.9%) but its title/EXPLAIN teach the
   15-out flush+open-ender combo — fixed to `9s 8s 2c` (56.3%); a learner who
@@ -80,10 +80,11 @@ repetition) with a guided-curriculum PWA on top.
   condensed vs polarized, domination), M5.6 implied odds (4 — now ALL genuine
   multi-street trees after the effective-pot fake was rebuilt as a real OESD
   implied-odds tree; a flush-draw real tree, a no-implied fold, and reverse
-  implied). **Pillar 2 audited (2026-07-18):** 16 drills (P0 ×2, P1 ×3, P2 ×2,
-  P3 ×3, P4 ×2, P5 ×4) — P1 gained the AK-vs-AQ domination drill in Tier 5, P3
-  gained the `p3-pot-control` check-the-turn drill, and Tier-2 moved the semi-bluff
-  `p2-bet-or-check` to M3.5. Every best action /
+  implied). **Pillar 2 audited (2026-07-18):** 20 drills (P0 ×2, P1 ×3, P2 ×2,
+  P3 ×3, P3.5 ×4, P4 ×2, P5 ×4) — P1 gained the AK-vs-AQ domination drill in Tier 5,
+  P3 gained the `p3-pot-control` check-the-turn drill, a NEW P3.5 "River decisions"
+  module (raise / call-thin / bluff-catch / multiway-fold) was added, and Tier-2
+  moved the semi-bluff `p2-bet-or-check` to M3.5. Every best action /
   equity re-verified against the
   engine (all correct); de-spoiled the leaky action-drill titles; added a
   villain `read:` to all 10 action drills and EXPLAIN text to every P-drill;
@@ -230,6 +231,27 @@ repetition) with a guided-curriculum PWA on top.
    against the engine before authoring; browser-verified (check → "Optimal.", the
    made-hand highlight rings the pair). Only remaining idea: the faithful two-street
    pot-control LINE (item 5), DECLINED as not worth the engine surgery.
+10. ~~**River decisions module (P3.5)**~~ — DONE 2026-07-18 (cache v30, 406 tests).
+   NEW module inserted after P3 (decimal-insertion like M3.5/M5.6): river call/raise/
+   fold, all heads-up `heroFacesBet` river trees (streets ["river"], raiseCap 1). 4
+   drills, each verified against the engine before authoring, all on Ac 9d 4s 2c 7h:
+   (1) `p35-river-value-raise` — 9h9s set vs a bettor with worse (AK); raise 5 > call
+   2 → RAISE. (2) `p35-river-thin-value` — As9s two pair vs {7s7c set, AhKd TP}; a
+   raise folds the worse hand and is called only by the set (−1) → CALL (0.5). (3)
+   `p35-river-bluff-catch` — AsKd top pair vs a POLARIZED {set, busted KcQc}; CALL to
+   catch the bluff. (4) `p35-river-multiway-fold` — SAME AsKd, but `read` = four-way
+   so the range is condensed to value (no bluffs) → FOLD. Discrimination contrasts:
+   (1 vs 2) raise vs call for value hands; (3 vs 4) same hand → call heads-up, fold
+   multiway (THE multiway lesson, via a heads-up-vs-condensed-range tree — no true
+   N-player tree needed, consistent with P4's labelled approximation). Added 4 P3.5
+   leak mappings (`p35.flats_a_value_raise` / `raises_into_better` / `overfolds_the_
+   river` / `pays_off_the_river`). Watch-out: in a heroFacesBet tree the raise action
+   carries a CHAIN-COMPUTED size (shows as "bet 3" in the UI, like p3-3bet-the-nuts),
+   NOT `{bet,size:1}` — grade the actual action from `actionEVs`, don't hardcode it.
+   Browser-verified on mobile: P3.5 shows on the map between P3 and P4; value-raise →
+   raise "Optimal.", multiway → fold "Optimal.". This was the "4 villains + river"
+   idea, delivered as the pragmatic heads-up-vs-condensed-range approximation (a true
+   multiway betting tree stays engine-forbidden by the Tier-4 guard, by design).
 
 ## Machine-specific notes for macOS
 
