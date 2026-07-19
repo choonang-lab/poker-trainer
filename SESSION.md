@@ -37,7 +37,7 @@ repetition) with a guided-curriculum PWA on top.
 5. **The ship checklist** (after every approved change):
    `node engine.test.ts` → both tsc checks →
    `npx -p esbuild esbuild web/app.ts --bundle --format=esm --minify --outfile=docs/app.js`
-   → bump `CACHE` in `docs/sw.js` (v33 as of this writing) → update
+   → bump `CACHE` in `docs/sw.js` (v34 as of this writing) → update
    HANDOFF.md counts → commit (message style: `feat(scope): ...` with body,
    end with the Claude co-author line) → push → poll the live site until
    `docs/app.js` byte-size matches. If GitHub Pages sticks in "building",
@@ -55,7 +55,7 @@ repetition) with a guided-curriculum PWA on top.
 
 ## State as of 2026-07 (commit 6b80618)
 
-- **417 tests passing**, both type-checks clean, deployed bundle in sync.
+- **423 tests passing**, both type-checks clean, deployed bundle in sync.
 - **Review fixes (2026-07-18, post-audit), cache v21:** (1) `m2-combo-draw`
   board was `9s 8h 2c` (an 8-out spot, 36.9%) but its title/EXPLAIN teach the
   15-out flush+open-ender combo — fixed to `9s 8s 2c` (56.3%); a learner who
@@ -80,12 +80,12 @@ repetition) with a guided-curriculum PWA on top.
   condensed vs polarized, domination), M5.6 implied odds (4 — now ALL genuine
   multi-street trees after the effective-pot fake was rebuilt as a real OESD
   implied-odds tree; a flush-draw real tree, a no-implied fold, and reverse
-  implied). **Pillar 2 audited (2026-07-18):** 24 drills (P0 ×2, P1 ×3, P2 ×6,
-  P3 ×3, P3.5 ×4, P4 ×2, P5 ×4) — P1 gained the AK-vs-AQ domination drill in Tier 5,
-  P2 gained 4 sizing-depth drills (bet small for thin value / bet big to deny equity
-  / overbet a capped range / raise-sizing), P3 gained the `p3-pot-control` check-the-turn drill, a
-  NEW P3.5 "River decisions" module was added, and Tier-2 moved the semi-bluff
-  `p2-bet-or-check` to M3.5. Every best action /
+  implied). **Pillar 2 audited (2026-07-18):** 27 drills (P0 ×2, P1 ×3, P2 ×6,
+  P2.5 ×3, P3 ×3, P3.5 ×4, P4 ×2, P5 ×4) — P1 gained the AK-vs-AQ domination drill in
+  Tier 5, P2 gained 4 sizing-depth drills (bet small / bet big to deny equity / overbet
+  a capped range / raise-sizing), a NEW P2.5 "Taking the lead" module (c-bet / donk /
+  check-raise) was added, P3 gained the `p3-pot-control` drill, a NEW P3.5 "River
+  decisions" module was added, and Tier-2 moved the semi-bluff `p2-bet-or-check` to M3.5. Every best action /
   equity re-verified against the
   engine (all correct); de-spoiled the leaky action-drill titles; added a
   villain `read:` to all 10 action drills and EXPLAIN text to every P-drill;
@@ -295,6 +295,20 @@ repetition) with a guided-curriculum PWA on top.
    preflop 3-bet tree joins GTO/ICM/true-multiway on the "different engine, out of
    scope" list. If ever revisited, the only cheap preflop-decision shape is
    single-combo all-in (streets:["river"] → one betting round → showdown, no CHANCE).
+13. ~~**Addable named-play drills (c-bet / donk / check-raise)**~~ — DONE 2026-07-18
+   (cache v34, 423 tests). NEW module **P2.5 "Taking the lead"** (postflop initiative),
+   inserted after P2. All content-only (no engine change — the engine already supports
+   these), each verified: (1) `p25-cbet` — AsKs TPTK on Ah8c3d, villain calls a worse
+   ace / folds a miss → BET (1.22 > check 0.91): continuation bet. (2) `p25-donk-lead`
+   — 9s8s flopped straight on 7h6d5c, lead OOP → BET (0.94 > 0.80): donk a board that
+   smashes your hand. (3) `p25-check-raise` — 7s7d bottom set on 7hKc2d facing a c-bet
+   (heroFacesBet 0.75) → RAISE (2.80 > call 1.59): check-raise the monster. Added P2.5
+   leak mappings (checks_instead_of_betting / flats_instead_of_raising / overfolds).
+   Browser-verified: P2.5 on the map after P2; c-bet → "bet 0.75" Optimal, check-raise
+   → "raise 2.5" Optimal (the raise-label polish makes the check-raise read cleanly).
+   This clears the last "addable content" item from the decisions-coverage analysis.
+   Everything remaining (raise-size UI beyond, true multiway, GTO, ICM, preflop 3-bet,
+   scare-card pinning) is engine work / different-engine, out of scope by design.
 
 ## Machine-specific notes for macOS
 

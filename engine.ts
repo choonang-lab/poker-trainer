@@ -1010,6 +1010,9 @@ const LEAK_TABLE: Record<string, string> = {
   "P2:underbet": "p2.bets_too_small",
   "P2:overbet": "p2.bets_too_big",
   "P2:passive": "p2.flats_instead_of_raising",
+  "P2.5:missed_bet": "p25.checks_instead_of_betting",
+  "P2.5:passive": "p25.flats_instead_of_raising",
+  "P2.5:overfold": "p25.overfolds",
   "P3:missed_bet": "p3.misses_multistreet_value",
   "P3:overbet": "p3.overbets_multistreet",
   "P3:passive": "p3.flats_instead_of_raising",
@@ -2181,6 +2184,72 @@ export const STARTER_DRILLS: Drill[] = [
         },
       },
       abstraction: { sizes: [1.0], streets: ["turn"], players: 2, heroFacesBet: 1.0, raiseCap: 1, raiseSizes: [0.5, 1.0, 2.0] },
+    },
+  },
+  // ---- P2.5 Taking the lead: continuation bet, donk lead, check-raise ----
+  {
+    id: "p25-cbet",
+    module: "P2.5",
+    title: "Taking the lead: top pair after you raised before the flop",
+    read: "You raised before the flop and villain called. He continues with a worse ace but folds his missed hands.",
+    ask: "action",
+    // Continuation bet. Hero AsKs = top pair top kicker on Ah 8c 3d. Villain calls a c-bet with a worse
+    // ace (Ad9h) and folds a missed draw (KhQh) -> betting gets value AND fold equity; checking (0.905)
+    // gives up both. Bet (1.216) is best: keep the lead you took preflop.
+    state: {
+      heroHand: hand("As", "Ks"), board: hand("Ah", "8c", "3d"),
+      pot: 1, toAct: "hero",
+      villain: {
+        range: [{ combo: hand("Ad", "9h"), weight: 1 }, { combo: hand("Kh", "Qh"), weight: 1 }],
+        policy: (combo: Combo) => {
+          const ace = rankOf(combo[0]) === 14 || rankOf(combo[1]) === 14;
+          return [{ action: { kind: "fold" }, weight: ace ? 0 : 1 }, { action: { kind: "call" }, weight: ace ? 1 : 0 }];
+        },
+      },
+      abstraction: { sizes: [0.75], streets: ["flop"], players: 2 },
+    },
+  },
+  {
+    id: "p25-donk-lead",
+    module: "P2.5",
+    title: "Taking the lead: a board that smashes your hand, out of position",
+    read: "Villain raised before the flop; normally you'd check to him — but this board hit YOUR hand hard.",
+    ask: "action",
+    // Donk (lead out of position). Hero 9s8s flopped a straight on 7h 6d 5c. Rather than check to the
+    // preflop raiser, lead: a set (77) pays off, overcards (KhQh) fold. Bet (0.939) beats check (0.801).
+    state: {
+      heroHand: hand("9s", "8s"), board: hand("7h", "6d", "5c"),
+      pot: 1, toAct: "hero",
+      villain: {
+        range: [{ combo: hand("7s", "7d"), weight: 1 }, { combo: hand("Kh", "Qh"), weight: 1 }],
+        policy: (combo: Combo) => {
+          const set = rankOf(combo[0]) === 7 || rankOf(combo[1]) === 7;
+          return [{ action: { kind: "fold" }, weight: set ? 0 : 1 }, { action: { kind: "call" }, weight: set ? 1 : 0 }];
+        },
+      },
+      abstraction: { sizes: [0.75], streets: ["flop"], players: 2 },
+    },
+  },
+  {
+    id: "p25-check-raise",
+    module: "P2.5",
+    title: "Taking the lead: a hidden monster facing a bet",
+    read: "You checked; villain (the preflop raiser) bet his top pair. He'll pay off a raise.",
+    ask: "action",
+    // Check-raise. Hero 7s7d = bottom set on 7h Kc 2d. You checked to induce; villain c-bets his top pair
+    // (KhQh, calls a raise) while a bluff (JhTh) folds. Raising (2.80) beats flatting (1.59): check-raise the
+    // set to build the pot now.
+    state: {
+      heroHand: hand("7s", "7d"), board: hand("7h", "Kc", "2d"),
+      pot: 1, toAct: "hero",
+      villain: {
+        range: [{ combo: hand("Kh", "Qh"), weight: 1 }, { combo: hand("Jh", "Th"), weight: 1 }],
+        policy: (combo: Combo) => {
+          const king = rankOf(combo[0]) === 13 || rankOf(combo[1]) === 13;
+          return [{ action: { kind: "fold" }, weight: king ? 0 : 1 }, { action: { kind: "call" }, weight: king ? 1 : 0 }];
+        },
+      },
+      abstraction: { sizes: [1.0], streets: ["flop"], players: 2, heroFacesBet: 0.75, raiseCap: 1 },
     },
   },
   {

@@ -256,6 +256,19 @@ export const MODULES: Module[] = [
     drillIds: ["p2-size-up-nuts", "p2-thin-value", "p2-bet-small-thin-value", "p2-bet-big-deny-equity", "p2-overbet-capped-range", "p2-raise-sizing"],
   },
   {
+    id: "P2.5", track: "P2", title: "Taking the lead",
+    preface: "Whoever bets applies the pressure. After the flop you can keep the lead you took before it (a continuation bet), grab it out of position (a donk bet), or check and then raise when they bet (a check-raise).",
+    concepts: [
+      { term: "Continuation bet (c-bet)", def: "betting the flop after you were the one who raised before it — continuing the pressure." },
+      { term: "Donk bet", def: "leading out (betting first) into the player who raised, instead of the usual check to them." },
+      { term: "Check-raise", def: "checking, then raising when your opponent bets — to trap a strong hand or bluff." },
+      { term: "Initiative", def: "being the one doing the betting; the bettor can win by making the other hand fold." },
+    ],
+    objectives: ["Continuation-bet when you have equity and fold equity", "Lead (donk) when the board hits your hand", "Check-raise a strong hand to build the pot"],
+    example: "You raised preflop and flopped top pair — bet again (a c-bet) to keep the pressure on.",
+    drillIds: ["p25-cbet", "p25-donk-lead", "p25-check-raise"],
+  },
+  {
     id: "P3", track: "P2", title: "Multi-street lines",
     preface: "Big pots are built (or lost) over several streets and raises. Plan the whole line — and don't just flat when raising for value is better.",
     concepts: [
@@ -399,6 +412,9 @@ export const EXPLAIN: Record<string, string> = {
   "p2-bet-small-thin-value": "The hands you beat will pay a small bet but fold a big one — so bet small and keep them in. A pot-size bet folds out your customers and gets called only by the one hand that beats you. With a thin value hand, size DOWN.",
   "p2-bet-big-deny-equity": "Your overpair is well ahead now, but the flush draw gets to improve if you let it in cheaply. Bet big: either it folds (and you've denied its equity), or it pays a bad price to chase. A small bet just gives the draw a fair price. Against a draw, size UP to protect.",
   "p2-overbet-capped-range": "Villain's hand is strong enough that he'll call even an overbet — so charge him. A pot-size bet leaves value behind; the 2×-pot overbet wins the most. But there's a ceiling: bet 3× and even he folds, and you win nothing extra. Overbet as much as they'll pay, no more.",
+  "p25-cbet": "You raised before the flop and hit top pair — keep the lead with a continuation bet. Worse aces pay you off, and the hands that missed fold to the pressure. Checking gives up both the value and the fold equity a bet would win.",
+  "p25-donk-lead": "Usually you check to the player who raised — but this board (7-6-5) smashed YOUR hand, giving you a straight, and misses most of his. So lead out (a 'donk' bet): his sets pay you, his overcards fold. Leading a board that favors your hand beats a passive check.",
+  "p25-check-raise": "You flopped a hidden monster (bottom set) and checked to let the preflop raiser bet — and he did, with top pair. Now spring the trap: check-RAISE. His top pair pays off the raise, so build the pot now while he's willing to put money in. Just calling lets him off cheap.",
   "p2-raise-sizing": "It's not just whether to raise — it's how much. You have the nuts, so you want max value, but a giant raise scares even a strong villain into folding, and then you win nothing extra. A small raise under-charges him; the pot-size raise gets the most in while he still calls. Raise as big as they'll pay off, not bigger.",
   // P3 — multi-street lines
   "p3-value-two-streets": "Unbeatable hand, guaranteed caller: bet every street. Each street you check is money you'll never get back.",

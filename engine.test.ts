@@ -815,8 +815,8 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
   ok("M4 check regret == 3 bb", approx(m4check.result.regretBb, 3), `got ${m4check.result.regretBb}`);
   ok("M4 check -> m4.misses_street_sequence", m4check.result.leakTag === "m4.misses_street_sequence");
 
-  ok("STARTER_DRILLS now spans 87 drills incl M0/M3.5/M4/M5.6/P0/P1/P2/P3/P3.5/P4/P5",
-    STARTER_DRILLS.length === 87 &&
+  ok("STARTER_DRILLS now spans 90 drills incl M0/M3.5/M4/M5.6/P0/P1/P2/P2.5/P3/P3.5/P4/P5",
+    STARTER_DRILLS.length === 90 &&
     ["M0", "M3.5", "M4", "M5.6", "P0", "P1", "P3", "P4", "P5"].every((m) => STARTER_DRILLS.some((d) => d.module === m)));
 
   // Check-raise-range drill: villain raises only what beats hero (policy + raise).
@@ -936,6 +936,17 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
     gradeDrill(session, "p2-raise-sizing", { kind: "action", action: { kind: "bet", size: 6.0 } }, 0).result.leakTag === "p2.bets_too_big");
   ok("raise sizing: flatting the nuts -> p2.flats_instead_of_raising",
     gradeDrill(session, "p2-raise-sizing", { kind: "action", action: { kind: "call" } }, 0).result.leakTag === "p2.flats_instead_of_raising");
+
+  // P2.5 Taking the lead: c-bet, donk lead (both bet best), and check-raise (raise best).
+  ok("c-bet: betting is best", bestSz("p25-cbet") === "bet0.75");
+  ok("c-bet: checking -> p25.checks_instead_of_betting",
+    gradeDrill(session, "p25-cbet", { kind: "action", action: { kind: "check" } }, 0).result.leakTag === "p25.checks_instead_of_betting");
+  ok("donk lead: betting is best", bestSz("p25-donk-lead") === "bet0.75");
+  ok("donk lead: checking -> p25.checks_instead_of_betting",
+    gradeDrill(session, "p25-donk-lead", { kind: "action", action: { kind: "check" } }, 0).result.leakTag === "p25.checks_instead_of_betting");
+  ok("check-raise: raising is best", bestAction(buildTree(byId("p25-check-raise").state)).kind === "bet");
+  ok("check-raise: flatting -> p25.flats_instead_of_raising",
+    gradeDrill(session, "p25-check-raise", { kind: "action", action: { kind: "call" } }, 0).result.leakTag === "p25.flats_instead_of_raising");
 
   // Added module depth: M2 big-draw, M5 wider range (cheap), P1 race (preflop).
   const m2c = gradeDrill(session, "m2-combo-draw", { kind: "estimate", value: 0.95 }, 0);
