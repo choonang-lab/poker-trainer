@@ -282,6 +282,19 @@ export const MODULES: Module[] = [
     drillIds: ["p3-value-two-streets", "p3-3bet-the-nuts", "p3-pot-control"],
   },
   {
+    id: "P3.4", track: "P2", title: "Barreling",
+    preface: "You bet the flop and got called — now the turn asks: fire again, or give up? Bet again (a 'second barrel') for value with a strong hand, or as a bluff when your opponent will fold. But give up when a bet won't fold anyone out.",
+    concepts: [
+      { term: "Barrel", def: "a continued bet on the next street — a 'second barrel' on the turn, a 'third' on the river." },
+      { term: "Double barrel", def: "betting the turn after you already bet (c-bet) the flop." },
+      { term: "Bluff barrel", def: "firing again with a weak hand to make a better one fold — it only works if they actually fold." },
+      { term: "Give up", def: "checking instead of betting again, when another bet can't win the pot." },
+    ],
+    objectives: ["Fire a second barrel for value with a strong hand", "Bluff-barrel when your opponent will fold", "Give up when a barrel won't fold anyone out"],
+    example: "You c-bet the flop and got called; the turn bricks — fire again only if it'll make a better hand fold.",
+    drillIds: ["p34-value-barrel", "p34-bluff-barrel", "p34-give-up"],
+  },
+  {
     id: "P3.5", track: "P2", title: "River decisions",
     preface: "On the river the cards are done — your hand can't change. Every bet now asks one question: do you hold the best hand? Raise when worse hands still pay, call to catch bluffs, and fold when the betting only comes from better.",
     concepts: [
@@ -414,6 +427,9 @@ export const EXPLAIN: Record<string, string> = {
   "p2-overbet-capped-range": "Villain's hand is strong enough that he'll call even an overbet — so charge him. A pot-size bet leaves value behind; the 2×-pot overbet wins the most. But there's a ceiling: bet 3× and even he folds, and you win nothing extra. Overbet as much as they'll pay, no more.",
   "p25-cbet": "You raised before the flop and hit top pair — keep the lead with a continuation bet. Worse aces pay you off, and the hands that missed fold to the pressure. Checking gives up both the value and the fold equity a bet would win.",
   "p25-donk-lead": "Usually you check to the player who raised — but this board (7-6-5) smashed YOUR hand, giving you a straight, and misses most of his. So lead out (a 'donk' bet): his sets pay you, his overcards fold. Leading a board that favors your hand beats a passive check.",
+  "p34-value-barrel": "Your overpair is still way ahead, and villain called the flop with a worse hand he won't fold. Fire a second barrel: he keeps paying, so keep betting for value. Checking here just lets him off the hook for a street.",
+  "p34-bluff-barrel": "Your hand missed completely — you're actually behind his pair. But he'll fold that pair to a second barrel, and a bet wins the pot right now. This is the whole point of a bluff barrel: fold equity lets you win even when your cards can't. Checking gives up a pot you could take.",
+  "p34-give-up": "Same busted hand as the last spot — but this villain won't fold his pair. So a second barrel just pours chips into a hand that beats you (−EV). There's no fold equity and no showdown value, so give up: check and move on. Barrel when they fold; give up when they don't.",
   "p25-check-raise": "You flopped a hidden monster (bottom set) and checked to let the preflop raiser bet — and he did, with top pair. Now spring the trap: check-RAISE. His top pair pays off the raise, so build the pot now while he's willing to put money in. Just calling lets him off cheap.",
   "p2-raise-sizing": "It's not just whether to raise — it's how much. You have the nuts, so you want max value, but a giant raise scares even a strong villain into folding, and then you win nothing extra. A small raise under-charges him; the pot-size raise gets the most in while he still calls. Raise as big as they'll pay off, not bigger.",
   // P3 — multi-street lines

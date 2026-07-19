@@ -1016,6 +1016,8 @@ const LEAK_TABLE: Record<string, string> = {
   "P3:missed_bet": "p3.misses_multistreet_value",
   "P3:overbet": "p3.overbets_multistreet",
   "P3:passive": "p3.flats_instead_of_raising",
+  "P3.4:missed_bet": "p34.misses_a_barrel",
+  "P3.4:overbet": "p34.barrels_without_fold_equity",
   "P3.5:passive": "p35.flats_a_value_raise",
   "P3.5:overbet": "p35.raises_into_better",
   "P3.5:overfold": "p35.overfolds_the_river",
@@ -2250,6 +2252,63 @@ export const STARTER_DRILLS: Drill[] = [
         },
       },
       abstraction: { sizes: [1.0], streets: ["flop"], players: 2, heroFacesBet: 0.75, raiseCap: 1 },
+    },
+  },
+  // ---- P3.4 Barreling: second barrel for value, as a bluff, or give up ----
+  {
+    id: "p34-value-barrel",
+    module: "P3.4",
+    title: "Barreling: an overpair on the turn after your flop bet was called",
+    read: "You bet the flop and villain called with a worse hand he won't let go of.",
+    ask: "action",
+    // Second barrel for VALUE. Hero AsAd overpair (80%) on the turn 9h 6c 2s 5d; villain hangs on with a
+    // worse pair (9c8h) and calls. Bet (1.24) beats check (0.80): keep firing for value.
+    state: {
+      heroHand: hand("As", "Ad"), board: hand("9h", "6c", "2s", "5d"),
+      pot: 1, toAct: "hero",
+      villain: {
+        range: [{ combo: hand("9c", "8h"), weight: 1 }],
+        policy: (_combo: Combo) => [{ action: { kind: "fold" }, weight: 0 }, { action: { kind: "call" }, weight: 1 }],
+      },
+      abstraction: { sizes: [0.75], streets: ["turn"], players: 2 },
+    },
+  },
+  {
+    id: "p34-bluff-barrel",
+    module: "P3.4",
+    title: "Barreling: a busted hand on the turn against a weak pair",
+    read: "You bet the flop and villain called with a weak pair he'll fold to a second barrel.",
+    ask: "action",
+    // BLUFF barrel. Hero KcQc = air (only 14% vs the pair) on 9h 6c 2s 5d — you are BEHIND — but villain's
+    // weak pair (7s7d) folds to a second barrel. Betting (1.00) steals the pot; checking (0.14) shows down
+    // and loses. Fire the second barrel: fold equity wins even when your hand can't.
+    state: {
+      heroHand: hand("Kc", "Qc"), board: hand("9h", "6c", "2s", "5d"),
+      pot: 1, toAct: "hero",
+      villain: {
+        range: [{ combo: hand("7s", "7d"), weight: 1 }],
+        policy: (_combo: Combo) => [{ action: { kind: "fold" }, weight: 1 }, { action: { kind: "call" }, weight: 0 }],
+      },
+      abstraction: { sizes: [0.75], streets: ["turn"], players: 2 },
+    },
+  },
+  {
+    id: "p34-give-up",
+    module: "P3.4",
+    title: "Barreling: a busted hand on the turn against a sticky pair",
+    read: "You bet the flop and villain called; this time his pair isn't going anywhere.",
+    ask: "action",
+    // GIVE UP — the discrimination partner of p34-bluff-barrel: SAME KcQc air, same board, but villain's
+    // pair (7s7d) now CALLS. A second barrel just burns chips (EV -0.41) into a better hand; checking (0.14)
+    // gives up the pot but wastes nothing. Barrel when they fold, give up when they don't.
+    state: {
+      heroHand: hand("Kc", "Qc"), board: hand("9h", "6c", "2s", "5d"),
+      pot: 1, toAct: "hero",
+      villain: {
+        range: [{ combo: hand("7s", "7d"), weight: 1 }],
+        policy: (_combo: Combo) => [{ action: { kind: "fold" }, weight: 0 }, { action: { kind: "call" }, weight: 1 }],
+      },
+      abstraction: { sizes: [0.75], streets: ["turn"], players: 2 },
     },
   },
   {

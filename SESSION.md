@@ -37,7 +37,7 @@ repetition) with a guided-curriculum PWA on top.
 5. **The ship checklist** (after every approved change):
    `node engine.test.ts` → both tsc checks →
    `npx -p esbuild esbuild web/app.ts --bundle --format=esm --minify --outfile=docs/app.js`
-   → bump `CACHE` in `docs/sw.js` (v34 as of this writing) → update
+   → bump `CACHE` in `docs/sw.js` (v35 as of this writing) → update
    HANDOFF.md counts → commit (message style: `feat(scope): ...` with body,
    end with the Claude co-author line) → push → poll the live site until
    `docs/app.js` byte-size matches. If GitHub Pages sticks in "building",
@@ -55,7 +55,7 @@ repetition) with a guided-curriculum PWA on top.
 
 ## State as of 2026-07 (commit 6b80618)
 
-- **423 tests passing**, both type-checks clean, deployed bundle in sync.
+- **429 tests passing**, both type-checks clean, deployed bundle in sync.
 - **Review fixes (2026-07-18, post-audit), cache v21:** (1) `m2-combo-draw`
   board was `9s 8h 2c` (an 8-out spot, 36.9%) but its title/EXPLAIN teach the
   15-out flush+open-ender combo — fixed to `9s 8s 2c` (56.3%); a learner who
@@ -80,12 +80,13 @@ repetition) with a guided-curriculum PWA on top.
   condensed vs polarized, domination), M5.6 implied odds (4 — now ALL genuine
   multi-street trees after the effective-pot fake was rebuilt as a real OESD
   implied-odds tree; a flush-draw real tree, a no-implied fold, and reverse
-  implied). **Pillar 2 audited (2026-07-18):** 27 drills (P0 ×2, P1 ×3, P2 ×6,
-  P2.5 ×3, P3 ×3, P3.5 ×4, P4 ×2, P5 ×4) — P1 gained the AK-vs-AQ domination drill in
+  implied). **Pillar 2 audited (2026-07-18):** 30 drills (P0 ×2, P1 ×3, P2 ×6, P2.5 ×3,
+  P3 ×3, P3.4 ×3, P3.5 ×4, P4 ×2, P5 ×4) — P1 gained the AK-vs-AQ domination drill in
   Tier 5, P2 gained 4 sizing-depth drills (bet small / bet big to deny equity / overbet
   a capped range / raise-sizing), a NEW P2.5 "Taking the lead" module (c-bet / donk /
-  check-raise) was added, P3 gained the `p3-pot-control` drill, a NEW P3.5 "River
-  decisions" module was added, and Tier-2 moved the semi-bluff `p2-bet-or-check` to M3.5. Every best action /
+  check-raise), a NEW P3.4 "Barreling" module (value / bluff / give-up), P3 gained the
+  `p3-pot-control` drill, a NEW P3.5 "River decisions" module, and Tier-2 moved the
+  semi-bluff `p2-bet-or-check` to M3.5. Every best action /
   equity re-verified against the
   engine (all correct); de-spoiled the leaky action-drill titles; added a
   villain `read:` to all 10 action drills and EXPLAIN text to every P-drill;
@@ -306,9 +307,23 @@ repetition) with a guided-curriculum PWA on top.
    leak mappings (checks_instead_of_betting / flats_instead_of_raising / overfolds).
    Browser-verified: P2.5 on the map after P2; c-bet → "bet 0.75" Optimal, check-raise
    → "raise 2.5" Optimal (the raise-label polish makes the check-raise read cleanly).
-   This clears the last "addable content" item from the decisions-coverage analysis.
-   Everything remaining (raise-size UI beyond, true multiway, GTO, ICM, preflop 3-bet,
-   scare-card pinning) is engine work / different-engine, out of scope by design.
+   (This was one addable item; barreling followed — see item 14.)
+14. ~~**Barreling content**~~ — DONE 2026-07-18 (cache v35, 429 tests). NEW module
+   **P3.4 "Barreling"**, inserted BETWEEN P3 and P3.5 (order: P3 → P3.4 → P3.5 → P4).
+   Content-only (multi-street postflop trees already work; only PREFLOP multi-street
+   is intractable). Turn-rooted bet/check drills, each verified: (1) `p34-value-barrel`
+   — AsAd overpair (80%) → BET (1.24 > check 0.80): second barrel for value.
+   (2) `p34-bluff-barrel` — KcQc air (14%, BEHIND the pair) but villain FOLDS → BET
+   (1.00 > check 0.14): fold equity wins when your hand can't. (3) `p34-give-up` — SAME
+   KcQc air, but villain CALLS → CHECK (bet is −0.41). The bluff↔give-up pair is the
+   centerpiece discrimination: same hand, barrel when they fold / give up when they
+   don't. Added P3.4 leaks (misses_a_barrel / barrels_without_fold_equity). Browser-
+   verified on mobile. NOTE from the gap analysis: the villain `policy` CAN be
+   street-aware (it receives `state.board`, so `board.length` = street) — so multi-
+   street villain lines are authorable without engine work; I'd earlier understated
+   this. Remaining gaps (true multiway, GTO, ICM, preflop 3-bet trees, scare-card
+   pinning, combo-count question, effective-stack/SPR) are engine work or
+   different-engine — see the "what else is missing" outline (chat) for the full map.
 
 ## Machine-specific notes for macOS
 

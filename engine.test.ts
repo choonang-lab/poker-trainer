@@ -815,8 +815,8 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
   ok("M4 check regret == 3 bb", approx(m4check.result.regretBb, 3), `got ${m4check.result.regretBb}`);
   ok("M4 check -> m4.misses_street_sequence", m4check.result.leakTag === "m4.misses_street_sequence");
 
-  ok("STARTER_DRILLS now spans 90 drills incl M0/M3.5/M4/M5.6/P0/P1/P2/P2.5/P3/P3.5/P4/P5",
-    STARTER_DRILLS.length === 90 &&
+  ok("STARTER_DRILLS now spans 93 drills incl M0/M3.5/M4/M5.6/P0/P1/P2/P2.5/P3/P3.4/P3.5/P4/P5",
+    STARTER_DRILLS.length === 93 &&
     ["M0", "M3.5", "M4", "M5.6", "P0", "P1", "P3", "P4", "P5"].every((m) => STARTER_DRILLS.some((d) => d.module === m)));
 
   // Check-raise-range drill: villain raises only what beats hero (policy + raise).
@@ -947,6 +947,18 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
   ok("check-raise: raising is best", bestAction(buildTree(byId("p25-check-raise").state)).kind === "bet");
   ok("check-raise: flatting -> p25.flats_instead_of_raising",
     gradeDrill(session, "p25-check-raise", { kind: "action", action: { kind: "call" } }, 0).result.leakTag === "p25.flats_instead_of_raising");
+
+  // P3.4 Barreling: value barrel (bet), bluff barrel (bet, behind but fold equity), give up (check).
+  ok("value barrel: betting is best", bestSz("p34-value-barrel") === "bet0.75");
+  ok("bluff barrel: betting is best (behind, but they fold)", bestSz("p34-bluff-barrel") === "bet0.75");
+  ok("bluff barrel: checking -> p34.misses_a_barrel",
+    gradeDrill(session, "p34-bluff-barrel", { kind: "action", action: { kind: "check" } }, 0).result.leakTag === "p34.misses_a_barrel");
+  ok("give up: checking is best (same hand, sticky villain)", bestSz("p34-give-up") === "check");
+  ok("give up: barreling anyway -> p34.barrels_without_fold_equity",
+    gradeDrill(session, "p34-give-up", { kind: "action", action: { kind: "bet", size: 0.75 } }, 0).result.leakTag === "p34.barrels_without_fold_equity");
+  // The discrimination: SAME KcQc air -> barrel when they fold, give up when they don't.
+  ok("barreling discrimination: same hand, bet vs check by villain tendency",
+    bestSz("p34-bluff-barrel") === "bet0.75" && bestSz("p34-give-up") === "check");
 
   // Added module depth: M2 big-draw, M5 wider range (cheap), P1 race (preflop).
   const m2c = gradeDrill(session, "m2-combo-draw", { kind: "estimate", value: 0.95 }, 0);
