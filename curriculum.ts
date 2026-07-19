@@ -334,7 +334,7 @@ export const MODULES: Module[] = [
     ],
     objectives: ["Bluff more vs players who over-fold", "Value-bet bigger vs stations and raisers", "Don't bet thin into a strong, narrow range"],
     example: "If a villain raises only hands that beat you, betting just gets you raised off your equity.",
-    drillIds: ["p5-exploit-overfolder", "p5-value-vs-raiser", "p5-thin-value-vs-range", "p5-vs-checkraise-range"],
+    drillIds: ["p5-exploit-overfolder", "p5-value-vs-raiser", "p5-thin-value-vs-range", "p5-vs-checkraise-range", "p5-exploit-floater"],
   },
 ];
 
@@ -448,6 +448,7 @@ export const EXPLAIN: Record<string, string> = {
   "p4-strong-multiway": "Top pair top kicker is strong, but every extra opponent is another hand that can beat you — the field trims your equity a little below the heads-up number (~84%).",
   // P5 — exploit vs balance
   "p5-exploit-overfolder": "A hand with no showdown value only wins by making villain fold — and this villain folds often. Bet as a bluff; checking just gives up.",
+  "p5-exploit-floater": "This villain 'floats' — he calls your flop bet with a weak hand, planning to steal later, but he actually just folds when you fire again on the turn. So bet the flop AND barrel the turn: he pays off the flop while he's floating, then gives up the turn, and you take it. Checking the flop lets a whole street of value slip by. Read the tendency (calls flop, folds turn) and double-barrel it.",
   "p5-value-vs-raiser": "Villain raises whenever you bet, so lead out with the nuts and let them raise into you. Checking wastes a raise-happy opponent.",
   "p5-vs-checkraise-range": "Villain raises only hands that beat you and folds the rest, so betting gets raised when you're behind and folds out what you beat. Check and take a free showdown.",
   "p5-thin-value-vs-range": "Villain continues only with better hands, so betting gets called only when you're beat. Check to show down and beat the hands that would have folded.",

@@ -1239,6 +1239,29 @@ export const STARTER_DRILLS: Drill[] = [
     },
   },
   {
+    id: "p5-exploit-floater",
+    module: "P5",
+    title: "Exploit: a villain who floats the flop but folds the turn",
+    read: "Villain 'floats' — he calls flop bets with weak hands, then gives up and folds when you fire again on the turn.",
+    ask: "action",
+    // Street-aware villain (a genuine two-street line: floats the flop, folds the turn). Hero KcQc = air on
+    // 8h 5d 2c. Bet the flop: villain floats (calls) with his weak pair, then folds your turn barrel — so a
+    // double barrel makes him pay a street before he gives up. Bet (1.75) beats check-then-barrel (1.00);
+    // checking the flop misses the exploit. (Villain policy switches on board.length: 3 = flop, 4 = turn.)
+    state: {
+      heroHand: hand("Kc", "Qc"), board: hand("8h", "5d", "2c"),
+      pot: 1, toAct: "hero",
+      villain: {
+        range: [{ combo: hand("7s", "7d"), weight: 1 }],
+        policy: (_combo: Combo, s: NodeState) => {
+          const flop = s.board.length === 3; // floats the flop, folds the turn
+          return [{ action: { kind: "fold" }, weight: flop ? 0 : 1 }, { action: { kind: "call" }, weight: flop ? 1 : 0 }];
+        },
+      },
+      abstraction: { sizes: [0.75], streets: ["flop", "turn"], players: 2 },
+    },
+  },
+  {
     id: "m4-sequence-two-streets",
     module: "M4",
     title: "Street sequencing: a flopped straight flush",

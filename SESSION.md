@@ -37,7 +37,7 @@ repetition) with a guided-curriculum PWA on top.
 5. **The ship checklist** (after every approved change):
    `node engine.test.ts` → both tsc checks →
    `npx -p esbuild esbuild web/app.ts --bundle --format=esm --minify --outfile=docs/app.js`
-   → bump `CACHE` in `docs/sw.js` (v36 as of this writing) → update
+   → bump `CACHE` in `docs/sw.js` (v37 as of this writing) → update
    HANDOFF.md counts → commit (message style: `feat(scope): ...` with body,
    end with the Claude co-author line) → push → poll the live site until
    `docs/app.js` byte-size matches. If GitHub Pages sticks in "building",
@@ -55,7 +55,7 @@ repetition) with a guided-curriculum PWA on top.
 
 ## State as of 2026-07 (commit 6b80618)
 
-- **434 tests passing**, both type-checks clean, deployed bundle in sync.
+- **436 tests passing**, both type-checks clean, deployed bundle in sync.
 - **Review fixes (2026-07-18, post-audit), cache v21:** (1) `m2-combo-draw`
   board was `9s 8h 2c` (an 8-out spot, 36.9%) but its title/EXPLAIN teach the
   15-out flush+open-ender combo — fixed to `9s 8s 2c` (56.3%); a learner who
@@ -80,8 +80,8 @@ repetition) with a guided-curriculum PWA on top.
   condensed vs polarized, domination), M5.6 implied odds (4 — now ALL genuine
   multi-street trees after the effective-pot fake was rebuilt as a real OESD
   implied-odds tree; a flush-draw real tree, a no-implied fold, and reverse
-  implied). **Pillar 2 audited (2026-07-18):** 32 drills (P0 ×2, P1 ×3, P2 ×6, P2.5 ×3,
-  P3 ×3, P3.4 ×3, P3.5 ×6, P4 ×2, P5 ×4) — P1 gained the AK-vs-AQ domination drill in
+  implied). **Pillar 2 audited (2026-07-18):** 33 drills (P0 ×2, P1 ×3, P2 ×6, P2.5 ×3,
+  P3 ×3, P3.4 ×3, P3.5 ×6, P4 ×2, P5 ×5) — P1 gained the AK-vs-AQ domination drill in
   Tier 5, P2 gained 4 sizing-depth drills (bet small / bet big to deny equity / overbet
   a capped range / raise-sizing), a NEW P2.5 "Taking the lead" module (c-bet / donk /
   check-raise), a NEW P3.4 "Barreling" module (value / bluff / give-up), P3 gained the
@@ -336,6 +336,18 @@ repetition) with a guided-curriculum PWA on top.
    ALSO fixed a UI blemish surfaced here: a chain-computed raise size rendered as
    "raise 1.6600000000000001"; `actionLabel` now does `parseFloat(size.toFixed(2))`
    → "raise 1.66". Browser-verified both.
+16. ~~**Street-dependent villain-line drill**~~ — DONE 2026-07-18 (cache v37, 436
+   tests). The first drill to USE the street-aware villain (`policy` switches on
+   `state.board.length`: 3 = flop, 4 = turn). `p5-exploit-floater` (added to P5): a
+   villain that FLOATS the flop (calls, board.length 3) but FOLDS the turn (board.length
+   4). Hero KcQc air on 8h 5d 2c, streets [flop, turn] — a genuine multi-street tree.
+   Bet the flop AND barrel the turn: he pays the flop while floating, folds the turn,
+   you take it. Bet (1.75) > check-then-barrel (1.00); checking misses the exploit
+   (p5.misses_exploit). Proves item #2 is content-only — no engine change. P5 now 5
+   drills. Browser-verified. REMAINING addable content (item #3): overbet BLUFFS,
+   floats-as-hero, delayed c-bets, a maniac/nit for P5 — all content-only. Everything
+   else (multiway, GTO, ICM, preflop trees, scare-card pinning) is engine/different-
+   engine, out of scope by design.
 
 ## Machine-specific notes for macOS
 
