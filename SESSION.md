@@ -37,7 +37,7 @@ repetition) with a guided-curriculum PWA on top.
 5. **The ship checklist** (after every approved change):
    `node engine.test.ts` → both tsc checks →
    `npx -p esbuild esbuild web/app.ts --bundle --format=esm --minify --outfile=docs/app.js`
-   → bump `CACHE` in `docs/sw.js` (v30 as of this writing) → update
+   → bump `CACHE` in `docs/sw.js` (v31 as of this writing) → update
    HANDOFF.md counts → commit (message style: `feat(scope): ...` with body,
    end with the Claude co-author line) → push → poll the live site until
    `docs/app.js` byte-size matches. If GitHub Pages sticks in "building",
@@ -246,8 +246,11 @@ repetition) with a guided-curriculum PWA on top.
    N-player tree needed, consistent with P4's labelled approximation). Added 4 P3.5
    leak mappings (`p35.flats_a_value_raise` / `raises_into_better` / `overfolds_the_
    river` / `pays_off_the_river`). Watch-out: in a heroFacesBet tree the raise action
-   carries a CHAIN-COMPUTED size (shows as "bet 3" in the UI, like p3-3bet-the-nuts),
-   NOT `{bet,size:1}` — grade the actual action from `actionEVs`, don't hardcode it.
+   carries a CHAIN-COMPUTED size, NOT `{bet,size:1}` — grade the actual action from
+   `actionEVs`, don't hardcode it. UI polish (cache v31): `actionLabel` now reads the
+   drill's `heroFacesBet` flag and labels an aggressive action "raise" instead of
+   "bet" when hero is facing a bet (so heroFacesBet drills read fold/call/raise);
+   hero-opens drills still read "bet". Browser-verified both.
    Browser-verified on mobile: P3.5 shows on the map between P3 and P4; value-raise →
    raise "Optimal.", multiway → fold "Optimal.". This was the "4 villains + river"
    idea, delivered as the pragmatic heads-up-vs-condensed-range approximation (a true

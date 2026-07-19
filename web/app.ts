@@ -76,8 +76,13 @@ const humanLeak = (tag: string): string => {
   const s = tag.slice(tag.indexOf(".") + 1).replace(/_/g, " ");
   return s ? s.charAt(0).toUpperCase() + s.slice(1) : tag;
 };
-const actionLabel = (a: Action): string =>
-  a.kind === "bet" ? (a.size === undefined ? "bet" : `bet ${a.size}`) : a.kind;
+// When hero is FACING a bet (heroFacesBet), an aggressive action is a raise, not an
+// opening bet — label it "raise" so the button reads fold / call / raise.
+const actionLabel = (a: Action, facingBet = false): string => {
+  if (a.kind !== "bet") return a.kind;
+  const verb = facingBet ? "raise" : "bet";
+  return a.size === undefined ? verb : `${verb} ${a.size}`;
+};
 
 function legalActions(d: Drill): Action[] {
   if (d.state.abstraction.sizes.length === 0) return [{ kind: "fold" }, { kind: "call" }]; // pillar-1 call/fold
@@ -374,8 +379,9 @@ function buildControls(controls: HTMLElement, drill: Drill, onAnswer: (r: Respon
   } else {
     controls.append(el("label", "prompt", "Your action:"));
     const row = el("div", "actions");
+    const facingBet = drill.state.abstraction.heroFacesBet !== undefined;
     for (const a of legalActions(drill)) {
-      const b = el("button", "act", actionLabel(a));
+      const b = el("button", "act", actionLabel(a, facingBet));
       b.onclick = () => onAnswer({ kind: "action", action: a });
       row.append(b);
     }
