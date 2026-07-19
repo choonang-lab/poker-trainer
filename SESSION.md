@@ -37,7 +37,7 @@ repetition) with a guided-curriculum PWA on top.
 5. **The ship checklist** (after every approved change):
    `node engine.test.ts` → both tsc checks →
    `npx -p esbuild esbuild web/app.ts --bundle --format=esm --minify --outfile=docs/app.js`
-   → bump `CACHE` in `docs/sw.js` (v38 as of this writing) → update
+   → bump `CACHE` in `docs/sw.js` (v39 as of this writing) → update
    HANDOFF.md counts → commit (message style: `feat(scope): ...` with body,
    end with the Claude co-author line) → push → poll the live site until
    `docs/app.js` byte-size matches. If GitHub Pages sticks in "building",
@@ -55,7 +55,7 @@ repetition) with a guided-curriculum PWA on top.
 
 ## State as of 2026-07 (commit 6b80618)
 
-- **442 tests passing**, both type-checks clean, deployed bundle in sync.
+- **446 tests passing**, both type-checks clean, deployed bundle in sync.
 - **Review fixes (2026-07-18, post-audit), cache v21:** (1) `m2-combo-draw`
   board was `9s 8h 2c` (an 8-out spot, 36.9%) but its title/EXPLAIN teach the
   15-out flush+open-ender combo — fixed to `9s 8s 2c` (56.3%); a learner who
@@ -80,8 +80,8 @@ repetition) with a guided-curriculum PWA on top.
   condensed vs polarized, domination), M5.6 implied odds (4 — now ALL genuine
   multi-street trees after the effective-pot fake was rebuilt as a real OESD
   implied-odds tree; a flush-draw real tree, a no-implied fold, and reverse
-  implied). **Pillar 2 audited (2026-07-18):** 36 drills (P0 ×2, P1 ×3, P2 ×7, P2.5 ×3,
-  P3 ×3, P3.4 ×3, P3.5 ×6, P4 ×2, P5 ×7) — P1 gained the AK-vs-AQ domination drill in
+  implied). **Pillar 2 audited (2026-07-18):** 38 drills (P0 ×2, P1 ×3, P2 ×7, P2.5 ×3,
+  P3 ×3, P3.4 ×5, P3.5 ×6, P4 ×2, P5 ×7) — P1 gained the AK-vs-AQ domination drill in
   Tier 5, P2 gained 4 sizing-depth drills (bet small / bet big to deny equity / overbet
   a capped range / raise-sizing), a NEW P2.5 "Taking the lead" module (c-bet / donk /
   check-raise), a NEW P3.4 "Barreling" module (value / bluff / give-up), P3 gained the
@@ -359,6 +359,17 @@ repetition) with a guided-curriculum PWA on top.
    DONE. Everything remaining (multiway, GTO, ICM, preflop trees, scare-card pinning,
    combo-count, effective-stack/SPR) is engine work / different-engine, out of scope by
    design — see the "what else is missing" outline in chat for the full map.
+18. ~~**Scare-card reactions**~~ — DONE 2026-07-18 (cache v39, 446 tests). KEY finding:
+   scare-card REACTIONS are CONTENT-only (turn-rooted: the scare card just lives in the
+   4-card board). The "scare-card PINNING" engine feature (deterministic CHANCE in a
+   multi-street tree) was DECLINED — it only adds fidelity (deriving the villain's turn
+   range from the flop action instead of declaring it), imperceptible to a beginner and
+   not worth touching the core advance/CHANCE logic. Added 2 drills to P3.4 as a
+   discrimination pair: SAME KsKd overpair on Qh 8h 4c — `p34-barrel-a-blank` (turn 2c,
+   a brick → BET 1.27) vs `p34-scare-card-shutdown` (turn Ah completes the flush + an
+   overcard → CHECK; barreling is −0.69). The turn CARD flips barrel into give-up.
+   Browser-verified. So "scare-card pinning" on the remaining-gaps list = declined-engine
+   / content-done; the reactions ship without it.
 
 ## Machine-specific notes for macOS
 

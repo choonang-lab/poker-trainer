@@ -2443,6 +2443,45 @@ export const STARTER_DRILLS: Drill[] = [
     },
   },
   {
+    id: "p34-barrel-a-blank",
+    module: "P3.4",
+    title: "Barreling: an overpair when the turn is a blank",
+    read: "You bet the flop and villain called; the turn is a harmless brick that changes nothing.",
+    ask: "action",
+    // Read the turn CARD. Hero KsKd overpair on Qh 8h 4c; the turn 2c is a BLANK — villain still has a
+    // drawing hand (JhTh flush draw) and a worse pair (Qs9s). Keep barreling for value/protection: bet
+    // (1.27) beats check (0.81). Pairs with p34-scare-card-shutdown (same hand, a scary turn instead).
+    state: {
+      heroHand: hand("Ks", "Kd"), board: hand("Qh", "8h", "4c", "2c"),
+      pot: 1, toAct: "hero",
+      villain: {
+        range: [{ combo: hand("Jh", "Th"), weight: 1 }, { combo: hand("Qs", "9s"), weight: 1 }],
+        policy: (_combo: Combo) => [{ action: { kind: "fold" }, weight: 0 }, { action: { kind: "call" }, weight: 1 }],
+      },
+      abstraction: { sizes: [0.75], streets: ["turn"], players: 2 },
+    },
+  },
+  {
+    id: "p34-scare-card-shutdown",
+    module: "P3.4",
+    title: "Barreling: an overpair when the turn brings a scare card",
+    read: "You bet the flop and villain called; now a card comes that completes the draws and beats you.",
+    ask: "action",
+    // Read the turn CARD — the discrimination partner of p34-barrel-a-blank: SAME KsKd, same flop Qh 8h 4c,
+    // but the turn Ah COMPLETES the flush and brings an overcard. Villain's range is now a made flush (JhTh)
+    // and top pair (AcTc) — both beat you. A second barrel bleeds chips (−0.69) into a range that's ahead;
+    // shut down and check (0.02). The scare card flips barrel into give-up.
+    state: {
+      heroHand: hand("Ks", "Kd"), board: hand("Qh", "8h", "4c", "Ah"),
+      pot: 1, toAct: "hero",
+      villain: {
+        range: [{ combo: hand("Jh", "Th"), weight: 1 }, { combo: hand("Ac", "Tc"), weight: 1 }],
+        policy: (_combo: Combo) => [{ action: { kind: "fold" }, weight: 0 }, { action: { kind: "call" }, weight: 1 }],
+      },
+      abstraction: { sizes: [0.75], streets: ["turn"], players: 2 },
+    },
+  },
+  {
     id: "m5-polarized-range",
     module: "M5",
     title: "Equity vs a polarized range: a bluff-catcher vs nuts-or-air",

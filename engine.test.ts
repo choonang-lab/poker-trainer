@@ -830,8 +830,8 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
   ok("M4 check regret == 3 bb", approx(m4check.result.regretBb, 3), `got ${m4check.result.regretBb}`);
   ok("M4 check -> m4.misses_street_sequence", m4check.result.leakTag === "m4.misses_street_sequence");
 
-  ok("STARTER_DRILLS now spans 99 drills incl M0/M3.5/M4/M5.6/P0/P1/P2/P2.5/P3/P3.4/P3.5/P4/P5",
-    STARTER_DRILLS.length === 99 &&
+  ok("STARTER_DRILLS now spans 101 drills incl M0/M3.5/M4/M5.6/P0/P1/P2/P2.5/P3/P3.4/P3.5/P4/P5",
+    STARTER_DRILLS.length === 101 &&
     ["M0", "M3.5", "M4", "M5.6", "P0", "P1", "P3", "P4", "P5"].every((m) => STARTER_DRILLS.some((d) => d.module === m)));
 
   // Check-raise-range drill: villain raises only what beats hero (policy + raise).
@@ -987,6 +987,14 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
   // The discrimination: SAME KcQc air -> barrel when they fold, give up when they don't.
   ok("barreling discrimination: same hand, bet vs check by villain tendency",
     bestSz("p34-bluff-barrel") === "bet0.75" && bestSz("p34-give-up") === "check");
+
+  // Read the turn CARD: same KsKd overpair -> barrel a blank turn, shut down on a scare card.
+  ok("barrel a blank: betting is best", bestSz("p34-barrel-a-blank") === "bet0.75");
+  ok("scare card: checking (shutdown) is best", bestSz("p34-scare-card-shutdown") === "check");
+  ok("scare card: barreling anyway -> p34.barrels_without_fold_equity",
+    gradeDrill(session, "p34-scare-card-shutdown", { kind: "action", action: { kind: "bet", size: 0.75 } }, 0).result.leakTag === "p34.barrels_without_fold_equity");
+  ok("scare-card discrimination: same overpair -> bet a blank, check a scare card",
+    bestSz("p34-barrel-a-blank") === "bet0.75" && bestSz("p34-scare-card-shutdown") === "check");
 
   // Added module depth: M2 big-draw, M5 wider range (cheap), P1 race (preflop).
   const m2c = gradeDrill(session, "m2-combo-draw", { kind: "estimate", value: 0.95 }, 0);
