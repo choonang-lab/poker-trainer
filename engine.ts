@@ -1026,6 +1026,8 @@ const LEAK_TABLE: Record<string, string> = {
   "P4:underestimate": "p4.underrates_field",
   "P5:missed_bet": "p5.misses_exploit",
   "P5:overbet": "p5.bets_into_strong_range",
+  "P5:overfold": "p5.overfolds_vs_a_bluffer",
+  "P5:spew": "p5.pays_off_a_nit",
 };
 
 // Refine grade()'s structural tag (e.g. "p1.overfold") into a curriculum leak
@@ -1259,6 +1261,44 @@ export const STARTER_DRILLS: Drill[] = [
         },
       },
       abstraction: { sizes: [0.75], streets: ["flop", "turn"], players: 2 },
+    },
+  },
+  {
+    id: "p5-exploit-maniac",
+    module: "P5",
+    title: "Exploit: a weak hand against a maniac who bluffs too much",
+    read: "Villain is a maniac — he bets far more bluffs than value.",
+    ask: "action",
+    // Call down a maniac. Hero 8h8d = third pair (a hand you'd normally fold) on As Kc 7d 2s 4h. The maniac
+    // bets a range that's mostly busted bluffs (2:1 over value), so your third pair beats ~80% of it -> CALL,
+    // don't fold. The over-bluffing turns a fold into a call. (raiseCap 0 -> a clean call/fold spot.)
+    state: {
+      heroHand: hand("8h", "8d"), board: hand("As", "Kc", "7d", "2s", "4h"),
+      pot: 1, toAct: "hero",
+      villain: {
+        range: [{ combo: hand("Qh", "Jh"), weight: 2 }, { combo: hand("Th", "9h"), weight: 2 }, { combo: hand("Ac", "Tc"), weight: 1 }],
+        strategy: (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action: a, weight: a.kind === "call" ? 1 : 0 })),
+      },
+      abstraction: { sizes: [1.0], streets: ["river"], players: 2, heroFacesBet: 0.75, raiseCap: 0 },
+    },
+  },
+  {
+    id: "p5-exploit-nit",
+    module: "P5",
+    title: "Exploit: two pair against a nit who only bets the nuts",
+    read: "Villain is a nit — he only bets big hands, effectively never bluffs.",
+    ask: "action",
+    // Believe a nit. Hero As9s = two pair (a hand you'd usually call with) on Ah 9d 4c 2s 7h. But this
+    // villain only bets the nuts (a set here), which crushes two pair -> FOLD. The read overrides your hand
+    // strength: against someone who never bluffs, a strong hand can still be an easy fold. Calling pays him off.
+    state: {
+      heroHand: hand("As", "9s"), board: hand("Ah", "9d", "4c", "2s", "7h"),
+      pot: 1, toAct: "hero",
+      villain: {
+        range: [{ combo: hand("4s", "4d"), weight: 1 }, { combo: hand("9h", "9c"), weight: 1 }],
+        strategy: (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action: a, weight: a.kind === "call" ? 1 : 0 })),
+      },
+      abstraction: { sizes: [1.0], streets: ["river"], players: 2, heroFacesBet: 1.0, raiseCap: 1 },
     },
   },
   {
@@ -2231,6 +2271,29 @@ export const STARTER_DRILLS: Drill[] = [
         },
       },
       abstraction: { sizes: [1.0, 2.0, 3.0], streets: ["turn"], players: 2 },
+    },
+  },
+  {
+    id: "p2-overbet-bluff",
+    module: "P2",
+    title: "Sizing: a busted hand on the river against a bluff-catcher",
+    read: "Villain has a medium hand that pays a normal bet but folds to a huge one.",
+    ask: "action",
+    // Overbet as a BLUFF — the mirror of the overbet-for-value drill. Hero KhQh = air (missed) on As 7c 4d
+    // 2s 9h. Villain's bluff-catcher (a pair of aces) calls a half-pot bet but folds a 1.5x overbet. The
+    // overbet (EV 1.0) folds him out and steals; a small bet (−0.5) gets called and loses; checking (0)
+    // gives up. Overbet your bluffs, not just your value — a polarized range bets big with both.
+    state: {
+      heroHand: hand("Kh", "Qh"), board: hand("As", "7c", "4d", "2s", "9h"),
+      pot: 1, toAct: "hero",
+      villain: {
+        range: [{ combo: hand("Ac", "Tc"), weight: 1 }],
+        policy: (_combo: Combo, s: NodeState) => {
+          const small = s.pot <= 1.7; // 1 + 0.5 = 1.5 (calls) vs 1 + 1.5 = 2.5 (folds)
+          return [{ action: { kind: "fold" }, weight: small ? 0 : 1 }, { action: { kind: "call" }, weight: small ? 1 : 0 }];
+        },
+      },
+      abstraction: { sizes: [0.5, 1.5], streets: ["river"], players: 2 },
     },
   },
   {

@@ -816,14 +816,22 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
   ok("exploit floater: checking the flop -> p5.misses_exploit",
     flcheck.result.regretBb > 0 && flcheck.result.leakTag === "p5.misses_exploit", flcheck.result.leakTag);
 
+  // Maniac (call down) vs nit (fold to): the read overrides hand strength.
+  ok("exploit maniac: best is call (weak hand, over-bluffer)", bestAction(buildTree(byId("p5-exploit-maniac").state)).kind === "call");
+  ok("exploit maniac: folding -> p5.overfolds_vs_a_bluffer",
+    gradeDrill(session, "p5-exploit-maniac", { kind: "action", action: { kind: "fold" } }, 0).result.leakTag === "p5.overfolds_vs_a_bluffer");
+  ok("exploit nit: best is fold (strong hand, never bluffs)", bestAction(buildTree(byId("p5-exploit-nit").state)).kind === "fold");
+  ok("exploit nit: calling -> p5.pays_off_a_nit",
+    gradeDrill(session, "p5-exploit-nit", { kind: "action", action: { kind: "call" } }, 0).result.leakTag === "p5.pays_off_a_nit");
+
   // M4 sequencing: nuts value across flop+turn; checking the flop leaves 3 bb.
   const m4 = byId("m4-sequence-two-streets");
   const m4check = gradeDrill(session, m4.id, { kind: "action", action: { kind: "check" } }, 0);
   ok("M4 check regret == 3 bb", approx(m4check.result.regretBb, 3), `got ${m4check.result.regretBb}`);
   ok("M4 check -> m4.misses_street_sequence", m4check.result.leakTag === "m4.misses_street_sequence");
 
-  ok("STARTER_DRILLS now spans 96 drills incl M0/M3.5/M4/M5.6/P0/P1/P2/P2.5/P3/P3.4/P3.5/P4/P5",
-    STARTER_DRILLS.length === 96 &&
+  ok("STARTER_DRILLS now spans 99 drills incl M0/M3.5/M4/M5.6/P0/P1/P2/P2.5/P3/P3.4/P3.5/P4/P5",
+    STARTER_DRILLS.length === 99 &&
     ["M0", "M3.5", "M4", "M5.6", "P0", "P1", "P3", "P4", "P5"].every((m) => STARTER_DRILLS.some((d) => d.module === m)));
 
   // Check-raise-range drill: villain raises only what beats hero (policy + raise).
@@ -941,6 +949,9 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
   ok("sizing: overbet a capped range -> bet 2x is best (not the 3x)", bestSz("p2-overbet-capped-range") === "bet2");
   ok("sizing: overbet too much (3x) -> p2.bets_too_big",
     gradeDrill(session, "p2-overbet-capped-range", { kind: "action", action: { kind: "bet", size: 3.0 } }, 0).result.leakTag === "p2.bets_too_big");
+  ok("overbet bluff: overbetting the air is best (bet 1.5)", bestSz("p2-overbet-bluff") === "bet1.5");
+  ok("overbet bluff: a small bet gets called -> p2.bets_too_small",
+    gradeDrill(session, "p2-overbet-bluff", { kind: "action", action: { kind: "bet", size: 0.5 } }, 0).result.leakTag === "p2.bets_too_small");
 
   // Raise SIZING (raiseSizes): choose how big to raise; villain calls up to a point then folds.
   const rsEvs = actionEVs(buildTree(byId("p2-raise-sizing").state));

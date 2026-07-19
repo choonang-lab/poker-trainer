@@ -253,7 +253,7 @@ export const MODULES: Module[] = [
     ],
     objectives: ["Match your bet size to the spot", "Size down for thin value so worse hands still call", "Size up to deny a draw's equity, and overbet a range that can't fold"],
     example: "With the nuts and a caller, a pot-size bet earns more than a half-pot bet.",
-    drillIds: ["p2-size-up-nuts", "p2-thin-value", "p2-bet-small-thin-value", "p2-bet-big-deny-equity", "p2-overbet-capped-range", "p2-raise-sizing"],
+    drillIds: ["p2-size-up-nuts", "p2-thin-value", "p2-bet-small-thin-value", "p2-bet-big-deny-equity", "p2-overbet-capped-range", "p2-overbet-bluff", "p2-raise-sizing"],
   },
   {
     id: "P2.5", track: "P2", title: "Taking the lead",
@@ -334,7 +334,7 @@ export const MODULES: Module[] = [
     ],
     objectives: ["Bluff more vs players who over-fold", "Value-bet bigger vs stations and raisers", "Don't bet thin into a strong, narrow range"],
     example: "If a villain raises only hands that beat you, betting just gets you raised off your equity.",
-    drillIds: ["p5-exploit-overfolder", "p5-value-vs-raiser", "p5-thin-value-vs-range", "p5-vs-checkraise-range", "p5-exploit-floater"],
+    drillIds: ["p5-exploit-overfolder", "p5-value-vs-raiser", "p5-thin-value-vs-range", "p5-vs-checkraise-range", "p5-exploit-floater", "p5-exploit-maniac", "p5-exploit-nit"],
   },
 ];
 
@@ -432,6 +432,7 @@ export const EXPLAIN: Record<string, string> = {
   "p34-bluff-barrel": "Your hand missed completely — you're actually behind his pair. But he'll fold that pair to a second barrel, and a bet wins the pot right now. This is the whole point of a bluff barrel: fold equity lets you win even when your cards can't. Checking gives up a pot you could take.",
   "p34-give-up": "Same busted hand as the last spot — but this villain won't fold his pair. So a second barrel just pours chips into a hand that beats you (−EV). There's no fold equity and no showdown value, so give up: check and move on. Barrel when they fold; give up when they don't.",
   "p25-check-raise": "You flopped a hidden monster (bottom set) and checked to let the preflop raiser bet — and he did, with top pair. Now spring the trap: check-RAISE. His top pair pays off the raise, so build the pot now while he's willing to put money in. Just calling lets him off cheap.",
+  "p2-overbet-bluff": "Your hand missed — you have nothing to show down. The only way to win is to make villain fold, and his medium hand will pay a normal bet but fold to a huge one. So overbet as a bluff: the big size folds him out and takes the pot, while a small bet just gets called and loses. Good players overbet with a polarized range — their nuts AND their bluffs.",
   "p2-raise-sizing": "It's not just whether to raise — it's how much. You have the nuts, so you want max value, but a giant raise scares even a strong villain into folding, and then you win nothing extra. A small raise under-charges him; the pot-size raise gets the most in while he still calls. Raise as big as they'll pay off, not bigger.",
   // P3 — multi-street lines
   "p3-value-two-streets": "Unbeatable hand, guaranteed caller: bet every street. Each street you check is money you'll never get back.",
@@ -448,6 +449,8 @@ export const EXPLAIN: Record<string, string> = {
   "p4-strong-multiway": "Top pair top kicker is strong, but every extra opponent is another hand that can beat you — the field trims your equity a little below the heads-up number (~84%).",
   // P5 — exploit vs balance
   "p5-exploit-overfolder": "A hand with no showdown value only wins by making villain fold — and this villain folds often. Bet as a bluff; checking just gives up.",
+  "p5-exploit-maniac": "Third pair is a hand you'd normally muck on the river. But this villain is a maniac who bets far more busted hands than real ones — so your weak pair actually beats most of what he's betting. Against a wild over-bluffer, don't fold: call and let him bluff off his chips. The read beats the strength of your hand.",
+  "p5-exploit-nit": "Two pair is a hand you'd usually pay off with. But this villain is a nit — he only bets his very best hands and essentially never bluffs. Here that means a set, which crushes your two pair. So believe him and fold. Against someone who only bets the nuts, even a strong hand is an easy fold; calling just donates.",
   "p5-exploit-floater": "This villain 'floats' — he calls your flop bet with a weak hand, planning to steal later, but he actually just folds when you fire again on the turn. So bet the flop AND barrel the turn: he pays off the flop while he's floating, then gives up the turn, and you take it. Checking the flop lets a whole street of value slip by. Read the tendency (calls flop, folds turn) and double-barrel it.",
   "p5-value-vs-raiser": "Villain raises whenever you bet, so lead out with the nuts and let them raise into you. Checking wastes a raise-happy opponent.",
   "p5-vs-checkraise-range": "Villain raises only hands that beat you and folds the rest, so betting gets raised when you're behind and folds out what you beat. Check and take a free showdown.",
