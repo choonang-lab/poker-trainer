@@ -513,6 +513,12 @@ export function validateAbstraction(abstraction: Abstraction, board: Board = [])
     throw new Error(`multiway (players > 2) is an estimate-only field approximation; a betting tree (sizes) requires heads-up (players = 2)`);
   for (const s of sizes)
     if (!(s > 0)) throw new Error(`bet sizes must be > 0 (got ${s})`);
+  if (abstraction.raiseSizes) {
+    for (const r of abstraction.raiseSizes)
+      if (!(r > 0)) throw new Error(`raise sizes must be > 0 (got ${r})`);
+    if (abstraction.raiseSizes.length > ABSTRACTION_LIMITS.maxSizes)
+      throw new Error(`too many raise sizes: ${abstraction.raiseSizes.length} > ${ABSTRACTION_LIMITS.maxSizes}`);
+  }
   if (sizes.length > ABSTRACTION_LIMITS.maxSizes)
     throw new Error(`too many bet sizes: ${sizes.length} > ${ABSTRACTION_LIMITS.maxSizes}`);
   if (streets.length === 0)
@@ -650,15 +656,21 @@ function raiseNode(
       node: advance({ ...ctx, pot: pot + facing, heroInvested: heroInvested + (actor === "hero" ? facing : 0) }, rest) },
   ];
   if (raisesLeft > 0) {
-    const raiseBy = pot + facing;          // pot-sized raise (the pot after a call)
-    const addNow = facing + raiseBy;        // actor calls, then raises by the pot
-    const raisePot = pot + addNow;
-    const raiseHeroInv = heroInvested + (actor === "hero" ? addNow : 0);
     const opp = actor === "hero" ? "villain" : "hero";
-    children.push({
-      action: { kind: "bet", size: raiseBy / ctx.pot },   // raise-to, relative to the street pot
-      node: raiseNode(opp, ctx, raisePot, raiseBy, raiseHeroInv, raisesLeft - 1, rest),
-    });
+    const potRaise = pot + facing;          // baseline pot-sized raise (the pot after a call)
+    // Hero may choose among declared raise sizes (multipliers on the pot-sized raise);
+    // villain always raises pot-sized. Default [1.0] keeps the original behavior.
+    const rsizes = (actor === "hero" && ctx.abstraction.raiseSizes) ? ctx.abstraction.raiseSizes : [1.0];
+    for (const rs of rsizes) {
+      const raiseBy = rs * potRaise;
+      const addNow = facing + raiseBy;      // actor calls, then raises by raiseBy
+      const raisePot = pot + addNow;
+      const raiseHeroInv = heroInvested + (actor === "hero" ? addNow : 0);
+      children.push({
+        action: { kind: "bet", size: raiseBy / ctx.pot },   // raise-to, relative to the street pot
+        node: raiseNode(opp, ctx, raisePot, raiseBy, raiseHeroInv, raisesLeft - 1, rest),
+      });
+    }
   }
   return { kind: actor === "hero" ? "HERO" : "VILL", state, children };
 }
@@ -997,6 +1009,7 @@ const LEAK_TABLE: Record<string, string> = {
   "P2:missed_bet": "p2.misses_thin_value",
   "P2:underbet": "p2.bets_too_small",
   "P2:overbet": "p2.bets_too_big",
+  "P2:passive": "p2.flats_instead_of_raising",
   "P3:missed_bet": "p3.misses_multistreet_value",
   "P3:overbet": "p3.overbets_multistreet",
   "P3:passive": "p3.flats_instead_of_raising",
@@ -2145,6 +2158,29 @@ export const STARTER_DRILLS: Drill[] = [
         },
       },
       abstraction: { sizes: [1.0, 2.0, 3.0], streets: ["turn"], players: 2 },
+    },
+  },
+  {
+    id: "p2-raise-sizing",
+    module: "P2",
+    title: "Sizing: choosing your raise size on the turn",
+    read: "Villain has bet a strong hand he'll call a raise with — but an enormous one folds even him.",
+    ask: "action",
+    // How BIG to raise (raiseSizes = 0.5/1.0/2.0x the pot-sized raise). Hero AsTs = a royal (nuts)
+    // facing villain's pot bet; the set (KhKd) calls a small or pot-sized raise but folds a huge over-raise.
+    // raise-to sizes: 1.5 (EV 3.5) / 3.0 (EV 5.0, best) / 6.0 (EV 2.0 — folds him out). Raise as big as he'll
+    // call, not bigger: raising too small under-extracts (p2.bets_too_small), too big folds him (p2.bets_too_big).
+    state: {
+      heroHand: hand("As", "Ts"), board: hand("Ks", "Qs", "Js", "4h"),
+      pot: 1, toAct: "hero",
+      villain: {
+        range: [{ combo: hand("Kh", "Kd"), weight: 1 }],
+        policy: (_combo: Combo, s: NodeState) => {
+          const calls = s.pot <= 7.0; // raise-to pots: 0.5->4.5 (call), 1.0->6 (call), 2.0->9 (fold)
+          return [{ action: { kind: "fold" }, weight: calls ? 0 : 1 }, { action: { kind: "call" }, weight: calls ? 1 : 0 }];
+        },
+      },
+      abstraction: { sizes: [1.0], streets: ["turn"], players: 2, heroFacesBet: 1.0, raiseCap: 1, raiseSizes: [0.5, 1.0, 2.0] },
     },
   },
   {

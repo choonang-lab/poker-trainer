@@ -75,6 +75,9 @@ export interface Abstraction {
   villainRaises?: boolean;          // sugar for raiseCap = 1 (villain may raise hero's bet once).
   raiseCap?: number;                // max raises in a betting sequence (pot-sized, alternating actors).
                                     // 0 = fold/call only; 1 = one raise; 2 = re-raise (3-bet); etc.
+  raiseSizes?: number[];            // HERO's raise-size choices, as multipliers on the pot-sized raise
+                                    // (1.0 = raise the pot; 0.5 = half-pot raise; 2.0 = over-pot raise).
+                                    // Default [1.0] — unchanged. Villain raises stay single pot-sized.
 }
 export declare const NO_ABSTRACTION: Abstraction; // { sizes: [], streets: [], players: 2 }
 

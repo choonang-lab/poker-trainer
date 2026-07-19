@@ -815,8 +815,8 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
   ok("M4 check regret == 3 bb", approx(m4check.result.regretBb, 3), `got ${m4check.result.regretBb}`);
   ok("M4 check -> m4.misses_street_sequence", m4check.result.leakTag === "m4.misses_street_sequence");
 
-  ok("STARTER_DRILLS now spans 86 drills incl M0/M3.5/M4/M5.6/P0/P1/P2/P3/P3.5/P4/P5",
-    STARTER_DRILLS.length === 86 &&
+  ok("STARTER_DRILLS now spans 87 drills incl M0/M3.5/M4/M5.6/P0/P1/P2/P3/P3.5/P4/P5",
+    STARTER_DRILLS.length === 87 &&
     ["M0", "M3.5", "M4", "M5.6", "P0", "P1", "P3", "P4", "P5"].every((m) => STARTER_DRILLS.some((d) => d.module === m)));
 
   // Check-raise-range drill: villain raises only what beats hero (policy + raise).
@@ -924,6 +924,18 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
   ok("sizing: overbet a capped range -> bet 2x is best (not the 3x)", bestSz("p2-overbet-capped-range") === "bet2");
   ok("sizing: overbet too much (3x) -> p2.bets_too_big",
     gradeDrill(session, "p2-overbet-capped-range", { kind: "action", action: { kind: "bet", size: 3.0 } }, 0).result.leakTag === "p2.bets_too_big");
+
+  // Raise SIZING (raiseSizes): choose how big to raise; villain calls up to a point then folds.
+  const rsEvs = actionEVs(buildTree(byId("p2-raise-sizing").state));
+  ok("raise sizing: root offers fold/call + 3 raise sizes", rsEvs.length === 5);
+  ok("raise sizing: best is the pot-sized raise (size 3), not the biggest (6)",
+    bestSz("p2-raise-sizing") === "bet3", bestSz("p2-raise-sizing"));
+  ok("raise sizing: raising too small -> p2.bets_too_small",
+    gradeDrill(session, "p2-raise-sizing", { kind: "action", action: { kind: "bet", size: 1.5 } }, 0).result.leakTag === "p2.bets_too_small");
+  ok("raise sizing: raising too big (folds him out) -> p2.bets_too_big",
+    gradeDrill(session, "p2-raise-sizing", { kind: "action", action: { kind: "bet", size: 6.0 } }, 0).result.leakTag === "p2.bets_too_big");
+  ok("raise sizing: flatting the nuts -> p2.flats_instead_of_raising",
+    gradeDrill(session, "p2-raise-sizing", { kind: "action", action: { kind: "call" } }, 0).result.leakTag === "p2.flats_instead_of_raising");
 
   // Added module depth: M2 big-draw, M5 wider range (cheap), P1 race (preflop).
   const m2c = gradeDrill(session, "m2-combo-draw", { kind: "estimate", value: 0.95 }, 0);

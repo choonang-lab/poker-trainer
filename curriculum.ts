@@ -253,7 +253,7 @@ export const MODULES: Module[] = [
     ],
     objectives: ["Match your bet size to the spot", "Size down for thin value so worse hands still call", "Size up to deny a draw's equity, and overbet a range that can't fold"],
     example: "With the nuts and a caller, a pot-size bet earns more than a half-pot bet.",
-    drillIds: ["p2-size-up-nuts", "p2-thin-value", "p2-bet-small-thin-value", "p2-bet-big-deny-equity", "p2-overbet-capped-range"],
+    drillIds: ["p2-size-up-nuts", "p2-thin-value", "p2-bet-small-thin-value", "p2-bet-big-deny-equity", "p2-overbet-capped-range", "p2-raise-sizing"],
   },
   {
     id: "P3", track: "P2", title: "Multi-street lines",
@@ -399,6 +399,7 @@ export const EXPLAIN: Record<string, string> = {
   "p2-bet-small-thin-value": "The hands you beat will pay a small bet but fold a big one — so bet small and keep them in. A pot-size bet folds out your customers and gets called only by the one hand that beats you. With a thin value hand, size DOWN.",
   "p2-bet-big-deny-equity": "Your overpair is well ahead now, but the flush draw gets to improve if you let it in cheaply. Bet big: either it folds (and you've denied its equity), or it pays a bad price to chase. A small bet just gives the draw a fair price. Against a draw, size UP to protect.",
   "p2-overbet-capped-range": "Villain's hand is strong enough that he'll call even an overbet — so charge him. A pot-size bet leaves value behind; the 2×-pot overbet wins the most. But there's a ceiling: bet 3× and even he folds, and you win nothing extra. Overbet as much as they'll pay, no more.",
+  "p2-raise-sizing": "It's not just whether to raise — it's how much. You have the nuts, so you want max value, but a giant raise scares even a strong villain into folding, and then you win nothing extra. A small raise under-charges him; the pot-size raise gets the most in while he still calls. Raise as big as they'll pay off, not bigger.",
   // P3 — multi-street lines
   "p3-value-two-streets": "Unbeatable hand, guaranteed caller: bet every street. Each street you check is money you'll never get back.",
   "p3-3bet-the-nuts": "Facing a bet with the nuts, raising (a 3-bet) builds the pot; flat-calling under-extracts. Raise for value.",

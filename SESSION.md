@@ -37,7 +37,7 @@ repetition) with a guided-curriculum PWA on top.
 5. **The ship checklist** (after every approved change):
    `node engine.test.ts` → both tsc checks →
    `npx -p esbuild esbuild web/app.ts --bundle --format=esm --minify --outfile=docs/app.js`
-   → bump `CACHE` in `docs/sw.js` (v32 as of this writing) → update
+   → bump `CACHE` in `docs/sw.js` (v33 as of this writing) → update
    HANDOFF.md counts → commit (message style: `feat(scope): ...` with body,
    end with the Claude co-author line) → push → poll the live site until
    `docs/app.js` byte-size matches. If GitHub Pages sticks in "building",
@@ -55,7 +55,7 @@ repetition) with a guided-curriculum PWA on top.
 
 ## State as of 2026-07 (commit 6b80618)
 
-- **412 tests passing**, both type-checks clean, deployed bundle in sync.
+- **417 tests passing**, both type-checks clean, deployed bundle in sync.
 - **Review fixes (2026-07-18, post-audit), cache v21:** (1) `m2-combo-draw`
   board was `9s 8h 2c` (an 8-out spot, 36.9%) but its title/EXPLAIN teach the
   15-out flush+open-ender combo — fixed to `9s 8s 2c` (56.3%); a learner who
@@ -80,10 +80,10 @@ repetition) with a guided-curriculum PWA on top.
   condensed vs polarized, domination), M5.6 implied odds (4 — now ALL genuine
   multi-street trees after the effective-pot fake was rebuilt as a real OESD
   implied-odds tree; a flush-draw real tree, a no-implied fold, and reverse
-  implied). **Pillar 2 audited (2026-07-18):** 23 drills (P0 ×2, P1 ×3, P2 ×5,
+  implied). **Pillar 2 audited (2026-07-18):** 24 drills (P0 ×2, P1 ×3, P2 ×6,
   P3 ×3, P3.5 ×4, P4 ×2, P5 ×4) — P1 gained the AK-vs-AQ domination drill in Tier 5,
-  P2 gained 3 sizing-depth drills (bet small for thin value / bet big to deny equity
-  / overbet a capped range), P3 gained the `p3-pot-control` check-the-turn drill, a
+  P2 gained 4 sizing-depth drills (bet small for thin value / bet big to deny equity
+  / overbet a capped range / raise-sizing), P3 gained the `p3-pot-control` check-the-turn drill, a
   NEW P3.5 "River decisions" module was added, and Tier-2 moved the semi-bluff
   `p2-bet-or-check` to M3.5. Every best action /
   equity re-verified against the
