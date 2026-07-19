@@ -177,6 +177,18 @@ export const MODULES: Module[] = [
     drillIds: ["m4-sequence-two-streets", "m4-value-set", "m4-overpair-protection", "m4-way-behind-check"],
   },
   {
+    id: "M4.5", track: "P1", title: "Counting combos",
+    preface: "How likely is your opponent to hold a specific hand? Count its combinations — the number of ways those two cards can be dealt. A pocket pair has 6 combos and an unpaired hand has 16, before any cards you can see remove some.",
+    concepts: [
+      { term: "Combination (combo)", def: "one specific way to be dealt a holding — e.g. the A♠K♥ version of ace-king is one combo of A-K." },
+      { term: "6 and 16", def: "a pocket pair has 6 combos (any 2 of its 4 cards); an unpaired hand like A-K has 16 (4 x 4) — before blockers." },
+      { term: "Blocker", def: "a card you can see, in your hand or on the board, that removes some of the combos your opponent could have." },
+    ],
+    objectives: ["Count the combos of a pocket pair (6) and an unpaired hand (16)", "Subtract the combos removed by cards you can see (blockers)", "Use combo counts to judge how likely a hand is"],
+    example: "There's an ace in play, so pocket aces is only 3 combos now, not 6 — a card you hold makes a hand half as likely.",
+    drillIds: ["m45-combos-unpaired", "m45-combos-pair", "m45-combos-blocker"],
+  },
+  {
     id: "M5", track: "P1", title: "Equity vs range",
     preface: "Opponents hold ranges, not single hands. Your real equity is the average against every hand they could have, weighted by how likely each is.",
     concepts: [
@@ -399,6 +411,10 @@ export const EXPLAIN: Record<string, string> = {
   "m4-value-set": "Top set against a station: bet both streets to build the pot you're going to win.",
   "m4-overpair-protection": "Bet for value and charge the flush draw — checking hands over a free card.",
   "m4-way-behind-check": "Their two pair never folds and always calls: betting only loses more. Sequencing includes choosing NO streets — check to a cheap showdown.",
+  // M4.5 — counting combos
+  "m45-combos-unpaired": "No ace or king is in play, so all four of each are available: 4 x 4 = 16 combos of A-K.",
+  "m45-combos-pair": "A pocket pair is any two of its four cards: C(4,2) = 6 combos. No ace is visible, so pocket aces is the full 6.",
+  "m45-combos-blocker": "You hold one ace, leaving three: C(3,2) = 3 combos. One blocker cuts a pair's combos from 6 to 3 — half as likely.",
   // M5 — equity vs range
   "m5-overcards-vs-pairs": "Two overcards plus a gutshot vs underpairs is a live underdog — around a third of the pot on average (exact: 34.6%).",
   "m5-wide-range": "Behind both big pairs (though live), well ahead of TT — averaging across the range lands under a coinflip.",

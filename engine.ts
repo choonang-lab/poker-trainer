@@ -319,6 +319,18 @@ export function nutCategory(board: Board): number {
   return bestS![0];
 }
 
+// How many 2-card combinations of a holding are possible, given the cards already
+// visible (hero + board remove them). `combo` is a TEMPLATE — only its two ranks
+// matter. A pocket pair (same rank) has C(available,2) combos; an unpaired holding
+// has availA * availB. Base counts: pair = 6, unpaired = 16 — blockers cut them.
+export function comboCount(combo: Combo, known: Board): number {
+  const a = rankOf(combo[0]), b = rankOf(combo[1]);
+  const left = (r: number) => 4 - known.filter((c) => rankOf(c) === r).length;
+  const availA = left(a);
+  if (a === b) return (availA * (availA - 1)) / 2; // pocket pair
+  return availA * left(b);                          // two distinct ranks
+}
+
 // ---- L4: grading primitives ----------------------------------------------
 export const breakEven = (pot: number, call: number): number => call / (pot + call);
 
@@ -904,6 +916,14 @@ export function grade(state: State, response: Response): Result {
     const err = Math.abs(response.value - nutCategory(state.board));
     return { regretBb: 0, estimateError: err, leakTag: err === 0 ? "p1.ok" : "p1.misreads_nuts" };
   }
+  if (response.kind === "combos") {
+    // Graded by distance to the true combo count. villain.range[0].combo is the target
+    // holding; hero + board are the removed cards. Reuses the over/under out-count tags.
+    const target = state.villain.range[0]?.combo;
+    if (!target) throw new Error("combos drill requires a target holding in villain.range");
+    const error = response.value - comboCount(target, [...(state.heroHand ?? []), ...state.board]);
+    return { regretBb: 0, estimateError: Math.abs(error), leakTag: outsLeak(error) };
+  }
   const evs = decisionEVs(state);
   const chosen = evs.find((e) => sameAction(e.action, response.action));
   if (!chosen) throw new Error(`grade: illegal action ${JSON.stringify(response.action)} for this spot`);
@@ -994,6 +1014,8 @@ const LEAK_TABLE: Record<string, string> = {
   "M5:underestimate": "m5.underrates_vs_range",
   "M0:miscategorized": "m0.misreads_hand",
   "M0:misreads_nuts": "m0.misreads_nuts",
+  "M4.5:overestimate": "m45.overcounts_combos",
+  "M4.5:underestimate": "m45.undercounts_combos",
   "P0:overbet": "p0.bets_without_fold_equity",
   "P0:overfold": "p0.overfolds_in_position",
   "P1:overestimate": "p1.overvalues_holding",
@@ -2479,6 +2501,51 @@ export const STARTER_DRILLS: Drill[] = [
         policy: (_combo: Combo) => [{ action: { kind: "fold" }, weight: 0 }, { action: { kind: "call" }, weight: 1 }],
       },
       abstraction: { sizes: [0.75], streets: ["turn"], players: 2 },
+    },
+  },
+  // ---- M4.5 Counting combos: how many ways can a holding be dealt (with blockers)? ----
+  {
+    id: "m45-combos-unpaired",
+    module: "M4.5",
+    title: "Counting combos: how many ways can they have ace-king?",
+    read: "Count the combinations of A-K, given the cards you can already see.",
+    ask: "combos",
+    // Unpaired base count. No ace or king is visible (hero 5c5d, board 8h 7c 2d), so all
+    // 4 aces x 4 kings are available -> 16 combos. (villain.range = the TARGET holding.)
+    state: {
+      heroHand: hand("5c", "5d"), board: hand("8h", "7c", "2d"),
+      pot: 1, toAct: "hero",
+      villain: { range: [{ combo: hand("Ah", "Kh"), weight: 1 }] },
+      abstraction: { sizes: [], streets: [], players: 2 },
+    },
+  },
+  {
+    id: "m45-combos-pair",
+    module: "M4.5",
+    title: "Counting combos: how many ways can they have pocket aces?",
+    read: "Count the combinations of a pocket pair (aces), given what you can see.",
+    ask: "combos",
+    // Pocket-pair base count. No ace is visible, so all 4 aces are available -> C(4,2) = 6 combos.
+    state: {
+      heroHand: hand("5c", "5d"), board: hand("8h", "7c", "2d"),
+      pot: 1, toAct: "hero",
+      villain: { range: [{ combo: hand("Ah", "Ad"), weight: 1 }] },
+      abstraction: { sizes: [], streets: [], players: 2 },
+    },
+  },
+  {
+    id: "m45-combos-blocker",
+    module: "M4.5",
+    title: "Counting combos: pocket aces when you hold an ace",
+    read: "You hold an ace — count how many combinations of pocket aces are left for villain.",
+    ask: "combos",
+    // Blocker effect (discrimination with m45-combos-pair: 6 -> 3). Hero holds the A of spades,
+    // so only 3 aces remain -> C(3,2) = 3 combos of pocket aces. Your blocker halves their combos.
+    state: {
+      heroHand: hand("As", "5d"), board: hand("8h", "7c", "2d"),
+      pot: 1, toAct: "hero",
+      villain: { range: [{ combo: hand("Ah", "Ad"), weight: 1 }] },
+      abstraction: { sizes: [], streets: [], players: 2 },
     },
   },
   {

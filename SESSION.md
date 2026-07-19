@@ -55,7 +55,7 @@ repetition) with a guided-curriculum PWA on top.
 
 ## State as of 2026-07 (commit 6b80618)
 
-- **446 tests passing**, both type-checks clean, deployed bundle in sync.
+- **454 tests passing**, both type-checks clean, deployed bundle in sync.
 - **Review fixes (2026-07-18, post-audit), cache v21:** (1) `m2-combo-draw`
   board was `9s 8h 2c` (an 8-out spot, 36.9%) but its title/EXPLAIN teach the
   15-out flush+open-ender combo — fixed to `9s 8s 2c` (56.3%); a learner who
@@ -357,8 +357,10 @@ repetition) with a guided-curriculum PWA on top.
    (Skipped from item #3 as too marginal/overlapping: hero-floats, delayed c-bets.)
    All three "addable now" gaps (bet-size read, street-aware line, archetypes) are now
    DONE. Everything remaining (multiway, GTO, ICM, preflop trees, scare-card pinning,
-   combo-count, effective-stack/SPR) is engine work / different-engine, out of scope by
+   effective-stack/SPR) is engine work / different-engine, out of scope by
    design — see the "what else is missing" outline in chat for the full map.
+   (combo-count was subsequently built — see item #19; it needed only a tiny pure
+   helper, not a new engine.)
 18. ~~**Scare-card reactions**~~ — DONE 2026-07-18 (cache v39, 446 tests). KEY finding:
    scare-card REACTIONS are CONTENT-only (turn-rooted: the scare card just lives in the
    4-card board). The "scare-card PINNING" engine feature (deterministic CHANCE in a
@@ -370,6 +372,21 @@ repetition) with a guided-curriculum PWA on top.
    overcard → CHECK; barreling is −0.69). The turn CARD flips barrel into give-up.
    Browser-verified. So "scare-card pinning" on the remaining-gaps list = declined-engine
    / content-done; the reactions ship without it.
+19. ~~**Combo count (combinatorics)**~~ — DONE 2026-07-19 (cache v40, 454 tests, 104
+   drills, 18 modules). New `ask:"combos"` response kind + a small PURE helper
+   `comboCount(combo, known)` — NOT a new engine, just card-removal counting: a pocket
+   pair is C(availA,2), an unpaired hand is availA×availB, where `known` = hero hand +
+   board removes cards. grade() compares to the true count (estimate-error style, like
+   outs), refined to `m45.overcounts_combos` / `m45.undercounts_combos`. New module
+   **M4.5 · Counting combos** (before M5) with 3 drills, all hand-checkable: `m45-combos-
+   unpaired` (A-K, no blockers → 16), `m45-combos-pair` (AA, no blockers → 6),
+   `m45-combos-blocker` (AA but hero holds the A♠ → 3 — a discrimination pair with the
+   prior teaching "your blocker halves their combos"). UI: numeric input, villain render
+   suppressed (the target holding is named in the title, not shown as a card). Spot-checks
+   pin 16/6/3 and AK-with-A+K-visible=9. Browser-verified all three drills incl. the
+   wrong-answer path ("True count: 3 combos · off by 3"). KEY: combinatorics is depth-zero
+   pure card-removal — it never touches the L3 tree, so it cost one helper + a Response
+   variant, echoing the outs/nuts pattern.
 
 ## Machine-specific notes for macOS
 

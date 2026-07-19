@@ -6,7 +6,7 @@
 import {
   STARTER_DRILLS, loadSession, serializeSession, gradeDrill,
   buildTree, actionEVs, truth, outs, calibration, leakReport,
-  rankOf, suitOf, RNAMES, score7, madeHand, drawSuit, nutCategory,
+  rankOf, suitOf, RNAMES, score7, madeHand, drawSuit, nutCategory, comboCount,
 } from "../engine.ts";
 import { MODULES, PRIMER, EXPLAIN, moduleStatus, currentStreak } from "../curriculum.ts";
 import type { Drill, Response, Action, State, Module } from "../contract.ts";
@@ -307,7 +307,9 @@ function playDrill(drill: Drill, tagText: string, contLabel: string, onCont: () 
     el("div", "meta", `Pot ${s.pot}${s.toCall !== undefined ? ` · to call ${s.toCall}` : ""}` +
       (s.abstraction.players > 2 ? ` · ${s.abstraction.players}-way` : "")),
     s.heroHand ? el("div", "hero", `You: ${cards(s.heroHand)}`) : el("div"),
-    el("div", "vill", villainText(s)),
+    // For combos drills the villain range is the TARGET holding (stated in the read),
+    // not the villain's actual hand — so don't render it as "vs …".
+    drill.ask === "combos" ? el("div") : el("div", "vill", villainText(s)),
   );
   if (drill.read) sec.append(el("div", "read", `Read — ${drill.read}`));
   const controls = el("div", "controls");
@@ -367,6 +369,17 @@ function buildControls(controls: HTMLElement, drill: Drill, onAnswer: (r: Respon
     const label = el("label", "prompt", "How many outs?") as HTMLLabelElement;
     label.htmlFor = "ans-outs";
     controls.append(label, input, go);
+  } else if (drill.ask === "combos") {
+    const input = el("input") as HTMLInputElement;
+    input.type = "number"; input.min = "0"; input.max = "16"; input.step = "1"; input.placeholder = "e.g. 6";
+    input.id = "ans-combos"; input.inputMode = "numeric"; input.setAttribute("aria-label", "How many combinations");
+    const go = el("button", "primary", "Submit");
+    const submit = () => { const v = Math.round(Number(input.value)); if (Number.isFinite(v) && input.value !== "") onAnswer({ kind: "combos", value: v }); };
+    go.onclick = submit;
+    input.onkeydown = (e) => { if ((e as KeyboardEvent).key === "Enter") submit(); };
+    const label = el("label", "prompt", "How many combinations?") as HTMLLabelElement;
+    label.htmlFor = "ans-combos";
+    controls.append(label, input, go);
   } else if (drill.ask === "category" || drill.ask === "nuts") {
     const nuts = drill.ask === "nuts";
     controls.append(el("label", "prompt", nuts ? "Best possible hand here (the nuts)?" : "Name your made hand:"));
@@ -418,6 +431,10 @@ function renderFeedback(drill: Drill, out: ReturnType<typeof gradeDrill>, contLa
   else if (drill.ask === "nuts") {
     const cat = CATEGORY[nutCategory(drill.state.board)];
     line = r.estimateError === 0 ? `Correct — the nuts is a ${cat}` : `The nuts is a ${cat} · off by ${r.estimateError}`;
+  }
+  else if (drill.ask === "combos") {
+    const t = comboCount(drill.state.villain.range[0].combo, [...(drill.state.heroHand ?? []), ...drill.state.board]);
+    line = r.estimateError === 0 ? `Correct — ${t} combos` : `True count: ${t} combos · off by ${r.estimateError}`;
   }
   else line = r.regretBb <= 1e-9 ? "Optimal." : `Regret ${r.regretBb.toFixed(2)} bb`;
   // The raw leak tag (e.g. "p2.bets_into_strong_range") is internal taxonomy; the

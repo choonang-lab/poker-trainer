@@ -30,6 +30,7 @@ export declare function equityVsRange(hero: Combo, board: Board, range: Range): 
 export declare function outs(hero: Combo, board: Board, villain: Combo): number;          // 1 to come
 export declare function drawSuit(hero: Combo, board: Board): number | null;               // suit of a 4-card flush draw, else null
 export declare function nutCategory(board: Board): number;                                 // category (0-8) of the best hand this board allows
+export declare function comboCount(combo: Combo, known: Board): number;                     // # of 2-card combos of a holding, given removed cards
 
 // ===========================================================================
 // L4 — grading primitives (implemented, tested)
@@ -181,7 +182,8 @@ export type Response =
   | { kind: "action"; action: Action }         // a chosen action
   | { kind: "category"; value: number }        // a made-hand category guess (0=high..8=straight flush), M0
   | { kind: "outs"; value: number }            // a count of outs (cards that improve to the best hand), M1
-  | { kind: "nuts"; value: number };           // the category (0-8) of the best hand the board allows, M0
+  | { kind: "nuts"; value: number }            // the category (0-8) of the best hand the board allows, M0
+  | { kind: "combos"; value: number };         // # of combinations of a holding (given card removal), M4.5
 
 // Per-action EVs at a HERO node — the source bestAction argmaxes and grade()
 // computes regret from.
@@ -222,7 +224,7 @@ export interface Drill {
   id: string;
   module: string;                   // curriculum tag, e.g. "M2", "M3", "P2"
   title: string;                    // human-facing label
-  ask: "estimate" | "action" | "category" | "outs" | "nuts";  // the response kind this drill expects
+  ask: "estimate" | "action" | "category" | "outs" | "nuts" | "combos";  // the response kind this drill expects
   read?: string;                    // optional villain read/situational note (the strategy isn't visible from cards alone)
   state: State;
 }

@@ -2,7 +2,7 @@
 import {
   score5, score7, score7slow, cmpScore, equity, equityVsRange, outs,
   breakEven, callEV, decisionRegret, regret, estimateError, withinBand, brier, calibration, leakReport,
-  hand, parseCard, card, rankOf, suitOf, FULL_DECK, madeHand, drawSuit, nutCategory,
+  hand, parseCard, card, rankOf, suitOf, FULL_DECK, madeHand, drawSuit, nutCategory, comboCount,
   equityLeaf, bestResponseEV, bestAction, truth, buildTree, realizationFactor,
   fieldEquity, validateAbstraction, ABSTRACTION_LIMITS,
   actionEVs, grade,
@@ -699,6 +699,8 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
           ? { kind: "nuts", value: 5 }                   // M0 name-the-nuts (board-only)
           : d.ask === "outs"
           ? { kind: "outs", value: 8 }                   // M1 out-counting
+          : d.ask === "combos"
+          ? { kind: "combos", value: 6 }                 // M4.5 counting combos
           : (d.state.abstraction.sizes.length === 0 || d.state.abstraction.heroFacesBet !== undefined)
             ? { kind: "action", action: { kind: "call" } } // pillar-1 call/fold OR hero-faces-bet root
             : { kind: "action", action: { kind: "check" } }; // pillar-2 (legal at root)
@@ -830,9 +832,24 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
   ok("M4 check regret == 3 bb", approx(m4check.result.regretBb, 3), `got ${m4check.result.regretBb}`);
   ok("M4 check -> m4.misses_street_sequence", m4check.result.leakTag === "m4.misses_street_sequence");
 
-  ok("STARTER_DRILLS now spans 101 drills incl M0/M3.5/M4/M5.6/P0/P1/P2/P2.5/P3/P3.4/P3.5/P4/P5",
-    STARTER_DRILLS.length === 101 &&
-    ["M0", "M3.5", "M4", "M5.6", "P0", "P1", "P3", "P4", "P5"].every((m) => STARTER_DRILLS.some((d) => d.module === m)));
+  ok("STARTER_DRILLS now spans 104 drills incl M0/M3.5/M4/M4.5/M5.6/P0/P1/P2/P2.5/P3/P3.4/P3.5/P4/P5",
+    STARTER_DRILLS.length === 104 &&
+    ["M0", "M3.5", "M4", "M4.5", "M5.6", "P0", "P1", "P3", "P4", "P5"].every((m) => STARTER_DRILLS.some((d) => d.module === m)));
+
+  // M4.5 combo counting: base counts and blocker removal, all hand-checkable.
+  ok("comboCount: A-K unpaired, no blockers = 16", comboCount(hand("Ah", "Kh"), []) === 16);
+  ok("comboCount: pocket aces, no blockers = 6", comboCount(hand("Ah", "Ad"), []) === 6);
+  ok("comboCount: pocket aces with one ace visible = 3", comboCount(hand("Ah", "Ad"), hand("As")) === 3);
+  ok("comboCount: A-K with an ace and a king visible = 9", comboCount(hand("Ah", "Kh"), hand("As", "Ks")) === 9);
+  const combSess = newSession(STARTER_DRILLS);
+  const combUnp = gradeDrill(combSess, "m45-combos-unpaired", { kind: "combos", value: 16 }, 0).result;
+  ok("m45-combos-unpaired: 16 is exact (error 0)", combUnp.estimateError === 0);
+  const combPair = gradeDrill(combSess, "m45-combos-pair", { kind: "combos", value: 6 }, 0).result;
+  ok("m45-combos-pair: 6 is exact (error 0)", combPair.estimateError === 0);
+  const combBlock = gradeDrill(combSess, "m45-combos-blocker", { kind: "combos", value: 3 }, 0).result;
+  ok("m45-combos-blocker: 3 is exact (error 0)", combBlock.estimateError === 0);
+  const combOver = gradeDrill(combSess, "m45-combos-pair", { kind: "combos", value: 9 }, 0).result;
+  ok("m45-combos overcount -> m45.overcounts_combos", combOver.leakTag === "m45.overcounts_combos");
 
   // Check-raise-range drill: villain raises only what beats hero (policy + raise).
   const cr = byId("p5-vs-checkraise-range");
