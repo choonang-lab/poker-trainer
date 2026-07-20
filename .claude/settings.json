@@ -6,6 +6,10 @@
       "Bash(npx -p typescript tsc -p web/tsconfig.json)",
       "Bash(node bench.ts)",
       "Bash(node validate-evaluator.ts)",
+      "Bash(npx -p esbuild esbuild web/app.ts --bundle --format=esm --minify --outfile=docs/app.js)",
+      "Bash(git add -A)",
+      "Bash(git commit *)",
+      "Bash(git push origin main)",
       "Bash(curl -s https://choonang-lab.github.io/*)",
       "Bash(curl -s -o /dev/null -w * https://choonang-lab.github.io/*)"
     ]

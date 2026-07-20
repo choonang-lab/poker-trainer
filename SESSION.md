@@ -483,12 +483,18 @@ break that or need a fundamentally different solver. Logged so they aren't re-sc
   defeats exact-match permission allowlisting, so every test/build step prompted
   for approval. Verify with `node -v` before ever re-adding a prefix.
 - **Permission allowlist:** `.claude/settings.json` in this repo allows the
-  read-only ship steps to run unattended (`node engine.test.ts`, both `tsc`
-  checks, live-site `curl` polling). It only loads when Claude Code runs with
-  this repo in scope — start sessions from `~/poker-trainer`, not `~`. The
-  mutating steps (esbuild bundle write, `git add`/`commit`/`push`) are
-  deliberately NOT allowlisted; add them yourself if you want fully hands-off
-  shipping.
+  ENTIRE ship checklist to run unattended — `node engine.test.ts`, both `tsc`
+  checks, the esbuild bundle build, `git add -A` / `git commit` / `git push
+  origin main`, and live-site `curl` polling. Owner opted into full hands-off
+  shipping on 2026-07-20 (incl. push to the live public site).
+  It only loads when Claude Code has this repo in scope — **start sessions from
+  `~/poker-trainer`, not `~`**, or the allowlist is ignored and every step
+  prompts again.
+  Note the entries are EXACT-match, so they only work with commands run bare
+  (no `export PATH=…` prefix — see the Node note above) and with the canonical
+  ship-checklist forms. If you change a build flag, update the entry too.
+  Still NOT allowlisted by design: `node -e` inline scripts (arbitrary code),
+  `rm`, force-push, and pushes to any branch other than `main`.
 - `.claude/launch.json` in this repo has **Windows** paths for the preview
   server; recreate it on Mac (e.g. `python3 -m http.server 5050 --directory
   <repo>/docs`) or just use `python3 -m http.server` directly.
