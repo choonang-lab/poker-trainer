@@ -3,6 +3,7 @@ import {
   score5, score7, score7slow, cmpScore, equity, equityVsRange, outs,
   breakEven, callEV, decisionRegret, regret, estimateError, withinBand, brier, calibration, leakReport,
   hand, parseCard, card, rankOf, suitOf, FULL_DECK, madeHand, drawSuit, nutCategory, comboCount,
+  minDefenseFreq, bluffFrequency,
   equityLeaf, bestResponseEV, bestAction, truth, buildTree, realizationFactor,
   fieldEquity, validateAbstraction, ABSTRACTION_LIMITS,
   actionEVs, grade,
@@ -701,6 +702,10 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
           ? { kind: "outs", value: 8 }                   // M1 out-counting
           : d.ask === "combos"
           ? { kind: "combos", value: 6 }                 // M4.5 counting combos
+          : d.ask === "mdf"
+          ? { kind: "mdf", value: 0.5 }                  // M5.7 minimum defense frequency
+          : d.ask === "bluffs"
+          ? { kind: "bluffs", value: 0.33 }              // M5.7 bluff frequency
           : (d.state.abstraction.sizes.length === 0 || d.state.abstraction.heroFacesBet !== undefined)
             ? { kind: "action", action: { kind: "call" } } // pillar-1 call/fold OR hero-faces-bet root
             : { kind: "action", action: { kind: "check" } }; // pillar-2 (legal at root)
@@ -832,9 +837,9 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
   ok("M4 check regret == 3 bb", approx(m4check.result.regretBb, 3), `got ${m4check.result.regretBb}`);
   ok("M4 check -> m4.misses_street_sequence", m4check.result.leakTag === "m4.misses_street_sequence");
 
-  ok("STARTER_DRILLS now spans 104 drills incl M0/M3.5/M4/M4.5/M5.6/P0/P1/P2/P2.5/P3/P3.4/P3.5/P4/P5",
-    STARTER_DRILLS.length === 104 &&
-    ["M0", "M3.5", "M4", "M4.5", "M5.6", "P0", "P1", "P3", "P4", "P5"].every((m) => STARTER_DRILLS.some((d) => d.module === m)));
+  ok("STARTER_DRILLS now spans 108 drills incl M0/M3.5/M4/M4.5/M5.6/M5.7/P0/P1/P2/P2.5/P3/P3.4/P3.5/P4/P5",
+    STARTER_DRILLS.length === 108 &&
+    ["M0", "M3.5", "M4", "M4.5", "M5.6", "M5.7", "P0", "P1", "P3", "P4", "P5"].every((m) => STARTER_DRILLS.some((d) => d.module === m)));
 
   // M4.5 combo counting: base counts and blocker removal, all hand-checkable.
   ok("comboCount: A-K unpaired, no blockers = 16", comboCount(hand("Ah", "Kh"), []) === 16);
@@ -850,6 +855,24 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
   ok("m45-combos-blocker: 3 is exact (error 0)", combBlock.estimateError === 0);
   const combOver = gradeDrill(combSess, "m45-combos-pair", { kind: "combos", value: 9 }, 0).result;
   ok("m45-combos overcount -> m45.overcounts_combos", combOver.leakTag === "m45.overcounts_combos");
+
+  // M5.7 balance math: the frequency constants, all pure functions of pot & bet.
+  ok("minDefenseFreq: pot-sized bet = 0.5", minDefenseFreq(1, 1) === 0.5);
+  ok("minDefenseFreq: quarter-pot bet = 0.8", Math.abs(minDefenseFreq(1, 0.25) - 0.8) < 1e-12);
+  ok("bluffFrequency: pot-sized bet = 1/3", Math.abs(bluffFrequency(1, 1) - 1 / 3) < 1e-12);
+  ok("bluffFrequency: half-pot bet = 0.25", bluffFrequency(1, 0.5) === 0.25);
+  ok("MDF + alpha identity: defend + fold = 1", Math.abs(minDefenseFreq(3, 2) + 2 / (3 + 2) - 1) < 1e-12);
+  const balSess = newSession(STARTER_DRILLS);
+  const mdfPot = gradeDrill(balSess, "m57-mdf-pot-bet", { kind: "mdf", value: 0.5 }, 0).result;
+  ok("m57-mdf-pot-bet: 50% is exact (error 0, ok tag)", mdfPot.estimateError === 0 && mdfPot.leakTag.endsWith(".ok"));
+  const mdfUnder = gradeDrill(balSess, "m57-mdf-pot-bet", { kind: "mdf", value: 0.3 }, 0).result;
+  ok("m57-mdf underdefend (30% vs 50%) -> m57.underdefends", mdfUnder.leakTag === "m57.underdefends");
+  const mdfSmall = gradeDrill(balSess, "m57-mdf-small-bet", { kind: "mdf", value: 0.8 }, 0).result;
+  ok("m57-mdf-small-bet: 80% is exact (ok)", mdfSmall.leakTag.endsWith(".ok"));
+  const bluffPot = gradeDrill(balSess, "m57-bluff-pot-bet", { kind: "bluffs", value: 0.333 }, 0).result;
+  ok("m57-bluff-pot-bet: 33.3% within tolerance (ok)", bluffPot.leakTag.endsWith(".ok"));
+  const bluffOver = gradeDrill(balSess, "m57-bluff-half-pot", { kind: "bluffs", value: 0.5 }, 0).result;
+  ok("m57-bluff-half-pot overbluff (50% vs 25%) -> m57.overbluffs", bluffOver.leakTag === "m57.overbluffs");
 
   // Check-raise-range drill: villain raises only what beats hero (policy + raise).
   const cr = byId("p5-vs-checkraise-range");

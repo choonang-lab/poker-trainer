@@ -7,6 +7,7 @@ import {
   STARTER_DRILLS, loadSession, serializeSession, gradeDrill,
   buildTree, actionEVs, truth, outs, calibration, leakReport,
   rankOf, suitOf, RNAMES, score7, madeHand, drawSuit, nutCategory, comboCount,
+  minDefenseFreq, bluffFrequency,
 } from "../engine.ts";
 import { MODULES, PRIMER, EXPLAIN, moduleStatus, currentStreak } from "../curriculum.ts";
 import type { Drill, Response, Action, State, Module } from "../contract.ts";
@@ -300,7 +301,16 @@ function highlightLegend(hl: Highlight): HTMLElement {
 function playDrill(drill: Drill, tagText: string, contLabel: string, onCont: () => void): void {
   const s = drill.state;
   const sec = el("section", "drill");
-  sec.append(
+  // Balance-math drills (mdf/bluffs) are pure pot/bet arithmetic — no board, hero
+  // hand, or villain holding. Render just the scenario line built from pot & bet.
+  const freqAsk = drill.ask === "mdf" || drill.ask === "bluffs";
+  if (freqAsk) {
+    const P = s.pot, B = s.toCall ?? 0;
+    const scenario = drill.ask === "mdf"
+      ? `Villain bets ${B} into a pot of ${P}.`
+      : `You bet ${B} into a pot of ${P} on the river.`;
+    sec.append(el("div", "tag", tagText), el("h2", "title", drill.title), el("div", "meta", scenario));
+  } else sec.append(
     el("div", "tag", tagText),
     el("h2", "title", drill.title),
     el("div", "board", s.board.length ? cards(s.board) : "<em>(preflop)</em>"),
@@ -331,7 +341,7 @@ function playDrill(drill: Drill, tagText: string, contLabel: string, onCont: () 
     // A preflop grade enumerates a full 5-card runout (seconds on some devices).
     // Swap the controls for a "Checking…" note and defer, so the UI repaints
     // before the synchronous enumeration blocks the main thread.
-    if (drill.state.board.length === 0) {
+    if (drill.state.board.length === 0 && !freqAsk) {
       (sec.querySelector(".controls") as HTMLElement | null)?.replaceChildren(el("div", "calc", "Checking…"));
       setTimeout(finish, 30);
     } else finish();
@@ -379,6 +389,23 @@ function buildControls(controls: HTMLElement, drill: Drill, onAnswer: (r: Respon
     input.onkeydown = (e) => { if ((e as KeyboardEvent).key === "Enter") submit(); };
     const label = el("label", "prompt", "How many combinations?") as HTMLLabelElement;
     label.htmlFor = "ans-combos";
+    controls.append(label, input, go);
+  } else if (drill.ask === "mdf" || drill.ask === "bluffs") {
+    const input = el("input") as HTMLInputElement;
+    input.type = "number"; input.min = "0"; input.max = "100"; input.step = "0.1"; input.placeholder = "e.g. 50 (%)";
+    input.id = "ans-freq"; input.inputMode = "decimal"; input.setAttribute("aria-label", "Your frequency answer as a percentage");
+    const go = el("button", "primary", "Submit");
+    const submit = () => {
+      let v = Number(input.value);
+      if (!Number.isFinite(v) || input.value === "") return;
+      if (v > 1) v = v / 100; // percentage entry (50 -> 0.50), same as the equity input
+      onAnswer(drill.ask === "mdf" ? { kind: "mdf", value: v } : { kind: "bluffs", value: v });
+    };
+    go.onclick = submit;
+    input.onkeydown = (e) => { if ((e as KeyboardEvent).key === "Enter") submit(); };
+    const prompt = drill.ask === "mdf" ? "What % must you defend?" : "What % of your bets are bluffs?";
+    const label = el("label", "prompt", prompt) as HTMLLabelElement;
+    label.htmlFor = "ans-freq";
     controls.append(label, input, go);
   } else if (drill.ask === "category" || drill.ask === "nuts") {
     const nuts = drill.ask === "nuts";
@@ -435,6 +462,15 @@ function renderFeedback(drill: Drill, out: ReturnType<typeof gradeDrill>, contLa
   else if (drill.ask === "combos") {
     const t = comboCount(drill.state.villain.range[0].combo, [...(drill.state.heroHand ?? []), ...drill.state.board]);
     line = r.estimateError === 0 ? `Correct — ${t} combos` : `True count: ${t} combos · off by ${r.estimateError}`;
+  }
+  else if (drill.ask === "mdf" || drill.ask === "bluffs") {
+    const P = drill.state.pot, B = drill.state.toCall ?? 0;
+    const t = drill.ask === "mdf" ? minDefenseFreq(P, B) : bluffFrequency(P, B);
+    const pct = (v: number) => `${parseFloat((v * 100).toFixed(1))}%`;
+    const noun = drill.ask === "mdf" ? "defend" : "bluffs";
+    line = ok  // `ok` mirrors the engine's .ok tag, so UI and grading agree on the tolerance
+      ? `Correct — ${pct(t)}`
+      : `True ${noun}: ${pct(t)} · off by ${parseFloat(((r.estimateError ?? 0) * 100).toFixed(1))} pts`;
   }
   else line = r.regretBb <= 1e-9 ? "Optimal." : `Regret ${r.regretBb.toFixed(2)} bb`;
   // The raw leak tag (e.g. "p2.bets_into_strong_range") is internal taxonomy; the

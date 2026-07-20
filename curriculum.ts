@@ -222,6 +222,22 @@ export const MODULES: Module[] = [
       "m56-no-implied-odds", "m56-reverse-implied",
     ],
   },
+  {
+    id: "M5.7", track: "P1", title: "Balanced frequencies",
+    preface: "Instead of reading one opponent, you can bet and defend at frequencies no opponent can exploit — a fold or a bluff that shows a profit means you're off balance. Both numbers come from one thing: the bet size relative to the pot. No solver needed; it's arithmetic.",
+    concepts: [
+      { term: "Minimum defense frequency (MDF)", def: "the share of your range you must continue with facing a bet — pot / (pot + bet) — so a pure bluff breaks even. Defend less and bluffing you prints." },
+      { term: "Alpha", def: "the flip side of MDF: the most you can fold, bet / (pot + bet). MDF + alpha = 1." },
+      { term: "Bluff-to-value ratio", def: "how many bluffs balance your value bets at a size — bet / (pot + 2·bet) of your betting range is bluffs, so a bluff-catcher is indifferent to calling." },
+      { term: "Polarized bet", def: "a betting range of value hands plus balancing bluffs (nothing medium) — the shape these frequencies apply to." },
+    ],
+    objectives: ["Compute the minimum defense frequency for any bet size", "Compute the bluff share of a betting range for any size", "See how a bigger bet means defend less but bluff more"],
+    example: "Against a pot-sized bet you must defend half your range (50%); if you're the bettor, a third of a pot-sized bet should be bluffs (33%).",
+    drillIds: [
+      "m57-mdf-pot-bet", "m57-mdf-small-bet",
+      "m57-bluff-pot-bet", "m57-bluff-half-pot",
+    ],
+  },
   // ---- Pillar 2 · decide ----
   {
     id: "P0", track: "P2", title: "Position and realization",
@@ -429,6 +445,11 @@ export const EXPLAIN: Record<string, string> = {
   "m56-true-implied-odds": "The overbet needs 40% now and you have ~37% — but villain pays you again on the turn when the flush lands. Future bets rescue the call.",
   "m56-no-implied-odds": "You need 50% and have ~37% — and with nothing left to win later, implied odds can't make up the gap. Fold.",
   "m56-reverse-implied": "Your 'outs' complete villain's BIGGER flush — hitting often means losing more, not winning. Fold.",
+  // M5.7 — balanced frequencies
+  "m57-mdf-pot-bet": "MDF = pot / (pot + bet) = 1 / (1 + 1) = 50%. Against a pot-sized bet you must continue with half your range; fold more than half and a bet of any two cards profits as a pure bluff.",
+  "m57-mdf-small-bet": "MDF = 1 / (1 + 0.25) = 80%. A quarter-pot bet risks little to steal the pot, so it needs to work rarely — you have to defend 80% (fold at most 20%). The smaller the bet, the more you defend.",
+  "m57-bluff-pot-bet": "Bluff share = bet / (pot + 2·bet) = 1 / 3 = 33%. Betting pot on the river, one third of your bets should be bluffs — one bluff for every two value bets — so calling your bluff-catcher breaks even.",
+  "m57-bluff-half-pot": "Bluff share = 0.5 / (1 + 1) = 25%. A half-pot bet gives villain a better price to call, so you can bluff less — a quarter of this betting range. Bigger bets get to bluff more; smaller bets, fewer.",
   // P0 — position and realization
   "p0-oop-no-equity": "No equity, and a villain who bets when you check but never folds — betting only loses more. Out of position you can't take a free showdown, so check and fold. In position you could have checked it down; that's what position buys you.",
   "p0-ip-realize-equity": "Acting last, a check ends the round and buys a free river — you realize your full draw (9 outs, about 20%). Betting is a trap: this villain never folds, so a semi-bluff with no fold equity just burns chips. Out of position that same check would face a bet and realize nothing — the free card is what position buys you.",

@@ -55,7 +55,7 @@ repetition) with a guided-curriculum PWA on top.
 
 ## State as of 2026-07 (commit 6b80618)
 
-- **454 tests passing**, both type-checks clean, deployed bundle in sync.
+- **464 tests passing**, both type-checks clean, deployed bundle in sync.
 - **Review fixes (2026-07-18, post-audit), cache v21:** (1) `m2-combo-draw`
   board was `9s 8h 2c` (an 8-out spot, 36.9%) but its title/EXPLAIN teach the
   15-out flush+open-ender combo — fixed to `9s 8s 2c` (56.3%); a learner who
@@ -129,7 +129,7 @@ repetition) with a guided-curriculum PWA on top.
 
 Single scan of everything still open after 19 shipped items. The numbered "Next up"
 log below is a DONE-history with declines interleaved; this section is the live to-do.
-Baseline right now: **104 drills, 18 modules, 454 tests, cache v40**, live & in sync.
+Baseline right now: **108 drills, 19 modules, 464 tests, cache v41**, live & in sync.
 
 ### A. Addable now — content-only, no engine change (pick any, each ~1 commit)
 - **More depth in any module.** The engine supports far more than is authored; every
@@ -158,7 +158,13 @@ break that or need a fundamentally different solver. Logged so they aren't re-sc
   imperceptible to a beginner. DECLINED (item 18). Scare-card *reactions* already ship
   as turn-rooted content (`p34-scare-card-shutdown`).
 - **GTO / balance, ICM, true multiway N-player tree** — different engines. P4 multiway
-  stays a labelled field approximation on purpose (items 11–14).
+  stays a labelled field approximation on purpose (items 11–14). NOTE: the *balance
+  MATH* slice (MDF / bluff frequency) WAS built — see item #20. What stays declined is
+  full equilibrium SOLVING: a CFR solver over the existing tree is computable, but it
+  breaks Invariant #3 (no fixed villain) AND can't be graded one-click — equilibrium
+  play is mixed frequencies whose actions are EV-indifferent, so a deviation loses ≈0
+  vs the equilibrium opponent, and the real metric (exploitability) is a property of a
+  whole strategy over many hands, not a single decision. Don't re-scope it.
 - **Effective-stack / SPR as an engine feature** — engine work, out of scope; SPR-framed
   *content* on existing trees is fine, but a stack-depth solver is not.
 
@@ -434,6 +440,33 @@ break that or need a fundamentally different solver. Logged so they aren't re-sc
    wrong-answer path ("True count: 3 combos · off by 3"). KEY: combinatorics is depth-zero
    pure card-removal — it never touches the L3 tree, so it cost one helper + a Response
    variant, echoing the outs/nuts pattern.
+20. ~~**Balance math (the feasible GTO slice)**~~ — DONE 2026-07-20 (cache v41, 464
+   tests, 108 drills, 19 modules). Asked "is GTO/balance feasible"; answer was: the
+   SOLVER is computable (CFR over the existing tree) but full equilibrium play can't be
+   graded one-click (mixed frequencies, EV-indifferent actions, exploitability is a
+   whole-strategy property) AND it breaks the fixed-villain invariant — so full GTO stays
+   declined (see section B). What IS feasible is the equilibrium CONSTANTS, which are
+   pure functions of bet size — the depth-zero slice, exactly like pot odds and combos.
+   Built 2 helpers, `minDefenseFreq(pot,bet) = pot/(pot+bet)` and
+   `bluffFrequency(pot,bet) = bet/(pot+2*bet)`, plus 2 response kinds (`mdf`, `bluffs`)
+   graded by distance to the target. NEW module **M5.7 · Balanced frequencies** (after
+   M5.6) with 4 drills forming two discrimination pairs: MDF pot-bet → 50% vs quarter-pot
+   → 80% (smaller bet, defend MORE); bluff pot-bet → 33.3% vs half-pot → 25% (smaller bet,
+   bluff LESS). Alpha is taught as a concept (= 1 − MDF), NOT a separate drill — it's
+   numerically redundant and inviting "which formula do I use" confusion.
+   THREE gotchas worth remembering: (1) the two formulas live in ONE module but
+   LEAK_TABLE is keyed `MODULE:suffix`, so grade() emits DISTINCT suffixes
+   (overdefends/underdefends vs overbluffs/underbluffs) — a shared "overestimate" would
+   have conflated them. (2) 33.3% can't be typed exactly, so the mdf/bluffs grade
+   branches use a 0.5-point tolerance for the `.ok` tag, and the UI feedback reuses the
+   `.ok` tag (not its own threshold) so UI and grading can never disagree. (3) These
+   drills have NO board/hero/villain — playDrill got a `freqAsk` branch rendering just
+   the scenario ("Villain bets 1 into a pot of 1."), and the empty board would otherwise
+   have tripped the preflop "Checking…" defer, so that condition now excludes freqAsk.
+   `state.pot` here is the pot BEFORE the bet and `state.toCall` is the bet (differs from
+   M3's offered-pot convention — safe because these never reach truth()/the tree).
+   Browser-verified all 4 drills incl. the wrong-answer path ("True defend: 80% · off by
+   30 pts") and the 33% tolerance case.
 
 ## Machine-specific notes for macOS
 

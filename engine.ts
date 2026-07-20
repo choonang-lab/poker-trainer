@@ -331,6 +331,25 @@ export function comboCount(combo: Combo, known: Board): number {
   return availA * left(b);                          // two distinct ranks
 }
 
+// Balance math — the equilibrium frequency constants, pure functions of the bet
+// size relative to the pot. This is the depth-zero slice of GTO: no tree, no
+// solver, just the ratio that makes an opponent indifferent. `pot` is the pot
+// BEFORE the bet; `bet` is the wager. (Both drills declare pot in state.pot and
+// the bet in state.toCall, so grade() reads them straight off the spot.)
+//
+// Minimum defense frequency: the fraction of your range you must continue with
+// so that a pure bluff of `bet` shows 0 EV. Defend less and a bluff prints.
+// Pot-sized bet -> 1/2; the smaller the bet, the more you must defend.
+export function minDefenseFreq(pot: number, bet: number): number {
+  return pot / (pot + bet);
+}
+// Optimal bluff fraction of a betting range: bet `bet` into `pot` and this share
+// of your bets should be bluffs to leave a bluff-catcher indifferent to calling.
+// Pot-sized bet -> 1/3 (one bluff per two value bets); smaller bets bluff less.
+export function bluffFrequency(pot: number, bet: number): number {
+  return bet / (pot + 2 * bet);
+}
+
 // ---- L4: grading primitives ----------------------------------------------
 export const breakEven = (pot: number, call: number): number => call / (pot + call);
 
@@ -924,6 +943,19 @@ export function grade(state: State, response: Response): Result {
     const error = response.value - comboCount(target, [...(state.heroHand ?? []), ...state.board]);
     return { regretBb: 0, estimateError: Math.abs(error), leakTag: outsLeak(error) };
   }
+  if (response.kind === "mdf") {
+    // Minimum defense frequency from the declared pot/bet. A 0.5-point tolerance so a
+    // non-terminating target (e.g. 33.3%) counts as correct when typed as a percentage.
+    // Over/under keep distinct suffixes so one module can carry both mdf and bluff drills.
+    const error = response.value - minDefenseFreq(state.pot, state.toCall ?? 0);
+    const tag = Math.abs(error) < 5e-3 ? "p1.ok" : error > 0 ? "p1.overdefends" : "p1.underdefends";
+    return { regretBb: 0, estimateError: Math.abs(error), leakTag: tag };
+  }
+  if (response.kind === "bluffs") {
+    const error = response.value - bluffFrequency(state.pot, state.toCall ?? 0);
+    const tag = Math.abs(error) < 5e-3 ? "p1.ok" : error > 0 ? "p1.overbluffs" : "p1.underbluffs";
+    return { regretBb: 0, estimateError: Math.abs(error), leakTag: tag };
+  }
   const evs = decisionEVs(state);
   const chosen = evs.find((e) => sameAction(e.action, response.action));
   if (!chosen) throw new Error(`grade: illegal action ${JSON.stringify(response.action)} for this spot`);
@@ -1016,6 +1048,10 @@ const LEAK_TABLE: Record<string, string> = {
   "M0:misreads_nuts": "m0.misreads_nuts",
   "M4.5:overestimate": "m45.overcounts_combos",
   "M4.5:underestimate": "m45.undercounts_combos",
+  "M5.7:overdefends": "m57.overdefends",
+  "M5.7:underdefends": "m57.underdefends",
+  "M5.7:overbluffs": "m57.overbluffs",
+  "M5.7:underbluffs": "m57.underbluffs",
   "P0:overbet": "p0.bets_without_fold_equity",
   "P0:overfold": "p0.overfolds_in_position",
   "P1:overestimate": "p1.overvalues_holding",
@@ -2545,6 +2581,61 @@ export const STARTER_DRILLS: Drill[] = [
       heroHand: hand("As", "5d"), board: hand("8h", "7c", "2d"),
       pot: 1, toAct: "hero",
       villain: { range: [{ combo: hand("Ah", "Ad"), weight: 1 }] },
+      abstraction: { sizes: [], streets: [], players: 2 },
+    },
+  },
+  // ---- M5.7 Balance math: the GTO frequency constants (pot/bet only, no solver) ----
+  // These are pure-math spots — no board or hero hand. state.pot = the pot BEFORE
+  // the bet; state.toCall = the bet. The UI renders the scenario from those two.
+  {
+    id: "m57-mdf-pot-bet",
+    module: "M5.7",
+    title: "Defend: villain bets the pot",
+    read: "How much of your range must you continue with so a pure bluff can't print?",
+    ask: "mdf",
+    // MDF = pot/(pot+bet). Pot-sized bet -> 1/(1+1) = 50%. The anchor number.
+    state: {
+      board: [], pot: 1, toCall: 1, toAct: "hero",
+      villain: { range: [{ combo: hand("Ah", "Kh"), weight: 1 }] },
+      abstraction: { sizes: [], streets: [], players: 2 },
+    },
+  },
+  {
+    id: "m57-mdf-small-bet",
+    module: "M5.7",
+    title: "Defend: villain bets a quarter pot",
+    read: "A tiny bet risks little to steal — so you must defend a lot. What fraction?",
+    ask: "mdf",
+    // MDF = 1/(1+0.25) = 80%. Discrimination with the pot bet (50%): smaller bet, defend MORE.
+    state: {
+      board: [], pot: 1, toCall: 0.25, toAct: "hero",
+      villain: { range: [{ combo: hand("Ah", "Kh"), weight: 1 }] },
+      abstraction: { sizes: [], streets: [], players: 2 },
+    },
+  },
+  {
+    id: "m57-bluff-pot-bet",
+    module: "M5.7",
+    title: "Bluff: you bet the pot on the river",
+    read: "What fraction of your betting range should be bluffs so a bluff-catcher can't just call?",
+    ask: "bluffs",
+    // Bluff fraction = bet/(pot+2*bet). Pot-sized bet -> 1/3 = 33.3%: one bluff per two value bets.
+    state: {
+      board: [], pot: 1, toCall: 1, toAct: "hero",
+      villain: { range: [{ combo: hand("Ah", "Kh"), weight: 1 }] },
+      abstraction: { sizes: [], streets: [], players: 2 },
+    },
+  },
+  {
+    id: "m57-bluff-half-pot",
+    module: "M5.7",
+    title: "Bluff: you bet half the pot on the river",
+    read: "Smaller bet, better price for villain to call — so how many bluffs can you have now?",
+    ask: "bluffs",
+    // Bluff fraction = 0.5/(1+1) = 25%. Discrimination with the pot bet (33%): smaller bet, FEWER bluffs.
+    state: {
+      board: [], pot: 1, toCall: 0.5, toAct: "hero",
+      villain: { range: [{ combo: hand("Ah", "Kh"), weight: 1 }] },
       abstraction: { sizes: [], streets: [], players: 2 },
     },
   },
