@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(node engine.test.ts)",
+      "Bash(npx -p typescript tsc --noEmit)",
+      "Bash(npx -p typescript tsc -p web/tsconfig.json)",
+      "Bash(node bench.ts)",
+      "Bash(node validate-evaluator.ts)",
+      "Bash(curl -s https://choonang-lab.github.io/*)",
+      "Bash(curl -s -o /dev/null -w * https://choonang-lab.github.io/*)"
+    ]
+  }
+}

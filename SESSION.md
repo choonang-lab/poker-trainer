@@ -474,9 +474,21 @@ break that or need a fundamentally different solver. Logged so they aren't re-sc
   `node engine.test.ts` type-stripping, GitHub CLI (`brew install gh`,
   then `gh auth login` as choonang-lab), no npm install needed — typescript/
   esbuild run via `npx -p` from the npx cache.
-- On this Mac, Node **v24.18.0** lives at `~/.local/node/bin` but is NOT on the
-  default PATH. Prefix commands with `export PATH="$HOME/.local/node/bin:$PATH"`
-  (there is no Homebrew / system node). `npx` resolves from the same dir.
+- On this Mac, Node **v24.18.0** lives at `~/.local/node/bin` and **is already on
+  the login-shell PATH** — run `node` / `npx` bare, with NO prefix. (There is no
+  Homebrew / system node; `npx` resolves from the same dir.)
+  CORRECTED 2026-07-20: this file previously said Node was NOT on PATH and that
+  every command needed `export PATH="$HOME/.local/node/bin:$PATH" && …`. That was
+  wrong and it was expensive — the prefix made every command a COMPOUND, which
+  defeats exact-match permission allowlisting, so every test/build step prompted
+  for approval. Verify with `node -v` before ever re-adding a prefix.
+- **Permission allowlist:** `.claude/settings.json` in this repo allows the
+  read-only ship steps to run unattended (`node engine.test.ts`, both `tsc`
+  checks, live-site `curl` polling). It only loads when Claude Code runs with
+  this repo in scope — start sessions from `~/poker-trainer`, not `~`. The
+  mutating steps (esbuild bundle write, `git add`/`commit`/`push`) are
+  deliberately NOT allowlisted; add them yourself if you want fully hands-off
+  shipping.
 - `.claude/launch.json` in this repo has **Windows** paths for the preview
   server; recreate it on Mac (e.g. `python3 -m http.server 5050 --directory
   <repo>/docs`) or just use `python3 -m http.server` directly.
