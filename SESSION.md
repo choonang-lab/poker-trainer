@@ -523,15 +523,19 @@ break that or need a fundamentally different solver. Logged so they aren't re-sc
   ship-checklist forms. If you change a build flag, update the entry too.
   Still NOT allowlisted by design: `node -e` inline scripts (arbitrary code),
   `rm`, force-push, and pushes to any branch other than `main`.
-  `"defaultMode": "acceptEdits"` is also set — file edits apply without a prompt
-  (they're all git-recoverable); Bash stays gated by the allow list above.
-  DELIBERATE GAP: scratchpad verify scripts (`node /tmp/.../foo.ts`, the
-  "verify before authoring" convention) are NOT allowlisted. With acceptEdits
-  already letting Claude write any file, allowing `node <any-path>` would equal
-  unrestricted code execution while *looking* narrower than it is. If you want
-  Bash prompts gone too, set `"defaultMode": "auto"` (classifier allows safe
-  commands, blocks destructive ones) rather than assembling the same power out
-  of side doors — `"bypassPermissions"` removes every check and is the blunt option.
+  `"defaultMode": "auto"` is also set (owner opted in 2026-07-20, upgrading from
+  `acceptEdits`): file edits apply without prompting and Bash commands are routed
+  through a classifier that allows safe operations and blocks destructive ones,
+  instead of every command needing an allowlist entry.
+  The `allow` list above is still worth keeping — it's a fast path for the exact
+  ship-checklist commands and documents the intended workflow, and it keeps
+  working if the mode is ever dialled back.
+  WHY NOT `bypassPermissions`: it removes every check, including the one that
+  would stop a destructive mistake (`rm -rf`, force-push, a bad path in a
+  generated script). `auto` gets ~the same quiet with a backstop.
+  NOTE: `auto` has a one-time opt-in dialog the first time it's used on a
+  machine (schema field `skipAutoPermissionPrompt` records acceptance) — it was
+  deliberately NOT pre-accepted in settings, so accept it yourself once.
 - `.claude/launch.json` in this repo has **Windows** paths for the preview
   server; recreate it on Mac (e.g. `python3 -m http.server 5050 --directory
   <repo>/docs`) or just use `python3 -m http.server` directly.

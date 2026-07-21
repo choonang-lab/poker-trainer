@@ -1,6 +1,6 @@
 {
   "permissions": {
-    "defaultMode": "acceptEdits",
+    "defaultMode": "auto",
     "allow": [
       "Bash(node engine.test.ts)",
       "Bash(npx -p typescript tsc --noEmit)",
