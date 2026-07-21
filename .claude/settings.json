@@ -1,5 +1,6 @@
 {
   "permissions": {
+    "defaultMode": "acceptEdits",
     "allow": [
       "Bash(node engine.test.ts)",
       "Bash(npx -p typescript tsc --noEmit)",
@@ -10,6 +11,7 @@
       "Bash(git add -A)",
       "Bash(git commit *)",
       "Bash(git push origin main)",
+      "Bash(gh api -X POST repos/choonang-lab/poker-trainer/pages/builds)",
       "Bash(curl -s https://choonang-lab.github.io/*)",
       "Bash(curl -s -o /dev/null -w * https://choonang-lab.github.io/*)"
     ]

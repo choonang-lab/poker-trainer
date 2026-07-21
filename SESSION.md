@@ -523,6 +523,15 @@ break that or need a fundamentally different solver. Logged so they aren't re-sc
   ship-checklist forms. If you change a build flag, update the entry too.
   Still NOT allowlisted by design: `node -e` inline scripts (arbitrary code),
   `rm`, force-push, and pushes to any branch other than `main`.
+  `"defaultMode": "acceptEdits"` is also set — file edits apply without a prompt
+  (they're all git-recoverable); Bash stays gated by the allow list above.
+  DELIBERATE GAP: scratchpad verify scripts (`node /tmp/.../foo.ts`, the
+  "verify before authoring" convention) are NOT allowlisted. With acceptEdits
+  already letting Claude write any file, allowing `node <any-path>` would equal
+  unrestricted code execution while *looking* narrower than it is. If you want
+  Bash prompts gone too, set `"defaultMode": "auto"` (classifier allows safe
+  commands, blocks destructive ones) rather than assembling the same power out
+  of side doors — `"bypassPermissions"` removes every check and is the blunt option.
 - `.claude/launch.json` in this repo has **Windows** paths for the preview
   server; recreate it on Mac (e.g. `python3 -m http.server 5050 --directory
   <repo>/docs`) or just use `python3 -m http.server` directly.
