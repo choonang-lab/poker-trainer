@@ -2291,16 +2291,21 @@ export const STARTER_DRILLS: Drill[] = [
     id: "p2-bet-big-deny-equity",
     module: "P2",
     title: "Sizing: an overpair on a wet board against a draw",
-    read: "Villain is on a draw — a small bet gives a fair price, a big bet folds it out.",
+    read: "Villain is on a big draw — a small bet gives a fair price, a big bet folds it out.",
     ask: "action",
-    // Hero KsKd overpair (~73%) on Qh 8h 4s 2c vs a flush draw (AhJh) that calls a small bet but folds a
-    // big one. Betting big (1.5x, EV 1.00) folds the draw and denies its equity; a half-pot bet (0.955)
-    // lets it draw; checking (0.73) gives a free card. Size UP to deny equity / protect the hand.
+    // Hero KsKd overpair (65.9%) on 9h 8h 4s 2c vs a COMBO draw (JhTh: 9 hearts + 6 non-heart
+    // straight cards = 15 outs, 34.1%). Betting big (1.5x, EV 1.00) folds the draw and denies all
+    // of that equity; a half-pot bet (0.818) lets a 34% draw continue; checking (0.659) gives a
+    // free card. Size UP to deny equity / protect the hand.
+    // Villain's policy is pot-odds-RATIONAL, which is what makes the lesson honest: facing 0.5 into
+    // 1 it needs 25% and has 34.1% (calling is correct); facing 1.5 into 1 it needs 37.5% and has
+    // 34.1% (folding is correct). Re-authored 2026-07-20 — the old spot (AhJh flush draw only,
+    // 12 outs) left just 0.045bb between the two sizes, so it graded a coin-flip as a leak.
     state: {
-      heroHand: hand("Ks", "Kd"), board: hand("Qh", "8h", "4s", "2c"),
+      heroHand: hand("Ks", "Kd"), board: hand("9h", "8h", "4s", "2c"),
       pot: 1, toAct: "hero",
       villain: {
-        range: [{ combo: hand("Ah", "Jh"), weight: 1 }],
+        range: [{ combo: hand("Jh", "Th"), weight: 1 }],
         policy: (_combo: Combo, s: NodeState) => {
           const small = s.pot <= 1.7; // 1 + 0.5 = 1.5 (small) vs 1 + 1.5 = 2.5 (big)
           return [{ action: { kind: "fold" }, weight: small ? 0 : 1 }, { action: { kind: "call" }, weight: small ? 1 : 0 }];

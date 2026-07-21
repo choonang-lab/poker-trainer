@@ -55,7 +55,7 @@ repetition) with a guided-curriculum PWA on top.
 
 ## State as of 2026-07 (commit 6b80618)
 
-- **464 tests passing**, both type-checks clean, deployed bundle in sync.
+- **466 tests passing**, both type-checks clean, deployed bundle in sync.
 - **Review fixes (2026-07-18, post-audit), cache v21:** (1) `m2-combo-draw`
   board was `9s 8h 2c` (an 8-out spot, 36.9%) but its title/EXPLAIN teach the
   15-out flush+open-ender combo — fixed to `9s 8s 2c` (56.3%); a learner who
@@ -129,7 +129,7 @@ repetition) with a guided-curriculum PWA on top.
 
 Single scan of everything still open after 19 shipped items. The numbered "Next up"
 log below is a DONE-history with declines interleaved; this section is the live to-do.
-Baseline right now: **108 drills, 19 modules, 464 tests, cache v41**, live & in sync.
+Baseline right now: **108 drills, 19 modules, 466 tests, cache v42**, live & in sync.
 
 ### A. Addable now — content-only, no engine change (pick any, each ~1 commit)
 - **More depth in any module.** The engine supports far more than is authored; every
@@ -467,6 +467,34 @@ break that or need a fundamentally different solver. Logged so they aren't re-sc
    M3's offered-pot convention — safe because these never reach truth()/the tree).
    Browser-verified all 4 drills incl. the wrong-answer path ("True defend: 80% · off by
    30 pts") and the 33% tolerance case.
+
+21. ~~**Content-quality pass (action-drill EV margins)**~~ — DONE 2026-07-20 (cache
+   v42, 466 tests). First guardrail on CONTENT quality rather than engine
+   correctness. Audited all 45 action drills for the EV gap between the best action
+   and the runner-up — that gap IS the regret a learner eats for picking the sensible
+   alternative, so a ~0 gap means the drill grades a coin-flip as a leak and schedules
+   reps for guessing. 41 of 45 were clear (>=0.15bb); ONE was a real defect:
+   `p2-bet-big-deny-equity` left **0.0455bb** between its two bet sizes while "which
+   size?" was the entire lesson (bet 1.5 = 1.0000 vs bet 0.5 = 0.9545).
+   FIX: re-authored the spot — hero KsKd on **9h 8h 4s 2c** vs **JhTh**, a 15-out COMBO
+   draw (9 hearts + 6 non-heart straight cards, 34.1%) instead of the old 12-out flush
+   draw. Now bet 1.5 = 1.0000 / bet 0.5 = 0.8182 / check = 0.6591 → margin **0.1818bb**.
+   Bonus: villain's policy is now pot-odds-RATIONAL, which makes the lesson honest —
+   facing 0.5 into 1 it needs 25% and has 34.1% (calling correct); facing 1.5 into 1 it
+   needs 37.5% and has 34.1% (folding correct). The old villain folded a hand it was
+   priced in to call.
+   NEW STANDING TESTS (two guards, because a sizing drill's lesson is the SIZE, not
+   "bet vs check"): (1) every action drill's best beats the runner-up by >=0.05bb;
+   (2) sizing drills (best is a bet, >1 size offered) — best size beats the next-best
+   SIZE by >=0.15bb. Guard (2) is the one that catches this failure mode.
+   THRESHOLD NOTE: I first proposed 0.15 for guard (1) too, but the data killed it —
+   `p2-bet-or-check` (0.068), `p2-bet-small-thin-value` (0.131) and `p25-donk-lead`
+   (0.138) are all pedagogically fine, so 0.15 would have forced pointless re-authoring.
+   0.05 is the honest floor for "indistinguishable". Also note `p2-bet-small-thin-value`
+   looks thin by guard (1) only because its runner-up is CHECK — its actual size
+   contrast is 0.33bb, which is why guard (2) is measured over bets only.
+   Both guards were PROVEN to fire: temporarily restoring the old spot turned the suite
+   red with exactly `p2-bet-big-deny-equity 0.0455` on both, then reverted.
 
 ## Machine-specific notes for macOS
 

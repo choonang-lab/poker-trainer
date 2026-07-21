@@ -1663,6 +1663,30 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
   ok("every Pillar-2 action drill carries a villain read",
     p2ActionIds.every((d) => (d.read ?? "").length > 0),
     p2ActionIds.filter((d) => !(d.read ?? "").length).map((d) => d.id).join(","));
+  // ---- Content quality: an action drill must teach a DISTINGUISHABLE choice ----
+  // The learner is graded by regret, so the gap between the best action and the
+  // runner-up IS the penalty for picking the sensible alternative. If that gap is
+  // ~0, the drill grades a coin-flip as a leak and schedules reps for guessing.
+  // Two guards, because a sizing drill's lesson is the SIZE, not "bet vs check":
+  //   (1) every action drill: best vs runner-up >= 0.05bb
+  //   (2) sizing drills (best is a bet, >1 bet size offered): best size vs the
+  //       next-best SIZE >= 0.15bb — the size contrast must be decisive.
+  // Guard (2) is the one that catches the real failure: p2-bet-big-deny-equity
+  // originally left 0.045bb between its two sizes while "which size?" was the
+  // entire lesson (re-authored 2026-07-20 to a 15-out combo draw, now 0.182bb).
+  const actionDrills = STARTER_DRILLS.filter((d) => d.ask === "action");
+  const thinAny: string[] = [], thinSize: string[] = [];
+  for (const d of actionDrills) {
+    const evs = actionEVs(buildTree(d.state)).sort((a, b) => b.ev - a.ev);
+    if (evs.length < 2) continue;
+    if (evs[0].ev - evs[1].ev < 0.05) thinAny.push(`${d.id} ${(evs[0].ev - evs[1].ev).toFixed(4)}`);
+    const bets = evs.filter((e) => e.action.kind === "bet");
+    if (evs[0].action.kind === "bet" && bets.length >= 2 && bets[0].ev - bets[1].ev < 0.15)
+      thinSize.push(`${d.id} ${(bets[0].ev - bets[1].ev).toFixed(4)}`);
+  }
+  ok("every action drill's best beats the runner-up by >= 0.05bb", thinAny.length === 0, thinAny.join(","));
+  ok("every sizing drill's best SIZE beats the next size by >= 0.15bb", thinSize.length === 0, thinSize.join(","));
+
   // Pillar 1 modules all precede Pillar 2 (so P2 unlocks only after P1).
   const lastP1 = MODULES.map((m, i) => (m.track === "P1" ? i : -1)).reduce((a, b) => Math.max(a, b), -1);
   const firstP2 = MODULES.findIndex((m) => m.track === "P2");
