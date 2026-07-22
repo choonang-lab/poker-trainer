@@ -55,7 +55,7 @@ repetition) with a guided-curriculum PWA on top.
 
 ## State as of 2026-07 (commit 6b80618)
 
-- **466 tests passing**, both type-checks clean, deployed bundle in sync.
+- **472 tests passing**, both type-checks clean, deployed bundle in sync.
 - **Review fixes (2026-07-18, post-audit), cache v21:** (1) `m2-combo-draw`
   board was `9s 8h 2c` (an 8-out spot, 36.9%) but its title/EXPLAIN teach the
   15-out flush+open-ender combo — fixed to `9s 8s 2c` (56.3%); a learner who
@@ -129,7 +129,7 @@ repetition) with a guided-curriculum PWA on top.
 
 Single scan of everything still open after 19 shipped items. The numbered "Next up"
 log below is a DONE-history with declines interleaved; this section is the live to-do.
-Baseline right now: **108 drills, 19 modules, 466 tests, cache v42**, live & in sync.
+Baseline right now: **112 drills, 19 modules, 472 tests, cache v43**, live & in sync.
 
 ### A. Addable now — content-only, no engine change (pick any, each ~1 commit)
 - **More depth in any module.** The engine supports far more than is authored; every
@@ -495,6 +495,33 @@ break that or need a fundamentally different solver. Logged so they aren't re-sc
    contrast is 0.33bb, which is why guard (2) is measured over bets only.
    Both guards were PROVEN to fire: temporarily restoring the old spot turned the suite
    red with exactly `p2-bet-big-deny-equity 0.0455` on both, then reverted.
+
+22. ~~**Content batch: +4 drills (combos board-blockers, draw-vs-range, semi-bluff barrel)**~~
+   — DONE 2026-07-22 (cache v43, 472 tests, 112 drills, 19 modules — module COUNT
+   unchanged, all 4 slot into existing modules). Picked from the SESSION.md "addable now"
+   candidates; every value engine-verified BEFORE authoring, no engine change.
+   - **M4.5** `m45-combos-board-blocker` (A-K, an ace on the BOARD → 12) and
+     `m45-combos-stacked-blockers` (hero holds an ace AND a king is on the board → 9).
+     These extend the combos gradient 16→12→9 and, critically, teach that a BOARD card
+     blocks combos exactly like one in your hand (the existing blocker drill only showed a
+     hand blocker). All exact card-removal, no tree. GOTCHA fixed mid-build: the target
+     holding lives in `villain.range` as a rank TEMPLATE — I first wrote `hand("Kh","Qh")`
+     (K-Q) so the board ace didn't block it (grade → 16, test caught it); the target must be
+     the A-K being counted (`hand("As","Ks")`). comboCount uses only ranks + hero/board as
+     `known`, so pick any A/K cards that don't collide with the board.
+   - **M5** `m5-flushdraw-vs-toppair` (A♥5♥ nut flush draw vs a top-pair range on Kh 7h 2c →
+     45.9%). A draw-vs-made-hand estimate — nine flush + three ace outs over TWO cards make a
+     bare draw nearly a coin flip, the complement lesson to the made-hand M5 spots.
+   - **P3.4** `p34-semibluff-barrel` (A♥K♥ nut-flush-draw + overs on Qh 8h 3c 2s; villain top
+     pair Qc Jd, MIXED policy folds 0.4 / calls 0.6 → bet 0.46 > check 0.34, margin 0.12).
+     Distinct from the module's pure bluff (no equity) and value (already ahead) barrels: the
+     barrel wins TWO ways — fold equity now + ~15 outs when called. The mixed policy is what
+     makes equity-when-called matter (a fold-weight-1 villain would collapse it into the
+     existing bluff barrel). Passes both content-quality guards.
+   Browser-verified the P3.4 (bet → "Optimal.", flush-draw highlight) and M4.5 board-blocker
+   (12 → "Correct — 12 combos") end-to-end via the Review tab; the other two share identical
+   UI shapes. Added exact assertions for all four + updated the 108→112 count guard. Also
+   corrected `.claude/launch.json` from `python` to `python3` (Mac has no `python`).
 
 ## Machine-specific notes for macOS
 

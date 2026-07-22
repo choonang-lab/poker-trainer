@@ -2544,6 +2544,26 @@ export const STARTER_DRILLS: Drill[] = [
       abstraction: { sizes: [0.75], streets: ["turn"], players: 2 },
     },
   },
+  {
+    id: "p34-semibluff-barrel",
+    module: "P3.4",
+    title: "Barreling: a big draw on the turn against a made hand",
+    read: "You bet the flop and villain called with top pair; he folds a big second barrel about 40% of the time.",
+    ask: "action",
+    // SEMI-BLUFF second barrel — distinct from the pure bluff (no equity) and the value barrel (already ahead).
+    // Hero Ah Kh = nut flush draw + two overcards on the turn Qh 8h 3c 2s; villain's top pair (Qc Jd) is AHEAD
+    // now, but folds 40% to the barrel AND hero still has ~15 outs when called. Betting (0.46) beats checking
+    // (0.34): the barrel wins two ways — fold equity now, and a huge draw when he calls.
+    state: {
+      heroHand: hand("Ah", "Kh"), board: hand("Qh", "8h", "3c", "2s"),
+      pot: 1, toAct: "hero",
+      villain: {
+        range: [{ combo: hand("Qc", "Jd"), weight: 1 }],
+        policy: (_combo: Combo) => [{ action: { kind: "fold" }, weight: 0.4 }, { action: { kind: "call" }, weight: 0.6 }],
+      },
+      abstraction: { sizes: [0.75], streets: ["turn"], players: 2 },
+    },
+  },
   // ---- M4.5 Counting combos: how many ways can a holding be dealt (with blockers)? ----
   {
     id: "m45-combos-unpaired",
@@ -2586,6 +2606,36 @@ export const STARTER_DRILLS: Drill[] = [
       heroHand: hand("As", "5d"), board: hand("8h", "7c", "2d"),
       pot: 1, toAct: "hero",
       villain: { range: [{ combo: hand("Ah", "Ad"), weight: 1 }] },
+      abstraction: { sizes: [], streets: [], players: 2 },
+    },
+  },
+  {
+    id: "m45-combos-board-blocker",
+    module: "M4.5",
+    title: "Counting combos: ace-king when an ace is on the board",
+    read: "An ace is on the board — count how many combinations of ace-king are left for villain.",
+    ask: "combos",
+    // BOARD blocker (discrimination with m45-combos-unpaired: 16 -> 12). A blocker on the board removes
+    // combos exactly like one in your hand. An ace is on the board, so 3 aces x 4 kings = 12 combos of A-K.
+    state: {
+      heroHand: hand("5c", "5d"), board: hand("Ah", "7c", "2d"),
+      pot: 1, toAct: "hero",
+      villain: { range: [{ combo: hand("As", "Ks"), weight: 1 }] }, // target ranks A,K -> the board ace blocks it
+      abstraction: { sizes: [], streets: [], players: 2 },
+    },
+  },
+  {
+    id: "m45-combos-stacked-blockers",
+    module: "M4.5",
+    title: "Counting combos: ace-king with a blocker in hand and one on the board",
+    read: "You hold an ace and a king is on the board — count the combinations of ace-king left.",
+    ask: "combos",
+    // STACKED blockers (16 -> 12 -> 9): blockers add up. Hero holds one ace (3 left) and a king is on the
+    // board (3 left) -> 3 x 3 = 9 combos of A-K. One card in hand AND one on the board each cut a rank.
+    state: {
+      heroHand: hand("As", "5d"), board: hand("Kd", "7c", "2h"),
+      pot: 1, toAct: "hero",
+      villain: { range: [{ combo: hand("Ah", "Kh"), weight: 1 }] },
       abstraction: { sizes: [], streets: [], players: 2 },
     },
   },
@@ -2653,6 +2703,21 @@ export const STARTER_DRILLS: Drill[] = [
       heroHand: hand("Ks", "Kd"), board: hand("Qh", "7d", "2c"),
       pot: 1, toAct: "hero",
       villain: { range: [{ combo: hand("Ah", "Ad"), weight: 1 }, { combo: hand("Jh", "Th"), weight: 1 }] },
+      abstraction: { sizes: [], streets: [], players: 2 },
+    },
+  },
+  {
+    id: "m5-flushdraw-vs-toppair",
+    module: "M5",
+    title: "Equity vs a range: a bare flush draw against top pair",
+    ask: "estimate",
+    // Draw-vs-made-hand, two cards to come. Hero Ah5h = nut flush draw (no pair) on Kh 7h 2c; villain's range
+    // is top pair (Kc Qd / Ks Jc). Nine flush outs plus three aces run the draw to ~46% by the river -- a bare
+    // draw against a made hand is close to a coin flip over two streets, not the underdog it looks on one card.
+    state: {
+      heroHand: hand("Ah", "5h"), board: hand("Kh", "7h", "2c"),
+      pot: 1, toAct: "hero",
+      villain: { range: [{ combo: hand("Kc", "Qd"), weight: 1 }, { combo: hand("Ks", "Jc"), weight: 1 }] },
       abstraction: { sizes: [], streets: [], players: 2 },
     },
   },

@@ -24,7 +24,7 @@
   - **L5** scheduling — pure deterministic SM-2 over `Result` (`resultQuality`, `newReview`,
     `scheduleReview`, `dueReviews`, `nextReview`); `now` is an injected day-number for exact tests.
   - **L6** content model + session glue — `Drill`/`Session`/`GradeOutcome`, a `STARTER_DRILLS`
-    set of 108 covering the FULL map M0–M6 + P0–P6 (estimate + action + category + outs + nuts + combos + mdf/bluffs, preflop & postflop,
+    set of 112 covering the FULL map M0–M6 + P0–P6 (estimate + action + category + outs + nuts + combos + mdf/bluffs, preflop & postflop,
     pillar 1/2, single- & multi-street, multiway, exploit, implied odds, IP/OOP, hand-reading,
     value-vs-raiser, sizing, 3-bet/re-raise, range-narrowing [multi-street, policy raises], check-raise
     range, combinatorics [blockers, 6-and-16], plus depth in M2/M5/P1), a pure `newSession`/`nextDrill`/`gradeDrill` loop, and a magnitude-aware module-scoped leak
@@ -32,7 +32,7 @@
     curriculum leaks, e.g. `m5.overrates_vs_range`, with module-scoped fallbacks). `truth()` is
     field-aware (`fieldEquity`) so multiway (P4) estimate drills grade against the field, not heads-up.
 - **`curriculum.ts`** — the guided "learn" path over the L6 drills (pure data + helpers; no engine
-  logic). `MODULES` groups all 108 drills into 19 ordered modules (M0–M5.7 = Pillar 1, P0–P5 = Pillar 2),
+  logic). `MODULES` groups all 112 drills into 19 ordered modules (M0–M5.7 = Pillar 1, P0–P5 = Pillar 2),
   each with a preface, a **key-terms glossary** (`concepts: {term,def}[]`, defining the vocabulary that
   module's lessons use), 3 objectives, and a worked example. `PRIMER` is a 7-section, drill-free
   beginner orientation (how a hand plays out, pot/blinds, hand rankings, equity, how the trainer works)
@@ -56,7 +56,7 @@
   (minimal ambient `node:readline`/`node:fs` decls in `globals.d.ts`); not in the unit suite (it reads stdin).
   Persists progress to `$POKER_SAVE` (default `.poker-trainer.json`, git-ignored) via the pure engine
   primitives `serializeSession`/`loadSession`; `now` is a real day-number (override with `$POKER_NOW`).
-- **`engine.test.ts`** — 466 assertions, all passing. Exact/hand-checkable, not approximate:
+- **`engine.test.ts`** — 472 assertions, all passing. Exact/hand-checkable, not approximate:
   - full category ladder (high card → royal), wheel straight, kicker tiebreaks
   - `equity` against exact rationals: straight draw = **6/44**, drawing dead = **0**, chop = **0.5**, made hand = **1.0**
   - L3 identities: CHANCE-of-showdowns **==** `equity` (one-engine), cross-street tree **==** `equity`,
@@ -68,7 +68,7 @@
 
 ## Run it
 ```
-node engine.test.ts            # expect: 466 passed, 0 failed (Node strips types at runtime)
+node engine.test.ts            # expect: 472 passed, 0 failed (Node strips types at runtime)
 npx -p typescript tsc --noEmit  # expect: exit 0 (type-check; uses npx cache, adds NO repo dependency)
 node bench.ts                   # AA vs KK preflop = 82.64% in ~3s (was ~190s pre-fast-evaluator)
 node validate-evaluator.ts      # deep cross-check (500k hands) + fast-vs-slow perf (~70x)

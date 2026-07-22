@@ -186,7 +186,7 @@ export const MODULES: Module[] = [
     ],
     objectives: ["Count the combos of a pocket pair (6) and an unpaired hand (16)", "Subtract the combos removed by cards you can see (blockers)", "Use combo counts to judge how likely a hand is"],
     example: "There's an ace in play, so pocket aces is only 3 combos now, not 6 — a card you hold makes a hand half as likely.",
-    drillIds: ["m45-combos-unpaired", "m45-combos-pair", "m45-combos-blocker"],
+    drillIds: ["m45-combos-unpaired", "m45-combos-pair", "m45-combos-blocker", "m45-combos-board-blocker", "m45-combos-stacked-blockers"],
   },
   {
     id: "M5", track: "P1", title: "Equity vs range",
@@ -204,6 +204,7 @@ export const MODULES: Module[] = [
     drillIds: [
       "m5-overcards-vs-pairs", "m5-overpair-vs-draws", "m5-vs-condensed", "m5-wide-range",
       "m5-dominated-kicker", "m5-polarized-range", "m5-weighted-range", "m5-underpair-vs-range",
+      "m5-flushdraw-vs-toppair",
     ],
   },
   {
@@ -321,7 +322,7 @@ export const MODULES: Module[] = [
     ],
     objectives: ["Fire a second barrel for value with a strong hand, or as a bluff when they'll fold", "Give up when a barrel won't fold anyone out", "Read the turn card: keep firing on a blank, shut down on a scare card"],
     example: "You c-bet the flop and got called; the turn bricks — fire again only if it'll make a better hand fold.",
-    drillIds: ["p34-value-barrel", "p34-bluff-barrel", "p34-give-up", "p34-barrel-a-blank", "p34-scare-card-shutdown"],
+    drillIds: ["p34-value-barrel", "p34-bluff-barrel", "p34-give-up", "p34-barrel-a-blank", "p34-scare-card-shutdown", "p34-semibluff-barrel"],
   },
   {
     id: "P3.5", track: "P2", title: "River decisions",
@@ -431,6 +432,8 @@ export const EXPLAIN: Record<string, string> = {
   "m45-combos-unpaired": "No ace or king is in play, so all four of each are available: 4 x 4 = 16 combos of A-K.",
   "m45-combos-pair": "A pocket pair is any two of its four cards: C(4,2) = 6 combos. No ace is visible, so pocket aces is the full 6.",
   "m45-combos-blocker": "You hold one ace, leaving three: C(3,2) = 3 combos. One blocker cuts a pair's combos from 6 to 3 — half as likely.",
+  "m45-combos-board-blocker": "An ace on the board removes combos just like one in your hand: 3 aces x 4 kings = 12 combos of A-K, down from 16. A blocker is a blocker wherever you can see it.",
+  "m45-combos-stacked-blockers": "Blockers stack. You hold an ace (3 left) and a king sits on the board (3 left), so 3 x 3 = 9 combos of A-K. Two blockers cut it from 16 to 12 to 9.",
   // M5 — equity vs range
   "m5-overcards-vs-pairs": "Two overcards plus a gutshot vs underpairs is a live underdog — around a third of the pot on average (exact: 34.6%).",
   "m5-wide-range": "Behind both big pairs (though live), well ahead of TT — averaging across the range lands under a coinflip.",
@@ -438,6 +441,7 @@ export const EXPLAIN: Record<string, string> = {
   "m5-overpair-vs-draws": "Ahead of both draws but crushed by the set — one strong combo drags a 'safe' overpair down to a coinflip.",
   "m5-underpair-vs-range": "Every hand in the range beats you and you're drawing to two jacks — near-dead. Recognizing ~5% spots saves stacks.",
   "m5-vs-condensed": "Every hand in the range is a pair you beat — against a condensed (medium-strength) range, an overpair is huge.",
+  "m5-flushdraw-vs-toppair": "A bare draw looks crushed on the flop, but you have two cards to come. Nine flush outs plus three aces bring the nut flush draw to about 46% against top pair — nearly a coin flip. Count equity over both streets, not one.",
   "m5-weighted-range": "3 bluff combos for every value combo: ¾ of the time you're crushing it, ¼ near-dead — the weighted average is ~70%, not the 50% an unweighted glance suggests.",
   "m5-dominated-kicker": "Both A-K combos out-kick your A-J; only KK is behind — domination cuts top pair down to ~40%.",
   // M5.6 — implied odds
@@ -469,6 +473,7 @@ export const EXPLAIN: Record<string, string> = {
   "p34-value-barrel": "Your overpair is still way ahead, and villain called the flop with a worse hand he won't fold. Fire a second barrel: he keeps paying, so keep betting for value. Checking here just lets him off the hook for a street.",
   "p34-bluff-barrel": "Your hand missed completely — you're actually behind his pair. But he'll fold that pair to a second barrel, and a bet wins the pot right now. This is the whole point of a bluff barrel: fold equity lets you win even when your cards can't. Checking gives up a pot you could take.",
   "p34-give-up": "Same busted hand as the last spot — but this villain won't fold his pair. So a second barrel just pours chips into a hand that beats you (−EV). There's no fold equity and no showdown value, so give up: check and move on. Barrel when they fold; give up when they don't.",
+  "p34-semibluff-barrel": "This barrel wins two ways. Your nut flush draw plus two overcards is behind villain's top pair right now, but he folds about 40% of the time — and when he calls, ~15 outs still get there by the river. Fold equity now plus a big draw when called makes betting (0.46) beat checking (0.34). Barrel draws that have both.",
   "p34-barrel-a-blank": "The turn is a total brick — no flush, no straight, no scary overcard. Nothing about villain's hand changed: he's still on a draw or a worse pair, and your overpair is still ahead. So keep firing (a second barrel) to charge the draw and get value from worse. Read the turn card: when it's a blank, nothing changes — keep going.",
   "p34-scare-card-shutdown": "Same hand, same flop — but the turn is an ace of hearts, and everything changed. The flush got there and an overcard hit, so the hands that call you now (a made flush, a pair of aces) all beat your kings. A second barrel just bleeds chips into a range that's ahead. Shut down and check. Read the turn card: a scare card can turn your barrel into a fold.",
   "p25-check-raise": "You flopped a hidden monster (bottom set) and checked to let the preflop raiser bet — and he did, with top pair. Now spring the trap: check-RAISE. His top pair pays off the raise, so build the pot now while he's willing to put money in. Just calling lets him off cheap.",

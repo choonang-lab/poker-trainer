@@ -837,8 +837,8 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
   ok("M4 check regret == 3 bb", approx(m4check.result.regretBb, 3), `got ${m4check.result.regretBb}`);
   ok("M4 check -> m4.misses_street_sequence", m4check.result.leakTag === "m4.misses_street_sequence");
 
-  ok("STARTER_DRILLS now spans 108 drills incl M0/M3.5/M4/M4.5/M5.6/M5.7/P0/P1/P2/P2.5/P3/P3.4/P3.5/P4/P5",
-    STARTER_DRILLS.length === 108 &&
+  ok("STARTER_DRILLS now spans 112 drills incl M0/M3.5/M4/M4.5/M5.6/M5.7/P0/P1/P2/P2.5/P3/P3.4/P3.5/P4/P5",
+    STARTER_DRILLS.length === 112 &&
     ["M0", "M3.5", "M4", "M4.5", "M5.6", "M5.7", "P0", "P1", "P3", "P4", "P5"].every((m) => STARTER_DRILLS.some((d) => d.module === m)));
 
   // M4.5 combo counting: base counts and blocker removal, all hand-checkable.
@@ -846,6 +846,7 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
   ok("comboCount: pocket aces, no blockers = 6", comboCount(hand("Ah", "Ad"), []) === 6);
   ok("comboCount: pocket aces with one ace visible = 3", comboCount(hand("Ah", "Ad"), hand("As")) === 3);
   ok("comboCount: A-K with an ace and a king visible = 9", comboCount(hand("Ah", "Kh"), hand("As", "Ks")) === 9);
+  ok("comboCount: A-K with an ace ON THE BOARD = 12", comboCount(hand("Ah", "Kh"), hand("5c", "5d", "Ah", "7c", "2d")) === 12);
   const combSess = newSession(STARTER_DRILLS);
   const combUnp = gradeDrill(combSess, "m45-combos-unpaired", { kind: "combos", value: 16 }, 0).result;
   ok("m45-combos-unpaired: 16 is exact (error 0)", combUnp.estimateError === 0);
@@ -855,6 +856,10 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
   ok("m45-combos-blocker: 3 is exact (error 0)", combBlock.estimateError === 0);
   const combOver = gradeDrill(combSess, "m45-combos-pair", { kind: "combos", value: 9 }, 0).result;
   ok("m45-combos overcount -> m45.overcounts_combos", combOver.leakTag === "m45.overcounts_combos");
+  const combBoard = gradeDrill(combSess, "m45-combos-board-blocker", { kind: "combos", value: 12 }, 0).result;
+  ok("m45-combos-board-blocker: 12 is exact (error 0)", combBoard.estimateError === 0);
+  const combStack = gradeDrill(combSess, "m45-combos-stacked-blockers", { kind: "combos", value: 9 }, 0).result;
+  ok("m45-combos-stacked-blockers: 9 is exact (error 0)", combStack.estimateError === 0);
 
   // M5.7 balance math: the frequency constants, all pure functions of pot & bet.
   ok("minDefenseFreq: pot-sized bet = 0.5", minDefenseFreq(1, 1) === 0.5);
@@ -1035,6 +1040,10 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
     gradeDrill(session, "p34-scare-card-shutdown", { kind: "action", action: { kind: "bet", size: 0.75 } }, 0).result.leakTag === "p34.barrels_without_fold_equity");
   ok("scare-card discrimination: same overpair -> bet a blank, check a scare card",
     bestSz("p34-barrel-a-blank") === "bet0.75" && bestSz("p34-scare-card-shutdown") === "check");
+  // Semi-bluff barrel: behind now, but fold equity + a big draw when called -> betting beats checking.
+  ok("semi-bluff barrel: betting is best (behind, but fold equity + draw)", bestSz("p34-semibluff-barrel") === "bet0.75");
+  ok("semi-bluff barrel: checking -> p34.misses_a_barrel",
+    gradeDrill(session, "p34-semibluff-barrel", { kind: "action", action: { kind: "check" } }, 0).result.leakTag === "p34.misses_a_barrel");
 
   // Added module depth: M2 big-draw, M5 wider range (cheap), P1 race (preflop).
   const m2c = gradeDrill(session, "m2-combo-draw", { kind: "estimate", value: 0.95 }, 0);
@@ -1572,6 +1581,7 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
   ok("M5 vs condensed ≈ 0.841", approx(tru("m5-vs-condensed"), 0.841, 0.004));
   ok("M5 weighted (3:1 bluffs) ≈ 0.705 (not 0.498)", approx(tru("m5-weighted-range"), 0.705, 0.004));
   ok("M5 dominated kicker ≈ 0.389", approx(tru("m5-dominated-kicker"), 0.389, 0.004));
+  ok("M5 nut flush draw vs top pair ≈ 0.459 (two cards to come)", approx(tru("m5-flushdraw-vs-toppair"), 0.459, 0.004));
   ok("M5 overestimate -> m5.overrates_vs_range", leak("m5-vs-condensed", 0.99) === "m5.overrates_vs_range");
   ok("M5 underestimate -> m5.underrates_vs_range", leak("m5-vs-condensed", 0.5) === "m5.underrates_vs_range");
 }
