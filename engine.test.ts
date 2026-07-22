@@ -845,8 +845,8 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
   ok("M4 check regret == 3 bb", approx(m4check.result.regretBb, 3), `got ${m4check.result.regretBb}`);
   ok("M4 check -> m4.misses_street_sequence", m4check.result.leakTag === "m4.misses_street_sequence");
 
-  ok("STARTER_DRILLS now spans 126 drills incl M0/M3.5/M4/M4.5/M5.6/M5.7/P0/P1/P2/P2.5/P3/P3.4/P3.5/P4/P5",
-    STARTER_DRILLS.length === 126 &&
+  ok("STARTER_DRILLS now spans 134 drills incl M0/M3.5/M4/M4.5/M5.6/M5.7/P0/P1/P2/P2.5/P3/P3.4/P3.5/P4/P5",
+    STARTER_DRILLS.length === 134 &&
     ["M0", "M3.5", "M4", "M4.5", "M5.6", "M5.7", "P0", "P1", "P3", "P4", "P5"].every((m) => STARTER_DRILLS.some((d) => d.module === m)));
 
   // M4.5 combo counting: base counts and blocker removal, all hand-checkable.
@@ -1538,6 +1538,10 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
   ok("M1 set-mining = 2 outs (pair to a set)", trueOuts("m1-set-mining") === 2);
   ok("M1 set-mining answered 2 -> m1.ok", outsLeakOf("m1-set-mining", 2) === "m1.ok");
   ok("M1 set-mining overcounted as 5 -> overcounts_outs", outsLeakOf("m1-set-mining", 5) === "m1.overcounts_outs");
+  ok("M1 open-ender vs a set = 8 outs (overcards don't count)", trueOuts("m1-oesd-behind-a-set") === 8);
+  ok("M1 open-ender vs a set answered 8 -> m1.ok", outsLeakOf("m1-oesd-behind-a-set", 8) === "m1.ok");
+  ok("M1 pair+flush draw = 14 outs (flush + trips + two pair)", trueOuts("m1-pair-plus-flush-draw") === 14);
+  ok("M1 pair+flush draw counted as 9 (flush only) -> undercounts_outs", outsLeakOf("m1-pair-plus-flush-draw", 9) === "m1.undercounts_outs");
   ok("M1 tainted flush answered 8 -> m1.ok", outsLeakOf("m1-tainted-flush-out", 8) === "m1.ok");
 
   // M1: the additional coverage drills (second instances + more archetypes).
@@ -1601,6 +1605,8 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
   ok("M2 gutshot flop ≈ 0.187", approx(tru("m2-gutshot-flop"), 0.187, 0.004));
   ok("M2 overcards flop ≈ 0.256", approx(tru("m2-overcards-flop"), 0.256, 0.004));
   ok("M2 combo draw turn ≈ 0.341", approx(tru("m2-combo-draw-turn"), 0.341, 0.004));
+  ok("M2 open-ender flop ≈ 0.342 (8 outs x4)", approx(tru("m2-oesd-flop"), 0.342, 0.004));
+  ok("M2 flush draw + overcard turn ≈ 0.273 (12 outs x2)", approx(tru("m2-flushdraw-overcard-turn"), 0.273, 0.004));
   ok("M2 overestimate -> m2.overestimates_equity", leak("m2-flush-draw-flop", 0.7) === "m2.overestimates_equity");
   ok("M2 underestimate -> m2.underestimates_equity", leak("m2-flush-draw-flop", 0.1) === "m2.underestimates_equity");
 
@@ -1613,6 +1619,8 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
   ok("M5 nut flush draw vs top pair ≈ 0.459 (two cards to come)", approx(tru("m5-flushdraw-vs-toppair"), 0.459, 0.004));
   ok("M5 top set vs a draw-heavy range ≈ 0.678", approx(tru("m5-set-vs-draws"), 0.678, 0.004));
   ok("M5 dominated flush draw ≈ 0.295 (not a clean ~0.35)", approx(tru("m5-dominated-flushdraw"), 0.295, 0.004));
+  ok("M5 overpair vs overcards ≈ 0.753", approx(tru("m5-overpair-vs-overcards"), 0.753, 0.004));
+  ok("M5 top two pair vs draws ≈ 0.702", approx(tru("m5-two-pair-vs-draws"), 0.702, 0.004));
   ok("M5 overestimate -> m5.overrates_vs_range", leak("m5-vs-condensed", 0.99) === "m5.overrates_vs_range");
   ok("M5 underestimate -> m5.underrates_vs_range", leak("m5-vs-condensed", 0.5) === "m5.underrates_vs_range");
 }
@@ -1632,6 +1640,11 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
   ok("M3 gutshot: fold is best", act("m3-gutshot-fold", "fold") === "m3.ok");
   ok("M3 combo draw: call is best", act("m3-combo-draw-call", "call") === "m3.ok");
   ok("M3 combo draw: fold -> folds_when_priced_in", act("m3-combo-draw-call", "fold") === "m3.folds_when_priced_in");
+  // Same open-ender: call at a great price, fold at a bad one (the price decides).
+  ok("M3 open-ender, great price: call is best", act("m3-oesd-call", "call") === "m3.ok");
+  ok("M3 open-ender, great price: fold -> folds_when_priced_in", act("m3-oesd-call", "fold") === "m3.folds_when_priced_in");
+  ok("M3 open-ender, bad price: fold is best", act("m3-oesd-fold", "fold") === "m3.ok");
+  ok("M3 open-ender, bad price: call -> calls_when_overpriced", act("m3-oesd-fold", "call") === "m3.calls_when_overpriced");
 }
 
 // ---------- Rest of Pillar 1: M3.5 fold equity, M4 sequencing, M5.6 implied odds ----------

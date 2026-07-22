@@ -2214,6 +2214,35 @@ export const STARTER_DRILLS: Drill[] = [
     },
   },
   {
+    id: "m1-oesd-behind-a-set",
+    module: "M1",
+    title: "Counting outs: an open-ender against a made set",
+    ask: "outs",
+    state: {
+      // A second open-ender, this time chasing a made hand. Hero Ts9s on 8h 7c 2d is behind villain's set of
+      // twos; only a straight wins -> a J (4) or a 6 (4) = 8 outs. Overcards don't help when you're drawing to beat a set.
+      heroHand: hand("Ts", "9s"), board: hand("8h", "7c", "2d"),
+      pot: 1, toAct: "hero",
+      villain: { range: [{ combo: hand("2s", "2c"), weight: 1 }] },
+      abstraction: { sizes: [], streets: [], players: 2 },
+    },
+  },
+  {
+    id: "m1-pair-plus-flush-draw",
+    module: "M1",
+    title: "Counting outs: a pair with a flush draw against an overpair",
+    ask: "outs",
+    state: {
+      // A made pair that's still behind, PLUS a draw. Hero 9h8h on 9c 5h 2h has middle pair and a flush draw vs
+      // aces. Outs to beat the overpair: 9 flush cards + 2 more nines (trips) + 3 eights (two pair) = 14 outs.
+      // Count every way to improve, not just the flush.
+      heroHand: hand("9h", "8h"), board: hand("9c", "5h", "2h"),
+      pot: 1, toAct: "hero",
+      villain: { range: [{ combo: hand("Ac", "Ad"), weight: 1 }] },
+      abstraction: { sizes: [], streets: [], players: 2 },
+    },
+  },
+  {
     id: "m3-bad-odds-fold",
     module: "M3",
     title: "Pot odds: fold a weak draw at a bad price",
@@ -2261,6 +2290,34 @@ export const STARTER_DRILLS: Drill[] = [
       // 4-out gutshot on the turn (~9%) facing 3:1 (break-even 25%): a FOLD — small draws rarely get the price.
       heroHand: hand("Kd", "Qc"), board: hand("Js", "9h", "2c", "5s"),
       pot: 3, toCall: 1, toAct: "hero",
+      villain: { range: [{ combo: hand("Ah", "Ad"), weight: 1 }] },
+      abstraction: { sizes: [], streets: [], players: 2 },
+    },
+  },
+  {
+    id: "m3-oesd-call",
+    module: "M3",
+    title: "Pot odds: an open-ender getting a great price",
+    ask: "action",
+    state: {
+      // 8-out open-ender on the turn (~18%) getting 6:1 (break-even 14.3%): a +EV CALL. A bigger draw than a
+      // gutshot can profitably call a bet a gutshot must fold to. Folding here is the leak.
+      heroHand: hand("Ts", "9s"), board: hand("8h", "7c", "2d", "Kd"),
+      pot: 6, toCall: 1, toAct: "hero",
+      villain: { range: [{ combo: hand("Ah", "Ad"), weight: 1 }] },
+      abstraction: { sizes: [], streets: [], players: 2 },
+    },
+  },
+  {
+    id: "m3-oesd-fold",
+    module: "M3",
+    title: "Pot odds: the same open-ender at a bad price",
+    ask: "action",
+    state: {
+      // The SAME ~18% open-ender, now facing a bigger bet (2:3 -> break-even 40%): a FOLD. Even eight outs
+      // isn't enough when the price is wrong. Calling is the leak. (Pairs with m3-oesd-call: price decides.)
+      heroHand: hand("Ts", "9s"), board: hand("8h", "7c", "2d", "Kd"),
+      pot: 1.5, toCall: 1, toAct: "hero",
       villain: { range: [{ combo: hand("Ah", "Ad"), weight: 1 }] },
       abstraction: { sizes: [], streets: [], players: 2 },
     },
@@ -2938,6 +2995,36 @@ export const STARTER_DRILLS: Drill[] = [
       abstraction: { sizes: [], streets: [], players: 2 },
     },
   },
+  {
+    id: "m5-overpair-vs-overcards",
+    module: "M5",
+    title: "Equity vs a range: an overpair against overcards",
+    ask: "estimate",
+    // An overpair is a big favorite over unpaired big cards. Hero TsTd on 9h 6c 2s vs {AK, QJ} -- the range has
+    // two live cards apiece and some backdoors, so it isn't drawing dead, but the pair is ~75% ahead. Overcards
+    // need to pair up (about a 1-in-4 shot each) to get there.
+    state: {
+      heroHand: hand("Ts", "Td"), board: hand("9h", "6c", "2s"),
+      pot: 1, toAct: "hero",
+      villain: { range: [{ combo: hand("Ah", "Ks"), weight: 1 }, { combo: hand("Qh", "Jd"), weight: 1 }] },
+      abstraction: { sizes: [], streets: [], players: 2 },
+    },
+  },
+  {
+    id: "m5-two-pair-vs-draws",
+    module: "M5",
+    title: "Equity vs a range: top two pair on a wet board",
+    ask: "estimate",
+    // Top two pair is strong but a wet board keeps opponents live. Hero KcQd = top two on Kh Qh 5c vs a flush
+    // draw (Ah Jh) and an underpair with a draw (Td Th) -- about 70%. Two pair is well ahead, but a heart or a
+    // set gets there often enough that it's not a lock: bet to charge those draws.
+    state: {
+      heroHand: hand("Kc", "Qd"), board: hand("Kh", "Qh", "5c"),
+      pot: 1, toAct: "hero",
+      villain: { range: [{ combo: hand("Ah", "Jh"), weight: 1 }, { combo: hand("Td", "Th"), weight: 1 }] },
+      abstraction: { sizes: [], streets: [], players: 2 },
+    },
+  },
   // ---- M2 coverage: convert outs -> equity across draw types and streets ----
   {
     id: "m2-flush-draw-flop",
@@ -3001,6 +3088,33 @@ export const STARTER_DRILLS: Drill[] = [
       heroHand: hand("Js", "Ts"), board: hand("9s", "8s", "2c", "4d"),
       pot: 1, toAct: "hero",
       villain: { range: [{ combo: hand("Ah", "Ad"), weight: 1 }] },
+      abstraction: { sizes: [], streets: [], players: 2 },
+    },
+  },
+  {
+    id: "m2-oesd-flop",
+    module: "M2",
+    title: "Rule of 2 & 4: an open-ender on the flop",
+    ask: "estimate",
+    state: {
+      // 8-out open-ender on the FLOP: 8 x 4 ≈ 32% (exact ≈ 0.342). Two cards to come, so use x4, not x2.
+      heroHand: hand("Ts", "9s"), board: hand("8h", "7c", "2d"),
+      pot: 1, toAct: "hero",
+      villain: { range: [{ combo: hand("Ah", "Ad"), weight: 1 }] },
+      abstraction: { sizes: [], streets: [], players: 2 },
+    },
+  },
+  {
+    id: "m2-flushdraw-overcard-turn",
+    module: "M2",
+    title: "Rule of 2 & 4: a flush draw plus an overcard, one card to come",
+    ask: "estimate",
+    state: {
+      // Flush draw (9) plus a live ace overcard (3) = 12 outs on the TURN: 12 x 2 ≈ 24% (exact ≈ 0.273). Count the
+      // overcard outs too, but only x2 with one card to come. Hero Ah5h vs top pair Kc Qd on Kh 7h 2c Jd.
+      heroHand: hand("Ah", "5h"), board: hand("Kh", "7h", "2c", "Jd"),
+      pot: 1, toAct: "hero",
+      villain: { range: [{ combo: hand("Kc", "Qd"), weight: 1 }] },
       abstraction: { sizes: [], streets: [], players: 2 },
     },
   },

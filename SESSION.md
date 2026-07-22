@@ -55,7 +55,7 @@ repetition) with a guided-curriculum PWA on top.
 
 ## State as of 2026-07 (commit 6b80618)
 
-- **496 tests passing**, both type-checks clean, deployed bundle in sync.
+- **508 tests passing**, both type-checks clean, deployed bundle in sync.
 - **Review fixes (2026-07-18, post-audit), cache v21:** (1) `m2-combo-draw`
   board was `9s 8h 2c` (an 8-out spot, 36.9%) but its title/EXPLAIN teach the
   15-out flush+open-ender combo — fixed to `9s 8s 2c` (56.3%); a learner who
@@ -129,7 +129,7 @@ repetition) with a guided-curriculum PWA on top.
 
 Single scan of everything still open after 19 shipped items. The numbered "Next up"
 log below is a DONE-history with declines interleaved; this section is the live to-do.
-Baseline right now: **126 drills, 19 modules, 496 tests, cache v45**, live & in sync.
+Baseline right now: **134 drills, 19 modules, 508 tests, cache v46**, live & in sync.
 
 ### A. Addable now — content-only, no engine change (pick any, each ~1 commit)
 - **More depth in any module.** The engine supports far more than is authored; every
@@ -587,6 +587,32 @@ break that or need a fundamentally different solver. Logged so they aren't re-sc
      byte-sync is the end-to-end proof.
    - REMAINING thin-ish after this: P0 (engine-capped, see §23), M5.7 (2 formulas only), P1
      (~3s/grade, keep few). Everything else is deep; further adds are volume, not coverage.
+
+25. ~~**Volume batch: +8 drills across M1 / M2 / M3 / M5 (deep modules)**~~ — DONE 2026-07-22
+   (cache v46, 508 tests, 134 drills). Owner said "let's add volume anyway" after being told the
+   thin modules were filled and further adds are variety-not-coverage. Deliberately targeted the
+   EXACT / low-risk modules (outs, rule-2&4 equity, pot odds, range equity) so each is trivially
+   verifiable and second-instance-of-a-pattern is acceptable here (SM-2 supplies reps; more spots
+   = more review variety). All values engine-verified first; no engine change.
+   - **M1 outs** (2): `m1-oesd-behind-a-set` (open-ender vs a set = **8**, overcards don't count) and
+     `m1-pair-plus-flush-draw` (middle pair + flush draw vs an overpair = **14** = 9 flush + 2 trips
+     + 3 two-pair). GOTCHA re-learned: `outs()` is for when hero is BEHIND — a two-pair/set "drawing
+     to a boat" spot returns ~40 (it counts cards that KEEP a leading hand ahead), so pick spots
+     where hero trails. Also villain cards BLOCK outs (an AA villain removes 2 of your ace outs), so
+     choose villain holdings out of the way of the draw for clean teaching numbers.
+   - **M2 rule of 2&4** (2): `m2-oesd-flop` (8 outs ×4 ≈ 0.342) and `m2-flushdraw-overcard-turn`
+     (flush + a live overcard = 12 outs ×2 ≈ 0.273 — count overcard outs, halve them on the turn).
+   - **M3 pot odds** (2): `m3-oesd-call` / `m3-oesd-fold` — the SAME 8-out open-ender (~18%) is a
+     call at 6:1 (need ~14%) and a fold at 3:2 (need ~40%). A new draw type for the module's
+     price-flip pair (existing pairs were flush-draw and gutshot). NOTE: M3 drills use turn boards
+     (4 cards, one card to come), empty abstraction, pot+toCall — grade() compares callEV to fold;
+     they're SKIPPED by the action-margin content guard (buildTree on empty-abstraction yields <2
+     actions), so no margin tuning needed, just the correct call/fold side.
+   - **M5 equity vs range** (2): `m5-overpair-vs-overcards` (TT vs {AK,QJ} ≈ 0.753) and
+     `m5-two-pair-vs-draws` (top two on a wet board ≈ 0.702).
+   - Added exact assertions for all 8; 508 green. Not browser-verified live (preview HTTP-cache
+     artifact, §23) — all reuse screenshotted shapes (outs numeric, estimate slider, call/fold
+     buttons); live byte-sync is the proof. This is pure volume — the modules had no coverage gaps.
 
 ## Machine-specific notes for macOS
 
