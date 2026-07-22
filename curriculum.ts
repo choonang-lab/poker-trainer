@@ -175,7 +175,7 @@ export const MODULES: Module[] = [
     ],
     objectives: ["Plan a multi-street betting line", "Bet strong hands across streets for value", "Avoid leaving money behind by checking"],
     example: "With the nuts, betting flop and turn builds a far bigger pot than a single bet.",
-    drillIds: ["m4-sequence-two-streets", "m4-value-set", "m4-overpair-protection", "m4-way-behind-check"],
+    drillIds: ["m4-sequence-two-streets", "m4-value-set", "m4-overpair-protection", "m4-way-behind-check", "m4-three-street-value", "m4-thin-value-toppair"],
   },
   {
     id: "M4.5", track: "P1", title: "Counting combos",
@@ -296,7 +296,7 @@ export const MODULES: Module[] = [
     ],
     objectives: ["Continuation-bet when you have equity and fold equity", "Lead (donk) when the board hits your hand", "Check-raise a strong hand to build the pot"],
     example: "You raised preflop and flopped top pair — bet again (a c-bet) to keep the pressure on.",
-    drillIds: ["p25-cbet", "p25-donk-lead", "p25-check-raise"],
+    drillIds: ["p25-cbet", "p25-donk-lead", "p25-check-raise", "p25-cbet-semibluff", "p25-check-raise-semibluff"],
   },
   {
     id: "P3", track: "P2", title: "Multi-street lines",
@@ -309,7 +309,7 @@ export const MODULES: Module[] = [
     ],
     objectives: ["Value-bet across multiple streets", "Re-raise (3-bet) the nuts instead of flatting", "Think one street ahead"],
     example: "Facing a bet with the nuts, raising extracts more than calling and showing down.",
-    drillIds: ["p3-value-two-streets", "p3-3bet-the-nuts", "p3-pot-control"],
+    drillIds: ["p3-value-two-streets", "p3-3bet-the-nuts", "p3-pot-control", "p3-value-raise-turn", "p3-3bet-semibluff"],
   },
   {
     id: "P3.4", track: "P2", title: "Barreling",
@@ -350,7 +350,7 @@ export const MODULES: Module[] = [
     ],
     objectives: ["Adjust equity down against multiple opponents", "Value strong hands vs a field", "Avoid overrating marginal hands multiway"],
     example: "A hand that's 50% heads-up is only about 25% against two opponents.",
-    drillIds: ["p4-multiway-field", "p4-strong-multiway"],
+    drillIds: ["p4-multiway-field", "p4-strong-multiway", "p4-tptk-4way", "p4-overpair-diluted", "p4-flushdraw-diluted"],
   },
   {
     id: "P5", track: "P2", title: "Exploit vs balance",
@@ -430,6 +430,8 @@ export const EXPLAIN: Record<string, string> = {
   "m4-value-set": "Top set against a station: bet both streets to build the pot you're going to win.",
   "m4-overpair-protection": "Bet for value and charge the flush draw — checking hands over a free card.",
   "m4-way-behind-check": "Their two pair never folds and always calls: betting only loses more. Sequencing includes choosing NO streets — check to a cheap showdown.",
+  "m4-three-street-value": "Top set against a station that never folds: bet the flop, the turn AND the river. Each street he calls with a worse hand, so every bet you skip is value left behind. The line is a plan for the whole hand — three streets build a far bigger pot than one.",
+  "m4-thin-value-toppair": "You don't need a monster to bet across streets — you need a worse hand that pays. Top pair top kicker is well ahead of villain's underpair, and a station calls flop and turn with it, so bet both for value. Checking 'because it's only top pair' just leaves money behind.",
   // M4.5 — counting combos
   "m45-combos-unpaired": "No ace or king is in play, so all four of each are available: 4 x 4 = 16 combos of A-K.",
   "m45-combos-pair": "A pocket pair is any two of its four cards: C(4,2) = 6 combos. No ace is visible, so pocket aces is the full 6.",
@@ -482,6 +484,8 @@ export const EXPLAIN: Record<string, string> = {
   "p34-barrel-a-blank": "The turn is a total brick — no flush, no straight, no scary overcard. Nothing about villain's hand changed: he's still on a draw or a worse pair, and your overpair is still ahead. So keep firing (a second barrel) to charge the draw and get value from worse. Read the turn card: when it's a blank, nothing changes — keep going.",
   "p34-scare-card-shutdown": "Same hand, same flop — but the turn is an ace of hearts, and everything changed. The flush got there and an overcard hit, so the hands that call you now (a made flush, a pair of aces) all beat your kings. A second barrel just bleeds chips into a range that's ahead. Shut down and check. Read the turn card: a scare card can turn your barrel into a fold.",
   "p25-check-raise": "You flopped a hidden monster (bottom set) and checked to let the preflop raiser bet — and he did, with top pair. Now spring the trap: check-RAISE. His top pair pays off the raise, so build the pot now while he's willing to put money in. Just calling lets him off cheap.",
+  "p25-cbet-semibluff": "The made-hand c-bet's twin, with a draw instead of a made hand. Your flush draw is behind villain's ace right now, but a c-bet folds out his missed overcards AND you hold nine outs when the ace calls — fold equity now plus equity later. Betting (0.59) beats checking (0.45): keep the lead you took before the flop.",
+  "p25-check-raise-semibluff": "The trap play, but as a semi-bluff. Your open-ender plus flush draw is a huge draw, not a made hand — check-raising folds out villain's weak overcards now and still has a pile of outs when his pair calls. Raising (0.57) beats just calling the draw (0.31): with a big draw, take the lead rather than passively chasing.",
   "p2-overbet-bluff": "Your hand missed — you have nothing to show down. The only way to win is to make villain fold, and his medium hand will pay a normal bet but fold to a huge one. So overbet as a bluff: the big size folds him out and takes the pot, while a small bet just gets called and loses. Good players overbet with a polarized range — their nuts AND their bluffs.",
   "p2-raise-sizing": "It's not just whether to raise — it's how much. You have the nuts, so you want max value, but a giant raise scares even a strong villain into folding, and then you win nothing extra. A small raise under-charges him; the pot-size raise gets the most in while he still calls. Raise as big as they'll pay off, not bigger.",
   // P3 — multi-street lines
@@ -493,10 +497,15 @@ export const EXPLAIN: Record<string, string> = {
   "p35-river-multiway-fold": "Same top pair, same board — but now three players called ahead of the bet. A hand that keeps firing into four people is almost never bluffing; the range is all value, and your top pair beats none of it. The bluff-catch that was a call heads-up is a fold multiway. More players in the pot means a stronger range: tighten up.",
   "p35-call-small-bet": "A small bet is cheap, and players fire this size with their busted draws as well as their winners — so your top pair only has to beat the bluffs to call profitably. Don't fold (you'd give up to a bluff), and don't raise (you'd fold out the very bluffs you beat and get called only when you're behind). Just call.",
   "p35-fold-an-overbet": "Same hand, same board — but the size flipped the read. Almost nobody overbets a bluff; a big overbet is nearly always the goods. Now your top pair beats too little of the range to pay that price, so let it go. The lesson: read the bet size. Call the small bet (it's often a bluff), fold the overbet (it's usually value).",
+  "p3-value-raise-turn": "You don't need the nuts to raise for value — you need worse hands that will pay. Top two pair is well ahead of villain's one-pair hands, and he calls a raise with them, so re-raising (EV 5) extracts far more than flatting (2). Save the flat for when raising would only fold out the hands you beat.",
+  "p3-3bet-semibluff": "A re-raise isn't only for made hands. Your open-ended straight-flush draw is behind villain's overpair now, but 3-betting folds it out about half the time AND you have a monster draw when he calls — so raising (0.53) crushes just calling (0.02). Big draws play the raise, not only the call.",
   "p3-pot-control": "You have top pair — but only a so-so kicker. If you bet, the hands that call all beat you (a better kicker), while the hands you crush are nearly drawing dead and simply fold. So betting wins nothing from the weak hands and only loses to the strong ones. Checking keeps the pot small and lets your pair win a cheap showdown against the weak part of the range. That's pot control: a medium made hand often prefers a cheap showdown to building a big pot.",
   // P4 — multiway pots
   "p4-multiway-field": "Two opponents who both play the same board split the pot more ways — the field approximation drops your share of the chop to about a quarter.",
   "p4-strong-multiway": "Top pair top kicker is strong, but every extra opponent is another hand that can beat you — the field trims your equity a little below the heads-up number (~84%).",
+  "p4-tptk-4way": "Same top pair top kicker, one more opponent: ~84% three-way drops to ~77% four-way. Every player you add takes another slice — you have to beat them ALL — so even a strong hand is worth a little less each time.",
+  "p4-overpair-diluted": "Aces are about 78% heads-up against this range, but only ~61% three-way — you have to beat BOTH opponents, and each is another shot at a set or a made draw. Still ahead, just far from the lock it is one-on-one; lean toward charging draws over bloating the pot out of position.",
+  "p4-flushdraw-diluted": "A bare flush draw is ~30% heads-up here, but three-way it collapses to about 9%: you must fade two made hands AND out-draw both, and one of them may share your outs. A draw that's a fine call heads-up is often a fold multiway.",
   // P5 — exploit vs balance
   "p5-exploit-overfolder": "A hand with no showdown value only wins by making villain fold — and this villain folds often. Bet as a bluff; checking just gives up.",
   "p5-exploit-maniac": "Third pair is a hand you'd normally muck on the river. But this villain is a maniac who bets far more busted hands than real ones — so your weak pair actually beats most of what he's betting. Against a wild over-bluffer, don't fold: call and let him bluff off his chips. The read beats the strength of your hand.",

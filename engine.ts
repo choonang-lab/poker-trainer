@@ -1603,6 +1603,45 @@ export const STARTER_DRILLS: Drill[] = [
     },
   },
   {
+    id: "p3-value-raise-turn",
+    module: "P3",
+    title: "Raise lines: facing a turn bet with top two pair",
+    read: "Villain has bet; he pays off a raise with his one-pair hands but never re-raises.",
+    ask: "action",
+    // Value-raise a NON-nut strong hand (the discrimination with p3-3bet-the-nuts, which raises the stone nuts).
+    // Hero Ah Kh = top two pair on Ac Kd 7c 2s. Villain bets and calls a raise with a worse made hand (As Qd = a
+    // pair of aces, weaker kicker). Re-raising (EV 5) beats flatting (2): raise for value even when you're not the nuts.
+    state: {
+      heroHand: hand("Ah", "Kh"), board: hand("Ac", "Kd", "7c", "2s"),
+      pot: 1, toAct: "hero",
+      villain: {
+        range: [{ combo: hand("As", "Qd"), weight: 1 }],
+        strategy: (_s: NodeState, legal: Action[]) =>
+          legal.map((a) => ({ action: a, weight: a.kind === "call" ? 1 : 0 })),
+      },
+      abstraction: { sizes: [1.0], streets: ["turn"], players: 2, heroFacesBet: 1.0, raiseCap: 1 },
+    },
+  },
+  {
+    id: "p3-3bet-semibluff",
+    module: "P3",
+    title: "Raise lines: 3-betting a big draw as a semi-bluff",
+    read: "Villain has bet his overpair; he folds it to a raise about half the time and never re-raises.",
+    ask: "action",
+    // 3-bet (re-raise) as a SEMI-BLUFF -- the draw analogue of value-raising the nuts. Hero 9s8s = an open-ended
+    // straight-flush draw on 7s 6d 2h Ks. Raising villain's overpair (Ah Ad) folds it out ~50% AND still has a
+    // huge draw when called. Re-raising (0.53) beats flatting (0.02): a big draw plays the raise, not just the call.
+    state: {
+      heroHand: hand("9s", "8s"), board: hand("7s", "6d", "2h", "Ks"),
+      pot: 1, toAct: "hero",
+      villain: {
+        range: [{ combo: hand("Ah", "Ad"), weight: 1 }],
+        policy: (_combo: Combo) => [{ action: { kind: "fold" }, weight: 0.5 }, { action: { kind: "call" }, weight: 0.5 }],
+      },
+      abstraction: { sizes: [1.0], streets: ["turn"], players: 2, heroFacesBet: 1.0, raiseCap: 1 },
+    },
+  },
+  {
     id: "p3-pot-control",
     module: "P3",
     title: "Multi-street lines: a medium top pair on the turn",
@@ -2252,6 +2291,52 @@ export const STARTER_DRILLS: Drill[] = [
     },
   },
   {
+    id: "p4-tptk-4way",
+    module: "P4",
+    title: "Multiway: top pair top kicker against a THREE-opponent field",
+    ask: "estimate",
+    // Same TPTK/board as p4-strong-multiway, one more opponent: equity falls again (~0.838 three-way ->
+    // ~0.766 four-way). Every player you add takes another slice — a strong hand is worth less each time.
+    state: {
+      heroHand: hand("As", "Ks"), board: hand("Ad", "8c", "3h"),
+      pot: 1, toAct: "hero",
+      villain: { range: [{ combo: hand("Qh", "Jh"), weight: 1 }] },
+      abstraction: { sizes: [], streets: [], players: 4 },
+    },
+  },
+  {
+    id: "p4-overpair-diluted",
+    module: "P4",
+    title: "Multiway: an overpair against a two-opponent field",
+    ask: "estimate",
+    // Dilution on a made hand. Aces are ~78% heads-up against this range but only ~61% three-way -- to win
+    // you must beat BOTH opponents, and each extra player is another shot at a set or a made draw. Still ahead,
+    // but far from the lock it is one-on-one, so lean toward charging draws over bloating the pot out of position.
+    state: {
+      heroHand: hand("As", "Ad"), board: hand("Kc", "9h", "4d"),
+      pot: 1, toAct: "hero",
+      villain: { range: [
+        { combo: hand("Kh", "Qd"), weight: 1 }, { combo: hand("Jh", "Th"), weight: 1 }, { combo: hand("9c", "8c"), weight: 1 },
+      ] },
+      abstraction: { sizes: [], streets: [], players: 3 },
+    },
+  },
+  {
+    id: "p4-flushdraw-diluted",
+    module: "P4",
+    title: "Multiway: a bare flush draw against a two-opponent field",
+    ask: "estimate",
+    // Draws hate a crowd. Hero 8h9h is ~30% heads-up against this range, but three-way it collapses to ~9%:
+    // you have to fade TWO made hands and out-draw both. A draw that's a fine call heads-up is often a fold
+    // multiway -- the field is likely to already have you beaten AND to keep a better draw live.
+    state: {
+      heroHand: hand("8h", "9h"), board: hand("Kh", "7h", "2c"),
+      pot: 1, toAct: "hero",
+      villain: { range: [{ combo: hand("Kc", "Qd"), weight: 1 }, { combo: hand("Ah", "Th"), weight: 1 }] },
+      abstraction: { sizes: [], streets: [], players: 3 },
+    },
+  },
+  {
     id: "m2-set-vs-overpair",
     module: "M2",
     title: "Equity: a set crushes an overpair",
@@ -2478,6 +2563,50 @@ export const STARTER_DRILLS: Drill[] = [
         policy: (combo: Combo) => {
           const king = rankOf(combo[0]) === 13 || rankOf(combo[1]) === 13;
           return [{ action: { kind: "fold" }, weight: king ? 0 : 1 }, { action: { kind: "call" }, weight: king ? 1 : 0 }];
+        },
+      },
+      abstraction: { sizes: [1.0], streets: ["flop"], players: 2, heroFacesBet: 0.75, raiseCap: 1 },
+    },
+  },
+  {
+    id: "p25-cbet-semibluff",
+    module: "P2.5",
+    title: "Taking the lead: continuation-betting a draw you raised with",
+    read: "You raised before the flop and villain called. He continues with his made aces but folds his missed overcards.",
+    ask: "action",
+    // C-bet as a SEMI-BLUFF (the draw version of p25-cbet's made-hand value bet). Hero 8h9h = a flush draw on
+    // Ah Kh 4d -- behind now, but a bet folds out villain's missed overcards (Qc Jc) AND you have nine outs when
+    // his ace (Ac Td) calls. Bet (0.59) beats check (0.45): keep the lead with equity plus fold equity.
+    state: {
+      heroHand: hand("8h", "9h"), board: hand("Ah", "Kh", "4d"),
+      pot: 1, toAct: "hero",
+      villain: {
+        range: [{ combo: hand("Ac", "Td"), weight: 1 }, { combo: hand("Qc", "Jc"), weight: 1 }],
+        policy: (combo: Combo) => {
+          const ace = rankOf(combo[0]) === 14 || rankOf(combo[1]) === 14;
+          return [{ action: { kind: "fold" }, weight: ace ? 0 : 1 }, { action: { kind: "call" }, weight: ace ? 1 : 0 }];
+        },
+      },
+      abstraction: { sizes: [0.75], streets: ["flop"], players: 2 },
+    },
+  },
+  {
+    id: "p25-check-raise-semibluff",
+    module: "P2.5",
+    title: "Taking the lead: check-raising a big draw as a semi-bluff",
+    read: "You checked; villain (the preflop raiser) c-bet his top pair. He folds his weak overcards to a raise but calls with a pair.",
+    ask: "action",
+    // Check-raise as a SEMI-BLUFF (the draw version of p25-check-raise's value set). Hero 6s5s = an open-ender
+    // plus a flush draw on 7s 4h 2c. Check-raising folds out villain's air (Kc Qc) now and still has a mountain of
+    // outs when his pair (Ah 7h) calls. Raising (0.57) beats flatting the draw (0.31): grab the lead with a draw.
+    state: {
+      heroHand: hand("6s", "5s"), board: hand("7s", "4h", "2c"),
+      pot: 1, toAct: "hero",
+      villain: {
+        range: [{ combo: hand("Ah", "7h"), weight: 1 }, { combo: hand("Kc", "Qc"), weight: 1 }],
+        policy: (combo: Combo) => {
+          const pair = rankOf(combo[0]) === 7 || rankOf(combo[1]) === 7;
+          return [{ action: { kind: "fold" }, weight: pair ? 0 : 1 }, { action: { kind: "call" }, weight: pair ? 1 : 0 }];
         },
       },
       abstraction: { sizes: [1.0], streets: ["flop"], players: 2, heroFacesBet: 0.75, raiseCap: 1 },
@@ -3070,6 +3199,45 @@ export const STARTER_DRILLS: Drill[] = [
           legal.map((a) => ({ action: a, weight: a.kind === "call" ? 1 : 0 })),
       },
       abstraction: { sizes: [1.0], streets: ["flop"], players: 2 },
+    },
+  },
+  {
+    id: "m4-three-street-value",
+    module: "M4",
+    title: "Street sequencing: top set across all three streets",
+    ask: "action",
+    read: "Villain calls any bet (calling station).",
+    state: {
+      // Three streets, not two. Hero AsAd = top set on Ah Kc 7d; a station calls flop, turn AND river, so bet all
+      // three to build the biggest pot -- checking any street leaves money behind. The line is the plan for the whole hand.
+      heroHand: hand("As", "Ad"), board: hand("Ah", "Kc", "7d"),
+      pot: 1, toAct: "hero",
+      villain: {
+        range: [{ combo: hand("Kh", "Qd"), weight: 1 }],
+        strategy: (_s: NodeState, legal: Action[]) =>
+          legal.map((a) => ({ action: a, weight: a.kind === "call" ? 1 : 0 })),
+      },
+      abstraction: { sizes: [1.0], streets: ["flop", "turn", "river"], players: 2 },
+    },
+  },
+  {
+    id: "m4-thin-value-toppair",
+    module: "M4",
+    title: "Street sequencing: top pair top kicker for thin value",
+    ask: "action",
+    read: "Villain calls any bet with a worse pair (calling station).",
+    state: {
+      // Thinner value than a set/overpair, same lesson. Hero AsKs = top pair top kicker on Kc 8h 3d; a station
+      // pays off with worse (Qh Qd, an underpair) on flop and turn, so bet both -- top pair is plenty to value bet
+      // when a worse hand will call. Don't check strong-enough hands just because they aren't monsters.
+      heroHand: hand("As", "Ks"), board: hand("Kc", "8h", "3d"),
+      pot: 1, toAct: "hero",
+      villain: {
+        range: [{ combo: hand("Qh", "Qd"), weight: 1 }],
+        strategy: (_s: NodeState, legal: Action[]) =>
+          legal.map((a) => ({ action: a, weight: a.kind === "call" ? 1 : 0 })),
+      },
+      abstraction: { sizes: [1.0], streets: ["flop", "turn"], players: 2 },
     },
   },
   // ---- M5.6 coverage: implied odds aren't always there ----

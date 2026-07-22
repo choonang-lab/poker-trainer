@@ -55,7 +55,7 @@ repetition) with a guided-curriculum PWA on top.
 
 ## State as of 2026-07 (commit 6b80618)
 
-- **481 tests passing**, both type-checks clean, deployed bundle in sync.
+- **496 tests passing**, both type-checks clean, deployed bundle in sync.
 - **Review fixes (2026-07-18, post-audit), cache v21:** (1) `m2-combo-draw`
   board was `9s 8h 2c` (an 8-out spot, 36.9%) but its title/EXPLAIN teach the
   15-out flush+open-ender combo — fixed to `9s 8s 2c` (56.3%); a learner who
@@ -129,7 +129,7 @@ repetition) with a guided-curriculum PWA on top.
 
 Single scan of everything still open after 19 shipped items. The numbered "Next up"
 log below is a DONE-history with declines interleaved; this section is the live to-do.
-Baseline right now: **117 drills, 19 modules, 481 tests, cache v44**, live & in sync.
+Baseline right now: **126 drills, 19 modules, 496 tests, cache v45**, live & in sync.
 
 ### A. Addable now — content-only, no engine change (pick any, each ~1 commit)
 - **More depth in any module.** The engine supports far more than is authored; every
@@ -556,6 +556,37 @@ break that or need a fundamentally different solver. Logged so they aren't re-sc
      buttons). Production is unaffected — the SW CACHE bump (v43→v44) is the real invalidation and
      has shipped 40+ times. If future preview verification needs the fresh bundle, load a
      cache-busted URL or accept the fetch-verification.
+
+24. ~~**Thin-module build-out: +9 drills across P4 / P2.5 / P3 / M4**~~ — DONE 2026-07-22
+   (cache v45, 496 tests, 126 drills, 19 modules — module count unchanged). After a
+   capacity analysis (owner asked "how many more can we add?"; answer: no engine ceiling,
+   ~40–60 pedagogically-additive drills left, thinnest modules first), owner said "build out
+   the thin modules." Targeted the four thinnest; every value engine-verified before authoring.
+   - **P4 multiway** (2→5, all estimates — multiway is field-approx, estimate-ONLY, no tree):
+     `p4-tptk-4way` (same TPTK as `p4-strong-multiway` but players=4 → 0.766 vs the 3-way 0.838),
+     `p4-overpair-diluted` (AA 3-way → 0.606 from ~0.778 HU), `p4-flushdraw-diluted` (bare FD
+     3-way → **0.090** from ~0.299 HU — draws collapse hardest). NOTE: the field model is
+     hero_HU_equity^(players−1), so single weak villain combos barely dilute; used realistic
+     multi-combo ranges to get instructive numbers.
+   - **P2.5 taking the lead** (3→5): added the SEMI-BLUFF twin of the c-bet and the check-raise —
+     `p25-cbet-semibluff` (c-bet a flush draw, bet 0.59 > check 0.45) and
+     `p25-check-raise-semibluff` (check-raise an OESD+FD, raise 0.57 > flat 0.31). Elegant
+     symmetry: each made-hand lead now has a draw counterpart. DROPPED a donk-semibluff — a big
+     combo draw realizes too much by checking, so betting only gained ~0.08 (a coin-flip drill).
+   - **P3 multi-street lines** (3→5): `p3-value-raise-turn` (raise top two pair for value — the
+     NON-nut discrimination with `p3-3bet-the-nuts`) and `p3-3bet-semibluff` (3-bet a big draw,
+     villain overpair folds 50%, raise 0.53 > flat 0.02).
+   - **M4 street sequencing** (4→6): `m4-three-street-value` (top set, bet flop+turn+river — the
+     first THREE-street build; all prior M4 were 2-street) and `m4-thin-value-toppair` (TPTK bets
+     two streets thin vs a station). Both vs calling stations (Pillar-1 style, no read needed).
+   - VERIFICATION: the magnitude tagger auto-mapped the raise drills' flat→`*.flats_instead_of_
+     raising` and the bet drills' check→`*.checks_instead_of_betting`/`misses_street_sequence`;
+     confirmed via the 496-green suite (added exact assertions for all 9). Did NOT browser-verify
+     live (same preview HTTP-cache artifact as §23) — grading is test-proven and all 9 reuse
+     already-screenshotted UI shapes (estimate slider, action buttons incl. raise). Live-site
+     byte-sync is the end-to-end proof.
+   - REMAINING thin-ish after this: P0 (engine-capped, see §23), M5.7 (2 formulas only), P1
+     (~3s/grade, keep few). Everything else is deep; further adds are volume, not coverage.
 
 ## Machine-specific notes for macOS
 

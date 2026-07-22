@@ -795,6 +795,10 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
     gradeDrill(session, p4.id, { kind: "estimate", value: 0.5 }, 0).result.leakTag === "p4.overrates_field");
   ok("P4 calibrated -> p4.ok",
     gradeDrill(session, p4.id, { kind: "estimate", value: 0.25 }, 0).result.leakTag === "p4.ok");
+  // P4 depth: dilution grows with the field; draws collapse hardest.
+  ok("P4 TPTK four-way ≈ 0.766 (below the three-way 0.838)", approx(truth(byId("p4-tptk-4way").state), 0.766, 0.004));
+  ok("P4 overpair three-way ≈ 0.606 (from ~0.778 heads-up)", approx(truth(byId("p4-overpair-diluted").state), 0.606, 0.004));
+  ok("P4 bare flush draw three-way ≈ 0.090 (from ~0.299 heads-up)", approx(truth(byId("p4-flushdraw-diluted").state), 0.090, 0.004));
 
   // M3.5 fold equity: betting a semi-bluff is best -> checking is the leak.
   const m35 = byId("m35-semibluff-flushdraw");
@@ -841,8 +845,8 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
   ok("M4 check regret == 3 bb", approx(m4check.result.regretBb, 3), `got ${m4check.result.regretBb}`);
   ok("M4 check -> m4.misses_street_sequence", m4check.result.leakTag === "m4.misses_street_sequence");
 
-  ok("STARTER_DRILLS now spans 117 drills incl M0/M3.5/M4/M4.5/M5.6/M5.7/P0/P1/P2/P2.5/P3/P3.4/P3.5/P4/P5",
-    STARTER_DRILLS.length === 117 &&
+  ok("STARTER_DRILLS now spans 126 drills incl M0/M3.5/M4/M4.5/M5.6/M5.7/P0/P1/P2/P2.5/P3/P3.4/P3.5/P4/P5",
+    STARTER_DRILLS.length === 126 &&
     ["M0", "M3.5", "M4", "M4.5", "M5.6", "M5.7", "P0", "P1", "P3", "P4", "P5"].every((m) => STARTER_DRILLS.some((d) => d.module === m)));
 
   // M4.5 combo counting: base counts and blocker removal, all hand-checkable.
@@ -924,6 +928,13 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
   ok("3-bet: flatting the nuts -> p3.flats_instead_of_raising (regret 3)",
     flat.result.regretBb === 3 && flat.result.leakTag === "p3.flats_instead_of_raising",
     `${flat.result.regretBb} ${flat.result.leakTag}`);
+  // P3 depth: value-raise a non-nut hand, and 3-bet a big draw as a semi-bluff.
+  ok("value-raise (non-nut top two): raising is best", bestAction(buildTree(byId("p3-value-raise-turn").state)).kind === "bet");
+  ok("value-raise: flatting -> p3.flats_instead_of_raising",
+    gradeDrill(session, "p3-value-raise-turn", { kind: "action", action: { kind: "call" } }, 0).result.leakTag === "p3.flats_instead_of_raising");
+  ok("3-bet semibluff (big draw): raising is best", bestAction(buildTree(byId("p3-3bet-semibluff").state)).kind === "bet");
+  ok("3-bet semibluff: flatting the draw -> p3.flats_instead_of_raising",
+    gradeDrill(session, "p3-3bet-semibluff", { kind: "action", action: { kind: "call" } }, 0).result.leakTag === "p3.flats_instead_of_raising");
 
   // P3.5 River decisions: raise / call-thin / call-bluffcatch / fold-multiway, each
   // graded through the heroFacesBet river tree; wrong actions map to p35.* leaks.
@@ -1024,6 +1035,13 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
   ok("check-raise: raising is best", bestAction(buildTree(byId("p25-check-raise").state)).kind === "bet");
   ok("check-raise: flatting -> p25.flats_instead_of_raising",
     gradeDrill(session, "p25-check-raise", { kind: "action", action: { kind: "call" } }, 0).result.leakTag === "p25.flats_instead_of_raising");
+  // Semi-bluff variants: c-bet a draw (bet best), check-raise a big draw (raise best).
+  ok("c-bet semibluff: betting a draw is best", bestSz("p25-cbet-semibluff") === "bet0.75");
+  ok("c-bet semibluff: checking -> p25.checks_instead_of_betting",
+    gradeDrill(session, "p25-cbet-semibluff", { kind: "action", action: { kind: "check" } }, 0).result.leakTag === "p25.checks_instead_of_betting");
+  ok("check-raise semibluff: raising a draw is best", bestAction(buildTree(byId("p25-check-raise-semibluff").state)).kind === "bet");
+  ok("check-raise semibluff: flatting the draw -> p25.flats_instead_of_raising",
+    gradeDrill(session, "p25-check-raise-semibluff", { kind: "action", action: { kind: "call" } }, 0).result.leakTag === "p25.flats_instead_of_raising");
 
   // P3.4 Barreling: value barrel (bet), bluff barrel (bet, behind but fold equity), give up (check).
   ok("value barrel: betting is best", bestSz("p34-value-barrel") === "bet0.75");
@@ -1645,6 +1663,11 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
   // ...and the contrast: way behind vs a station, choose NO streets.
   ok("M4 way behind: best is check", best("m4-way-behind-check") === "check");
   ok("M4 way behind: betting -> bets_when_way_behind", lk("m4-way-behind-check", bet) === "m4.bets_when_way_behind");
+  // M4 depth: three-street value build, and thin two-street value with top pair.
+  ok("M4 three-street value: best is bet", best("m4-three-street-value") === "bet");
+  ok("M4 three-street value: checking -> misses_street_sequence", lk("m4-three-street-value", check) === "m4.misses_street_sequence");
+  ok("M4 thin value (top pair): best is bet", best("m4-thin-value-toppair") === "bet");
+  ok("M4 thin value: checking -> misses_street_sequence", lk("m4-thin-value-toppair", check) === "m4.misses_street_sequence");
 
   // M5.6: implied odds aren't always there.
   ok("M5.6 reverse-implied draw is near-dead (~0.11)", approx(truth(st("m56-reverse-implied")), 0.107, 0.01));
