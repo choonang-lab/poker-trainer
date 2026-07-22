@@ -845,8 +845,8 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
   ok("M4 check regret == 3 bb", approx(m4check.result.regretBb, 3), `got ${m4check.result.regretBb}`);
   ok("M4 check -> m4.misses_street_sequence", m4check.result.leakTag === "m4.misses_street_sequence");
 
-  ok("STARTER_DRILLS now spans 142 drills incl M0/M3.5/M4/M4.5/M5.6/M5.7/P0/P1/P2/P2.5/P3/P3.4/P3.5/P4/P5",
-    STARTER_DRILLS.length === 142 &&
+  ok("STARTER_DRILLS now spans 149 drills incl M0/M3.5/M4/M4.5/M5.6/M5.7/P0/P1/P2/P2.5/P3/P3.4/P3.5/P4/P5",
+    STARTER_DRILLS.length === 149 &&
     ["M0", "M3.5", "M4", "M4.5", "M5.6", "M5.7", "P0", "P1", "P3", "P4", "P5"].every((m) => STARTER_DRILLS.some((d) => d.module === m)));
 
   // M4.5 combo counting: base counts and blocker removal, all hand-checkable.
@@ -1546,6 +1546,8 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
   ok("M1 overcards+gutshot answered 10 -> m1.ok", outsLeakOf("m1-overcards-plus-gutshot", 10) === "m1.ok");
   ok("M1 pair + open-ender = 13 outs", trueOuts("m1-pair-plus-oesd") === 13);
   ok("M1 pair+open-ender counted as 8 (straight only) -> undercounts_outs", outsLeakOf("m1-pair-plus-oesd", 8) === "m1.undercounts_outs");
+  ok("M1 middle pair behind = 5 outs (trips + two pair)", trueOuts("m1-middle-pair-behind") === 5);
+  ok("M1 middle pair behind answered 5 -> m1.ok", outsLeakOf("m1-middle-pair-behind", 5) === "m1.ok");
   ok("M1 tainted flush answered 8 -> m1.ok", outsLeakOf("m1-tainted-flush-out", 8) === "m1.ok");
 
   // M1: the additional coverage drills (second instances + more archetypes).
@@ -1614,6 +1616,7 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
   ok("M2 gutshot turn ≈ 0.091 (4 outs x2)", approx(tru("m2-gutshot-turn"), 0.091, 0.004));
   ok("M2 two overcards turn ≈ 0.136 (6 outs x2)", approx(tru("m2-two-overcards-turn"), 0.136, 0.004));
   ok("M2 flush draw + overcard flop ≈ 0.481 (12 outs x4)", approx(tru("m2-flushdraw-overcard-flop"), 0.481, 0.004));
+  ok("M2 flush draw + gutshot flop ≈ 0.418", approx(tru("m2-flushdraw-gutshot-flop"), 0.418, 0.004));
   ok("M2 overestimate -> m2.overestimates_equity", leak("m2-flush-draw-flop", 0.7) === "m2.overestimates_equity");
   ok("M2 underestimate -> m2.underestimates_equity", leak("m2-flush-draw-flop", 0.1) === "m2.underestimates_equity");
 
@@ -1631,6 +1634,11 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
   ok("M5 bottom set vs overpair range ≈ 0.947", approx(tru("m5-set-vs-overpair-range"), 0.947, 0.004));
   ok("M5 nut flush vs two pair ≈ 0.909 (board can pair)", approx(tru("m5-nut-flush-vs-two-pair"), 0.909, 0.004));
   ok("M5 big combo draw vs made hands ≈ 0.519 (near a coin flip)", approx(tru("m5-combo-draw-vs-made"), 0.519, 0.004));
+  ok("M5 TPTK vs a mixed range ≈ 0.860", approx(tru("m5-tptk-vs-mixed-range"), 0.860, 0.004));
+  ok("M5 ace-high vs a wide range ≈ 0.551 (bluff-catcher)", approx(tru("m5-ace-high-vs-wide-range"), 0.551, 0.004));
+  ok("M5 made straight vs a wet range ≈ 0.955 (not 100%)", approx(tru("m5-straight-vs-wet-range"), 0.955, 0.004));
+  ok("M5 middle pair vs a range ≈ 0.362 (mostly behind)", approx(tru("m5-middle-pair-vs-range"), 0.362, 0.004));
+  ok("M5 set vs a big draw on a wet board ≈ 0.575", approx(tru("m5-set-vs-big-draw"), 0.575, 0.004));
   ok("M5 overestimate -> m5.overrates_vs_range", leak("m5-vs-condensed", 0.99) === "m5.overrates_vs_range");
   ok("M5 underestimate -> m5.underrates_vs_range", leak("m5-vs-condensed", 0.5) === "m5.underrates_vs_range");
 }

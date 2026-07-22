@@ -2273,6 +2273,21 @@ export const STARTER_DRILLS: Drill[] = [
     },
   },
   {
+    id: "m1-middle-pair-behind",
+    module: "M1",
+    title: "Counting outs: a middle pair behind an overpair",
+    ask: "outs",
+    state: {
+      // A common, small draw. Hero 9s8c has middle pair on 9h 5d 2c but is behind villain's aces. Only improving
+      // wins: two more nines make trips (2), and three eights make two pair (3) = 5 outs. A pair that's behind is
+      // usually drawing to just a handful of cards.
+      heroHand: hand("9s", "8c"), board: hand("9h", "5d", "2c"),
+      pot: 1, toAct: "hero",
+      villain: { range: [{ combo: hand("Ah", "Ad"), weight: 1 }] },
+      abstraction: { sizes: [], streets: [], players: 2 },
+    },
+  },
+  {
     id: "m3-bad-odds-fold",
     module: "M3",
     title: "Pot odds: fold a weak draw at a bad price",
@@ -3098,6 +3113,88 @@ export const STARTER_DRILLS: Drill[] = [
       abstraction: { sizes: [], streets: [], players: 2 },
     },
   },
+  {
+    id: "m5-tptk-vs-mixed-range",
+    module: "M5",
+    title: "Equity vs a range: top pair top kicker against a mixed range",
+    ask: "estimate",
+    // A strong made hand well ahead of a mix. Hero AsKd = top pair top kicker on Kh 8c 3d vs a worse pair (QQ)
+    // and two draws (JT, 98 with backdoors) -- about 86%. Top pair top kicker beats the pairs and is ahead of
+    // the draws, so it's a big favorite; bet to charge the draws and get value from the worse made hands.
+    state: {
+      heroHand: hand("As", "Kd"), board: hand("Kh", "8c", "3d"),
+      pot: 1, toAct: "hero",
+      villain: { range: [
+        { combo: hand("Qc", "Qh"), weight: 1 }, { combo: hand("Jh", "Th"), weight: 1 }, { combo: hand("9h", "8h"), weight: 1 },
+      ] },
+      abstraction: { sizes: [], streets: [], players: 2 },
+    },
+  },
+  {
+    id: "m5-ace-high-vs-wide-range",
+    module: "M5",
+    title: "Equity vs a range: ace-high against a wide range",
+    ask: "estimate",
+    // Ace-high is a bluff-catcher: it beats the misses and loses to the made hands. Hero AhQd on 8c 5h 2s vs a
+    // wide range (draws Ts9s / 7h6h, a pair 44, an overcard hand KJ) is about 55% -- it wins against the two
+    // draws and the KJ that misses, and loses only to the small pair. High card is worth more than it looks vs air.
+    state: {
+      heroHand: hand("Ah", "Qd"), board: hand("8c", "5h", "2s"),
+      pot: 1, toAct: "hero",
+      villain: { range: [
+        { combo: hand("Ts", "9s"), weight: 1 }, { combo: hand("7h", "6h"), weight: 1 },
+        { combo: hand("Kc", "Jd"), weight: 1 }, { combo: hand("4d", "4c"), weight: 1 },
+      ] },
+      abstraction: { sizes: [], streets: [], players: 2 },
+    },
+  },
+  {
+    id: "m5-straight-vs-wet-range",
+    module: "M5",
+    title: "Equity vs a range: a made straight on a wet board",
+    ask: "estimate",
+    // A made hand that's very strong but not a lock. Hero 7h6h has a straight (5-6-7-8-9) on 9c 8d 5s Kh; villain's
+    // range is a flush draw (Ah Jh) and two pair (K9). About 96% -- the flush draw can complete and two pair can
+    // pair the board for a boat, so even a made straight isn't 100% while a card is to come. Bet to deny the draw.
+    state: {
+      heroHand: hand("7h", "6h"), board: hand("9c", "8d", "5s", "Kh"),
+      pot: 1, toAct: "hero",
+      villain: { range: [{ combo: hand("Ah", "Jh"), weight: 1 }, { combo: hand("Kc", "9d"), weight: 1 }] },
+      abstraction: { sizes: [], streets: [], players: 2 },
+    },
+  },
+  {
+    id: "m5-middle-pair-vs-range",
+    module: "M5",
+    title: "Equity vs a range: a middle pair against a range",
+    ask: "estimate",
+    // A marginal made hand that's mostly behind. Hero 9c9d is a pair of nines on Ah Kd 4s vs two top pairs (AQ, KJ)
+    // and a draw (76). About 36% -- it beats only the draw and is dominated by the pairs, so a small pair on a big
+    // board is often a check-and-give-up, not a hand to build a pot with.
+    state: {
+      heroHand: hand("9c", "9d"), board: hand("Ah", "Kd", "4s"),
+      pot: 1, toAct: "hero",
+      villain: { range: [
+        { combo: hand("Ac", "Qh"), weight: 1 }, { combo: hand("Kc", "Jh"), weight: 1 }, { combo: hand("7h", "6h"), weight: 1 },
+      ] },
+      abstraction: { sizes: [], streets: [], players: 2 },
+    },
+  },
+  {
+    id: "m5-set-vs-big-draw",
+    module: "M5",
+    title: "Equity vs a range: a set on a super-wet board",
+    ask: "estimate",
+    // Even a set can be vulnerable. Hero 8c8d flopped bottom set on 8h 7h 6c, but the board is soaked: villain's
+    // range is an overpair (AA) and a monster combo draw (Th9h = flush draw plus an open-ender). About 58% -- the
+    // big draw is nearly a coin flip against the set. A set is usually the nuts, but not on the wettest boards.
+    state: {
+      heroHand: hand("8c", "8d"), board: hand("8h", "7h", "6c"),
+      pot: 1, toAct: "hero",
+      villain: { range: [{ combo: hand("Ah", "Ad"), weight: 1 }, { combo: hand("Th", "9h"), weight: 1 }] },
+      abstraction: { sizes: [], streets: [], players: 2 },
+    },
+  },
   // ---- M2 coverage: convert outs -> equity across draw types and streets ----
   {
     id: "m2-flush-draw-flop",
@@ -3228,6 +3325,20 @@ export const STARTER_DRILLS: Drill[] = [
       heroHand: hand("Ah", "6h"), board: hand("7h", "5h", "2c"),
       pot: 1, toAct: "hero",
       villain: { range: [{ combo: hand("Kc", "Kd"), weight: 1 }] },
+      abstraction: { sizes: [], streets: [], players: 2 },
+    },
+  },
+  {
+    id: "m2-flushdraw-gutshot-flop",
+    module: "M2",
+    title: "Rule of 2 & 4: a flush draw with a gutshot on the flop",
+    ask: "estimate",
+    // Flush draw plus a straight gutshot -- a big combo draw. Hero Jh9h on Qh 8c 3h has a flush draw and a
+    // gutshot (a ten makes Q-J-10-9-8). Roughly a dozen outs x4 lands near ~42% (exact ≈ 0.418) on the flop.
+    state: {
+      heroHand: hand("Jh", "9h"), board: hand("Qh", "8c", "3h"),
+      pot: 1, toAct: "hero",
+      villain: { range: [{ combo: hand("Ah", "Ad"), weight: 1 }] },
       abstraction: { sizes: [], streets: [], players: 2 },
     },
   },

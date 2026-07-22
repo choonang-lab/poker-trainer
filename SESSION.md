@@ -55,7 +55,7 @@ repetition) with a guided-curriculum PWA on top.
 
 ## State as of 2026-07 (commit 6b80618)
 
-- **518 tests passing**, both type-checks clean, deployed bundle in sync.
+- **526 tests passing**, both type-checks clean, deployed bundle in sync.
 - **Review fixes (2026-07-18, post-audit), cache v21:** (1) `m2-combo-draw`
   board was `9s 8h 2c` (an 8-out spot, 36.9%) but its title/EXPLAIN teach the
   15-out flush+open-ender combo — fixed to `9s 8s 2c` (56.3%); a learner who
@@ -129,7 +129,7 @@ repetition) with a guided-curriculum PWA on top.
 
 Single scan of everything still open after 19 shipped items. The numbered "Next up"
 log below is a DONE-history with declines interleaved; this section is the live to-do.
-Baseline right now: **142 drills, 19 modules, 518 tests, cache v47**, live & in sync.
+Baseline right now: **149 drills, 19 modules, 526 tests, cache v48**, live & in sync.
 
 ### A. Addable now — content-only, no engine change (pick any, each ~1 commit)
 - **More depth in any module.** The engine supports far more than is authored; every
@@ -632,6 +632,22 @@ break that or need a fundamentally different solver. Logged so they aren't re-sc
      M1: 2,3,4,6,8,9,10,12,13,14,15 (missing 5,7,11 — no clean unblocked spot found yet). Deep-module
      volume can continue but is now purely review variety; each new drill still costs suite time +
      an EXPLAIN, so there's a soft practical ceiling around "when the review queue feels rich enough."
+
+27. ~~**Volume batch #3 "where sensible": +7 drills (M5 ×5, M1 ×1, M2 ×1)**~~ — DONE 2026-07-22
+   (cache v48, 526 tests, 149 drills). Owner: "more volume where sensible." The sensible read: M5
+   (equity vs range) is the one module with large remaining TEXTURE variety, so concentrate there;
+   don't force contrived blocker spots elsewhere. All engine-verified first.
+   - **M5** (16→21, spread across the equity spectrum): `m5-tptk-vs-mixed-range` (0.860, well ahead),
+     `m5-ace-high-vs-wide-range` (0.551, bluff-catcher vs air), `m5-straight-vs-wet-range` (0.955, a
+     made hand that still isn't 100%), `m5-middle-pair-vs-range` (0.362, marginal made hand behind),
+     `m5-set-vs-big-draw` (0.575, even a set is vulnerable on the wettest board). Deliberately picked
+     one spot per equity band so the review queue samples the whole range, not five similar numbers.
+   - **M1** `m1-middle-pair-behind` = **5 outs** (finally a CLEAN 5: middle pair vs an overpair →
+     2 trips + 3 two-pair, no blocker tricks). Missing M1 out-counts now just 7 and 11.
+   - **M2** `m2-flushdraw-gutshot-flop` (0.418) — a flush-draw-plus-gutshot combo, ~a dozen outs ×4.
+   - Session total now 37 drills (112 → 149). M5 is still the most extensible for future volume;
+     M0/M3/M4/M4.5 are saturated (adding there = near-duplicates). Same live-verification caveat as
+     §23–26 (preview HTTP-cache); 526 green + live byte-sync are the proof.
 
 ## Machine-specific notes for macOS
 

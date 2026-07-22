@@ -111,7 +111,7 @@ export const MODULES: Module[] = [
       "m1-overcards", "m1-flush-draw-2", "m1-gutshot-2", "m1-double-gutshot",
       "m1-flush-plus-gutshot", "m1-combo-draw-outs", "m1-tainted-flush-out",
       "m1-set-mining", "m1-oesd-behind-a-set", "m1-pair-plus-flush-draw",
-      "m1-overcards-plus-gutshot", "m1-pair-plus-oesd",
+      "m1-overcards-plus-gutshot", "m1-pair-plus-oesd", "m1-middle-pair-behind",
     ],
   },
   {
@@ -132,6 +132,7 @@ export const MODULES: Module[] = [
       "m2-kqo-vs-aa", "m2-flush-draw-turn", "m2-combo-draw-turn", "m2-set-vs-overpair",
       "m2-oesd-flop", "m2-flushdraw-overcard-turn",
       "m2-gutshot-turn", "m2-two-overcards-turn", "m2-flushdraw-overcard-flop",
+      "m2-flushdraw-gutshot-flop",
     ],
   },
   {
@@ -212,6 +213,8 @@ export const MODULES: Module[] = [
       "m5-flushdraw-vs-toppair", "m5-set-vs-draws", "m5-dominated-flushdraw",
       "m5-overpair-vs-overcards", "m5-two-pair-vs-draws",
       "m5-set-vs-overpair-range", "m5-nut-flush-vs-two-pair", "m5-combo-draw-vs-made",
+      "m5-tptk-vs-mixed-range", "m5-ace-high-vs-wide-range", "m5-straight-vs-wet-range",
+      "m5-middle-pair-vs-range", "m5-set-vs-big-draw",
     ],
   },
   {
@@ -410,6 +413,7 @@ export const EXPLAIN: Record<string, string> = {
   "m1-pair-plus-flush-draw": "Count every improvement, not just the obvious one. Nine hearts make a flush, two more nines make trips, and three eights make two pair — all beat the overpair. That's 9 + 2 + 3 = 14 outs, a huge draw even though you're behind right now.",
   "m1-overcards-plus-gutshot": "Three pieces add up: a king completes the straight (4), and either an ace or a ten pairs a card that beats a pair of eights (3 + 3). 4 + 3 + 3 = 10 outs. Both of your big cards are live overcards, so count both.",
   "m1-pair-plus-oesd": "A made pair that's still behind, plus a straight draw. A jack or a six makes the straight (4 + 4), two more tens make trips (2), and three nines make two pair (3): 4 + 4 + 2 + 3 = 13 outs. Add the straight outs to the ways your pair improves.",
+  "m1-middle-pair-behind": "Your pair of nines is behind the aces, so only improving wins: two more nines make trips (2) and three eights make two pair (3), for 5 outs. A pair that's beaten is usually drawing to just a handful of cards — respect the small number.",
   "m1-flush-plus-gutshot": "9 flush outs + four tens, but the 10♣ is already counted as a flush out: 9 + 3 = 12, not 13.",
   "m1-combo-draw-outs": "9 flush outs + 8 straight outs − 2 counted twice (Q♥ and 7♥ complete both) = 15, not 17.",
   "m1-tainted-flush-out": "The 2♠ makes your flush but pairs the board, filling the set into a full house — 9 − 1 = 8 clean outs.",
@@ -426,6 +430,7 @@ export const EXPLAIN: Record<string, string> = {
   "m2-gutshot-turn": "4 outs × 2 ≈ 8% with one card to come (exact: 9%). A gutshot is worth very little on a single card — you need a real price or two cards to keep going.",
   "m2-two-overcards-turn": "6 outs × 2 ≈ 12% with one card to come (exact: 14%) — half of the ~24% two overcards are worth on the flop, because only one card is left to pair.",
   "m2-flushdraw-overcard-flop": "Nine flush cards plus three live aces = 12 outs; × 4 ≈ 48% on the flop (exact: 48%). It's the flop twin of the turn version — two cards to come doubles the figure. Use ×4 on the flop, ×2 on the turn.",
+  "m2-flushdraw-gutshot-flop": "A flush draw plus a gutshot is a big combo draw: about a dozen outs (the flush cards plus the ten that completes Q-J-10-9-8). × 4 lands near 42% on the flop (exact: 42%) — count the straight out on top of the flush.",
   "m2-set-vs-overpair": "You're way ahead — the overpair is drawing to two aces (exact: 91.1% for the set).",
   // M3 — pot odds
   "m3-chop-potodds": "Neither of you can beat the board's A-K-Q-J — you each just add a 4 as the fifth card, making the identical A-K-Q-J-4. It's a guaranteed chop, so calling collects your half of the pot.",
@@ -470,6 +475,11 @@ export const EXPLAIN: Record<string, string> = {
   "m5-set-vs-overpair-range": "A set is a monster against made pairs — about 95% here. Aces and top pair are drawing to two outs (their own set) or a runner-runner miracle, so bottom set is nearly the nuts. Bet big and build the pot.",
   "m5-nut-flush-vs-two-pair": "Even the nuts isn't 100% while a card is still to come. The board isn't paired yet, but villain's two-pair hands (KQ, K9) can pair it on the river for a full house — so the nut flush is about 91%, not a lock. A made hand can still lose when the board can pair.",
   "m5-combo-draw-vs-made": "A monster draw is a coin flip against strong made hands. A flush draw plus an open-ender is about fifteen outs, twice — so even against two pair and an overpair you're around 52%. 'Behind' and 'even money' are not the same thing.",
+  "m5-tptk-vs-mixed-range": "Top pair top kicker beats the worse pair and is ahead of both draws, so against this mix you're about 86% — a big favorite. Bet: you get value from the worse made hands and charge the draws that would love a free card.",
+  "m5-ace-high-vs-wide-range": "Ace-high is a bluff-catcher — it beats everything that missed. Against this wide range it beats both draws and the king-high that whiffs, losing only to the small pair, so it's about 55%. High card is worth more than it feels against a range full of air.",
+  "m5-straight-vs-wet-range": "A made straight is very strong but not a lock while a card is to come: the flush draw can complete and the two-pair hand can pair the board for a full house. Against this range you're about 96% — bet to deny the draw its free card rather than slowplaying.",
+  "m5-middle-pair-vs-range": "A pair of nines on an ace-king board is mostly behind: it beats only the draw and is dominated by both top pairs, so it's about 36%. A small pair on a big board is usually a check-and-give-up, not a hand to build a pot with.",
+  "m5-set-vs-big-draw": "Even a set can be vulnerable on the wettest boards. Here the flush-plus-straight combo draw is nearly a coin flip against your bottom set, dragging your equity to about 58% against this range. A set is usually the nuts — but not when the board is this soaked.",
   "m5-weighted-range": "3 bluff combos for every value combo: ¾ of the time you're crushing it, ¼ near-dead — the weighted average is ~70%, not the 50% an unweighted glance suggests.",
   "m5-dominated-kicker": "Both A-K combos out-kick your A-J; only KK is behind — domination cuts top pair down to ~40%.",
   // M5.6 — implied odds
