@@ -55,7 +55,7 @@ repetition) with a guided-curriculum PWA on top.
 
 ## State as of 2026-07 (commit 6b80618)
 
-- **508 tests passing**, both type-checks clean, deployed bundle in sync.
+- **518 tests passing**, both type-checks clean, deployed bundle in sync.
 - **Review fixes (2026-07-18, post-audit), cache v21:** (1) `m2-combo-draw`
   board was `9s 8h 2c` (an 8-out spot, 36.9%) but its title/EXPLAIN teach the
   15-out flush+open-ender combo — fixed to `9s 8s 2c` (56.3%); a learner who
@@ -129,7 +129,7 @@ repetition) with a guided-curriculum PWA on top.
 
 Single scan of everything still open after 19 shipped items. The numbered "Next up"
 log below is a DONE-history with declines interleaved; this section is the live to-do.
-Baseline right now: **134 drills, 19 modules, 508 tests, cache v46**, live & in sync.
+Baseline right now: **142 drills, 19 modules, 518 tests, cache v47**, live & in sync.
 
 ### A. Addable now — content-only, no engine change (pick any, each ~1 commit)
 - **More depth in any module.** The engine supports far more than is authored; every
@@ -613,6 +613,25 @@ break that or need a fundamentally different solver. Logged so they aren't re-sc
    - Added exact assertions for all 8; 508 green. Not browser-verified live (preview HTTP-cache
      artifact, §23) — all reuse screenshotted shapes (outs numeric, estimate slider, call/fold
      buttons); live byte-sync is the proof. This is pure volume — the modules had no coverage gaps.
+
+26. ~~**Volume batch #2: +8 more drills across M1 / M2 / M5**~~ — DONE 2026-07-22 (cache v47,
+   518 tests, 142 drills). Owner: "add more volume." Same exact/estimate-only approach; skipped M0
+   (16 drills — every nuts/category spot is a near-duplicate now) and M3 (the price-flip pairs are
+   covered). All engine-verified first.
+   - **M1 outs** (2, both NEW out-counts): `m1-overcards-plus-gutshot` = **10** (a king for the
+     straight + BOTH an ace and a ten beat a pair of eights: 4+3+3 — I first mis-counted this as 7,
+     forgetting the ten is also an overcard to 88; the engine caught it) and `m1-pair-plus-oesd` =
+     **13** (pair of tens + open-ender vs AA: 4+4 straight + 2 trips + 3 two-pair).
+   - **M2 rule of 2&4** (3): `m2-gutshot-turn` (0.091), `m2-two-overcards-turn` (0.136), and
+     `m2-flushdraw-overcard-flop` (0.481) — the ×4 flop TWIN of last batch's ×2 turn version (0.273),
+     a nice flop/turn contrast on the same 12-out draw type.
+   - **M5 equity vs range** (3): `m5-set-vs-overpair-range` (bottom set ≈ 0.947 — sets are monsters),
+     `m5-nut-flush-vs-two-pair` (≈ 0.909 — even the nuts isn't 100% while the board can pair for a
+     boat), `m5-combo-draw-vs-made` (15-out combo draw ≈ 0.519 — 'behind' ≠ 'worse than even money').
+   - Running tally: this session added 30 drills (112 → 142) across 4 batches. Out-counts now used in
+     M1: 2,3,4,6,8,9,10,12,13,14,15 (missing 5,7,11 — no clean unblocked spot found yet). Deep-module
+     volume can continue but is now purely review variety; each new drill still costs suite time +
+     an EXPLAIN, so there's a soft practical ceiling around "when the review queue feels rich enough."
 
 ## Machine-specific notes for macOS
 

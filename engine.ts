@@ -2243,6 +2243,36 @@ export const STARTER_DRILLS: Drill[] = [
     },
   },
   {
+    id: "m1-overcards-plus-gutshot",
+    module: "M1",
+    title: "Counting outs: two overcards and a gutshot",
+    ask: "outs",
+    state: {
+      // Add up the pieces. Hero AhTs on Qc Jd 5h is behind a pair of eights; a king makes the straight (4),
+      // and EITHER an ace or a ten pairs a card that beats eights (3 + 3). 4 + 3 + 3 = 10 outs — count the
+      // straight cards AND both overcards.
+      heroHand: hand("Ah", "Ts"), board: hand("Qc", "Jd", "5h"),
+      pot: 1, toAct: "hero",
+      villain: { range: [{ combo: hand("8h", "8d"), weight: 1 }] },
+      abstraction: { sizes: [], streets: [], players: 2 },
+    },
+  },
+  {
+    id: "m1-pair-plus-oesd",
+    module: "M1",
+    title: "Counting outs: a pair with an open-ender against an overpair",
+    ask: "outs",
+    state: {
+      // A made pair that's still behind, plus a straight draw. Hero Ts9s has a pair of tens and an open-ender on
+      // 8h 7c 2d Td vs aces. Outs to beat the overpair: a jack (4) or a six (4) for the straight, two more tens
+      // (trips), and three nines (two pair) = 4 + 4 + 2 + 3 = 13. Count the straight outs AND the pair improvements.
+      heroHand: hand("Ts", "9s"), board: hand("8h", "7c", "2d", "Td"),
+      pot: 1, toAct: "hero",
+      villain: { range: [{ combo: hand("Ah", "Ac"), weight: 1 }] },
+      abstraction: { sizes: [], streets: [], players: 2 },
+    },
+  },
+  {
     id: "m3-bad-odds-fold",
     module: "M3",
     title: "Pot odds: fold a weak draw at a bad price",
@@ -3025,6 +3055,49 @@ export const STARTER_DRILLS: Drill[] = [
       abstraction: { sizes: [], streets: [], players: 2 },
     },
   },
+  {
+    id: "m5-set-vs-overpair-range",
+    module: "M5",
+    title: "Equity vs a range: bottom set against overpairs",
+    ask: "estimate",
+    // A set is a monster against made pairs. Hero 7c7d = a set on 7h Kd 2s vs {AA, KQ} -- about 95%. Overpairs
+    // and top pair are drawing to two outs (their own set) or runner-runner, so a set is nearly the nuts here.
+    state: {
+      heroHand: hand("7c", "7d"), board: hand("7h", "Kd", "2s"),
+      pot: 1, toAct: "hero",
+      villain: { range: [{ combo: hand("Ah", "Ad"), weight: 1 }, { combo: hand("Kc", "Qh"), weight: 1 }] },
+      abstraction: { sizes: [], streets: [], players: 2 },
+    },
+  },
+  {
+    id: "m5-nut-flush-vs-two-pair",
+    module: "M5",
+    title: "Equity vs a range: the nut flush against two pair",
+    ask: "estimate",
+    // Even the nuts isn't 100% while a card is to come. Hero Ah2h has made the nut flush on Kh 9h 4h Qc; villain's
+    // two-pair hands (KQ, K9) can still pair the board and make a full house on the river, so the nut flush is
+    // ~91%, not certain. A made hand can still lose when the board can pair.
+    state: {
+      heroHand: hand("Ah", "2h"), board: hand("Kh", "9h", "4h", "Qc"),
+      pot: 1, toAct: "hero",
+      villain: { range: [{ combo: hand("Kc", "Qd"), weight: 1 }, { combo: hand("Kd", "9d"), weight: 1 }] },
+      abstraction: { sizes: [], streets: [], players: 2 },
+    },
+  },
+  {
+    id: "m5-combo-draw-vs-made",
+    module: "M5",
+    title: "Equity vs a range: a big combo draw against made hands",
+    ask: "estimate",
+    // A monster draw is a coin flip against strong made hands. Hero JhTh = a flush draw plus an open-ender on
+    // Qh 9h 2c vs {two pair (Q9), an overpair (AA)} -- about 52%. With fifteen outs twice, even 'behind' is even.
+    state: {
+      heroHand: hand("Jh", "Th"), board: hand("Qh", "9h", "2c"),
+      pot: 1, toAct: "hero",
+      villain: { range: [{ combo: hand("Qc", "9d"), weight: 1 }, { combo: hand("Ah", "Ad"), weight: 1 }] },
+      abstraction: { sizes: [], streets: [], players: 2 },
+    },
+  },
   // ---- M2 coverage: convert outs -> equity across draw types and streets ----
   {
     id: "m2-flush-draw-flop",
@@ -3115,6 +3188,46 @@ export const STARTER_DRILLS: Drill[] = [
       heroHand: hand("Ah", "5h"), board: hand("Kh", "7h", "2c", "Jd"),
       pot: 1, toAct: "hero",
       villain: { range: [{ combo: hand("Kc", "Qd"), weight: 1 }] },
+      abstraction: { sizes: [], streets: [], players: 2 },
+    },
+  },
+  {
+    id: "m2-gutshot-turn",
+    module: "M2",
+    title: "Rule of 2 & 4: a gutshot, one card to come",
+    ask: "estimate",
+    // 4-out gutshot on the TURN: 4 x 2 ≈ 8% (exact ≈ 0.091). Small draws are worth very little on one card.
+    state: {
+      heroHand: hand("Kd", "Qc"), board: hand("Js", "9h", "2c", "5s"),
+      pot: 1, toAct: "hero",
+      villain: { range: [{ combo: hand("Ah", "Ad"), weight: 1 }] },
+      abstraction: { sizes: [], streets: [], players: 2 },
+    },
+  },
+  {
+    id: "m2-two-overcards-turn",
+    module: "M2",
+    title: "Rule of 2 & 4: two overcards, one card to come",
+    ask: "estimate",
+    // Two overcards = 6 outs on the TURN: 6 x 2 ≈ 12% (exact ≈ 0.136). Half of what they're worth on the flop.
+    state: {
+      heroHand: hand("Ah", "Kd"), board: hand("9c", "6s", "2d", "Jh"),
+      pot: 1, toAct: "hero",
+      villain: { range: [{ combo: hand("Qc", "Qd"), weight: 1 }] },
+      abstraction: { sizes: [], streets: [], players: 2 },
+    },
+  },
+  {
+    id: "m2-flushdraw-overcard-flop",
+    module: "M2",
+    title: "Rule of 2 & 4: a flush draw plus an overcard on the flop",
+    ask: "estimate",
+    // The flop twin of the turn version: flush draw (9) + a live ace (3) = 12 outs, x4 ≈ 48% (exact ≈ 0.481).
+    // Two cards to come doubles the turn figure — count the overcard outs and use x4 on the flop.
+    state: {
+      heroHand: hand("Ah", "6h"), board: hand("7h", "5h", "2c"),
+      pot: 1, toAct: "hero",
+      villain: { range: [{ combo: hand("Kc", "Kd"), weight: 1 }] },
       abstraction: { sizes: [], streets: [], players: 2 },
     },
   },
