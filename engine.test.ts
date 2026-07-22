@@ -830,6 +830,10 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
   ok("exploit nit: best is fold (strong hand, never bluffs)", bestAction(buildTree(byId("p5-exploit-nit").state)).kind === "fold");
   ok("exploit nit: calling -> p5.pays_off_a_nit",
     gradeDrill(session, "p5-exploit-nit", { kind: "action", action: { kind: "call" } }, 0).result.leakTag === "p5.pays_off_a_nit");
+  // Calling station (never folds): widen thin value -> bet a hand you'd often check; checking misses it.
+  ok("exploit station: best is bet (thin value vs a no-fold villain)", bestAction(buildTree(byId("p5-thin-value-station").state)).kind === "bet");
+  ok("exploit station: checking -> p5.misses_exploit",
+    gradeDrill(session, "p5-thin-value-station", { kind: "action", action: { kind: "check" } }, 0).result.leakTag === "p5.misses_exploit");
 
   // M4 sequencing: nuts value across flop+turn; checking the flop leaves 3 bb.
   const m4 = byId("m4-sequence-two-streets");
@@ -837,8 +841,8 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
   ok("M4 check regret == 3 bb", approx(m4check.result.regretBb, 3), `got ${m4check.result.regretBb}`);
   ok("M4 check -> m4.misses_street_sequence", m4check.result.leakTag === "m4.misses_street_sequence");
 
-  ok("STARTER_DRILLS now spans 112 drills incl M0/M3.5/M4/M4.5/M5.6/M5.7/P0/P1/P2/P2.5/P3/P3.4/P3.5/P4/P5",
-    STARTER_DRILLS.length === 112 &&
+  ok("STARTER_DRILLS now spans 117 drills incl M0/M3.5/M4/M4.5/M5.6/M5.7/P0/P1/P2/P2.5/P3/P3.4/P3.5/P4/P5",
+    STARTER_DRILLS.length === 117 &&
     ["M0", "M3.5", "M4", "M4.5", "M5.6", "M5.7", "P0", "P1", "P3", "P4", "P5"].every((m) => STARTER_DRILLS.some((d) => d.module === m)));
 
   // M4.5 combo counting: base counts and blocker removal, all hand-checkable.
@@ -1044,6 +1048,10 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
   ok("semi-bluff barrel: betting is best (behind, but fold equity + draw)", bestSz("p34-semibluff-barrel") === "bet0.75");
   ok("semi-bluff barrel: checking -> p34.misses_a_barrel",
     gradeDrill(session, "p34-semibluff-barrel", { kind: "action", action: { kind: "check" } }, 0).result.leakTag === "p34.misses_a_barrel");
+  // River (third) barrel: a busted draw with no showdown value fires the last barrel (fold equity only).
+  ok("river barrel: betting is best (no showdown value, but fold equity)", bestSz("p34-river-barrel") === "bet1");
+  ok("river barrel: checking -> p34.misses_a_barrel",
+    gradeDrill(session, "p34-river-barrel", { kind: "action", action: { kind: "check" } }, 0).result.leakTag === "p34.misses_a_barrel");
 
   // Added module depth: M2 big-draw, M5 wider range (cheap), P1 race (preflop).
   const m2c = gradeDrill(session, "m2-combo-draw", { kind: "estimate", value: 0.95 }, 0);
@@ -1509,6 +1517,9 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
   ok("M1 combo draw answered 15 -> m1.ok", outsLeakOf("m1-combo-draw-outs", 15) === "m1.ok");
   ok("M1 tainted flush = 8 clean outs (not 9)", trueOuts("m1-tainted-flush-out") === 8);
   ok("M1 tainted flush counted as 9 -> overcounts_outs", outsLeakOf("m1-tainted-flush-out", 9) === "m1.overcounts_outs");
+  ok("M1 set-mining = 2 outs (pair to a set)", trueOuts("m1-set-mining") === 2);
+  ok("M1 set-mining answered 2 -> m1.ok", outsLeakOf("m1-set-mining", 2) === "m1.ok");
+  ok("M1 set-mining overcounted as 5 -> overcounts_outs", outsLeakOf("m1-set-mining", 5) === "m1.overcounts_outs");
   ok("M1 tainted flush answered 8 -> m1.ok", outsLeakOf("m1-tainted-flush-out", 8) === "m1.ok");
 
   // M1: the additional coverage drills (second instances + more archetypes).
@@ -1582,6 +1593,8 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
   ok("M5 weighted (3:1 bluffs) ≈ 0.705 (not 0.498)", approx(tru("m5-weighted-range"), 0.705, 0.004));
   ok("M5 dominated kicker ≈ 0.389", approx(tru("m5-dominated-kicker"), 0.389, 0.004));
   ok("M5 nut flush draw vs top pair ≈ 0.459 (two cards to come)", approx(tru("m5-flushdraw-vs-toppair"), 0.459, 0.004));
+  ok("M5 top set vs a draw-heavy range ≈ 0.678", approx(tru("m5-set-vs-draws"), 0.678, 0.004));
+  ok("M5 dominated flush draw ≈ 0.295 (not a clean ~0.35)", approx(tru("m5-dominated-flushdraw"), 0.295, 0.004));
   ok("M5 overestimate -> m5.overrates_vs_range", leak("m5-vs-condensed", 0.99) === "m5.overrates_vs_range");
   ok("M5 underestimate -> m5.underrates_vs_range", leak("m5-vs-condensed", 0.5) === "m5.underrates_vs_range");
 }

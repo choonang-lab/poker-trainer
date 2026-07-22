@@ -55,7 +55,7 @@ repetition) with a guided-curriculum PWA on top.
 
 ## State as of 2026-07 (commit 6b80618)
 
-- **472 tests passing**, both type-checks clean, deployed bundle in sync.
+- **481 tests passing**, both type-checks clean, deployed bundle in sync.
 - **Review fixes (2026-07-18, post-audit), cache v21:** (1) `m2-combo-draw`
   board was `9s 8h 2c` (an 8-out spot, 36.9%) but its title/EXPLAIN teach the
   15-out flush+open-ender combo — fixed to `9s 8s 2c` (56.3%); a learner who
@@ -129,7 +129,7 @@ repetition) with a guided-curriculum PWA on top.
 
 Single scan of everything still open after 19 shipped items. The numbered "Next up"
 log below is a DONE-history with declines interleaved; this section is the live to-do.
-Baseline right now: **112 drills, 19 modules, 472 tests, cache v43**, live & in sync.
+Baseline right now: **117 drills, 19 modules, 481 tests, cache v44**, live & in sync.
 
 ### A. Addable now — content-only, no engine change (pick any, each ~1 commit)
 - **More depth in any module.** The engine supports far more than is authored; every
@@ -522,6 +522,40 @@ break that or need a fundamentally different solver. Logged so they aren't re-sc
    (12 → "Correct — 12 combos") end-to-end via the Review tab; the other two share identical
    UI shapes. Added exact assertions for all four + updated the 108→112 count guard. Also
    corrected `.claude/launch.json` from `python` to `python3` (Mac has no `python`).
+
+23. ~~**Content batch: +5 drills (M5 range depth, a RIVER barrel, a station exploit, set-mining)**~~
+   — DONE 2026-07-22 (cache v44, 481 tests, 117 drills, 19 modules — module count unchanged).
+   Owner picked "build everything" from a menu spanning P0 / M5 / new-shapes / volume; every
+   value engine-verified before authoring, no engine change.
+   - **M5** `m5-set-vs-draws` (top set 7c7d on 7h6h2s vs a draw-heavy range → **0.678**) and
+     `m5-dominated-flushdraw` (8h9h vs a HIGHER flush draw + a made top pair → **0.295**, vs the
+     ~0.35 a clean draw runs). Two distinct textures: "ahead of draws ≠ a lock" and "not all
+     draws are equal."
+   - **P3.4** `p34-river-barrel` — the NEW SHAPE: a third barrel rooted at the RIVER
+     (`streets:["river"]`, one betting round, no CHANCE). Busted JhTh with no showdown value on
+     As Kd 5c 2h 3s; villain QQ folds 55% → bet 0.10 > check 0. All prior barrels were turn spots.
+   - **P5** `p5-thin-value-station` — exploit a calling station by WIDENING value (bet a hand
+     you'd check vs a thinker): As4d weak top pair on Ah9c5d2s vs a no-fold villain → bet 0.75
+     (1.61) ≫ check (0.94). The value mirror of the fold-happy exploits.
+   - **M1** `m1-set-mining` (6c6d vs two pair → **2 outs**) — the smallest draw, motivating why
+     set-mining needs implied odds (links forward to [[M5.6]]).
+   - **DROPPED P0** (the menu's top rec): the engine's single-street realization model doesn't
+     cleanly express the classic "same draw: call IP / fold OOP" flip — a bare draw realizes the
+     SAME either way, and the made-hand variant flips the OTHER way (induce OOP / value-bet IP),
+     which would muddy the module's "you realize MORE equity in position" message. The existing
+     two P0 drills already teach realization at the level the engine supports. Verified this
+     empirically (both directions) before dropping. Also dropped an ace-high-vs-polarized M5 idea
+     as too close to the existing `m5-polarized-range`.
+   - **CACHE GOTCHA (cost real time):** the in-app preview browser HTTP-caches the bare `app.js`
+     URL so hard, that after rebuild + SW-unregister + caches.delete + reload it STILL served the
+     old bundle for the bare URL — while a `fetch("app.js?bust="+n)` returned the NEW one (proving
+     disk+server+bundle all correct; `curl localhost:5050/app.js` = 123129 bytes with the new id).
+     So live browser-verification of the new drills was blocked THIS round by a preview-env cache
+     artifact, NOT a code issue. Shipped on: 481 green tests (grading of all 5 verified) + all 5
+     reuse UI ask-kinds already screenshotted last round (outs numeric, estimate slider, action
+     buttons). Production is unaffected — the SW CACHE bump (v43→v44) is the real invalidation and
+     has shipped 40+ times. If future preview verification needs the fresh bundle, load a
+     cache-busted URL or accept the fetch-verification.
 
 ## Machine-specific notes for macOS
 

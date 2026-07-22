@@ -110,6 +110,7 @@ export const MODULES: Module[] = [
       "m1-flush-draw-outs", "m1-gutshot", "m1-open-ender", "m1-one-overcard",
       "m1-overcards", "m1-flush-draw-2", "m1-gutshot-2", "m1-double-gutshot",
       "m1-flush-plus-gutshot", "m1-combo-draw-outs", "m1-tainted-flush-out",
+      "m1-set-mining",
     ],
   },
   {
@@ -204,7 +205,7 @@ export const MODULES: Module[] = [
     drillIds: [
       "m5-overcards-vs-pairs", "m5-overpair-vs-draws", "m5-vs-condensed", "m5-wide-range",
       "m5-dominated-kicker", "m5-polarized-range", "m5-weighted-range", "m5-underpair-vs-range",
-      "m5-flushdraw-vs-toppair",
+      "m5-flushdraw-vs-toppair", "m5-set-vs-draws", "m5-dominated-flushdraw",
     ],
   },
   {
@@ -322,7 +323,7 @@ export const MODULES: Module[] = [
     ],
     objectives: ["Fire a second barrel for value with a strong hand, or as a bluff when they'll fold", "Give up when a barrel won't fold anyone out", "Read the turn card: keep firing on a blank, shut down on a scare card"],
     example: "You c-bet the flop and got called; the turn bricks — fire again only if it'll make a better hand fold.",
-    drillIds: ["p34-value-barrel", "p34-bluff-barrel", "p34-give-up", "p34-barrel-a-blank", "p34-scare-card-shutdown", "p34-semibluff-barrel"],
+    drillIds: ["p34-value-barrel", "p34-bluff-barrel", "p34-give-up", "p34-barrel-a-blank", "p34-scare-card-shutdown", "p34-semibluff-barrel", "p34-river-barrel"],
   },
   {
     id: "P3.5", track: "P2", title: "River decisions",
@@ -364,7 +365,7 @@ export const MODULES: Module[] = [
     ],
     objectives: ["Bluff more vs players who over-fold", "Value-bet bigger vs stations and raisers", "Don't bet thin into a strong, narrow range"],
     example: "If a villain raises only hands that beat you, betting just gets you raised off your equity.",
-    drillIds: ["p5-exploit-overfolder", "p5-value-vs-raiser", "p5-thin-value-vs-range", "p5-vs-checkraise-range", "p5-exploit-floater", "p5-exploit-maniac", "p5-exploit-nit"],
+    drillIds: ["p5-exploit-overfolder", "p5-value-vs-raiser", "p5-thin-value-vs-range", "p5-vs-checkraise-range", "p5-exploit-floater", "p5-exploit-maniac", "p5-exploit-nit", "p5-thin-value-station"],
   },
 ];
 
@@ -398,6 +399,7 @@ export const EXPLAIN: Record<string, string> = {
   "m1-flush-draw-2": "Same rule, new suit: 13 clubs minus the 4 visible = 9 outs.",
   "m1-gutshot-2": "Only a 9 fills Q-J-10-9-8 — 4 outs, not the 8 an open-ender gets.",
   "m1-double-gutshot": "A 5 makes 4-5-6-7-8 AND a 9 makes 6-7-8-9-10: two gutshots = 8 outs — an open-ender in disguise.",
+  "m1-set-mining": "A pocket pair is behind two pair here; only the two remaining sixes make a set that wins — just 2 outs. That is why set-mining pays off only with deep stacks and a big payoff when you hit (implied odds).",
   "m1-flush-plus-gutshot": "9 flush outs + four tens, but the 10♣ is already counted as a flush out: 9 + 3 = 12, not 13.",
   "m1-combo-draw-outs": "9 flush outs + 8 straight outs − 2 counted twice (Q♥ and 7♥ complete both) = 15, not 17.",
   "m1-tainted-flush-out": "The 2♠ makes your flush but pairs the board, filling the set into a full house — 9 − 1 = 8 clean outs.",
@@ -442,6 +444,8 @@ export const EXPLAIN: Record<string, string> = {
   "m5-underpair-vs-range": "Every hand in the range beats you and you're drawing to two jacks — near-dead. Recognizing ~5% spots saves stacks.",
   "m5-vs-condensed": "Every hand in the range is a pair you beat — against a condensed (medium-strength) range, an overpair is huge.",
   "m5-flushdraw-vs-toppair": "A bare draw looks crushed on the flop, but you have two cards to come. Nine flush outs plus three aces bring the nut flush draw to about 46% against top pair — nearly a coin flip. Count equity over both streets, not one.",
+  "m5-set-vs-draws": "Top set is a big favorite (~68%) but not the lock it feels like: every hand in this range is a flush or straight draw, and each card that completes one beats you. Being ahead of draws still means folding to the ones that get there — so bet to charge them.",
+  "m5-dominated-flushdraw": "Not every flush draw is worth the same. Villain's range holds a HIGHER flush draw plus a made top pair, so when a heart lands you often make the second-best flush, and you're behind the made hand until then. That drags a normally ~35% draw down to about 30% — a dominated draw.",
   "m5-weighted-range": "3 bluff combos for every value combo: ¾ of the time you're crushing it, ¼ near-dead — the weighted average is ~70%, not the 50% an unweighted glance suggests.",
   "m5-dominated-kicker": "Both A-K combos out-kick your A-J; only KK is behind — domination cuts top pair down to ~40%.",
   // M5.6 — implied odds
@@ -473,6 +477,7 @@ export const EXPLAIN: Record<string, string> = {
   "p34-value-barrel": "Your overpair is still way ahead, and villain called the flop with a worse hand he won't fold. Fire a second barrel: he keeps paying, so keep betting for value. Checking here just lets him off the hook for a street.",
   "p34-bluff-barrel": "Your hand missed completely — you're actually behind his pair. But he'll fold that pair to a second barrel, and a bet wins the pot right now. This is the whole point of a bluff barrel: fold equity lets you win even when your cards can't. Checking gives up a pot you could take.",
   "p34-give-up": "Same busted hand as the last spot — but this villain won't fold his pair. So a second barrel just pours chips into a hand that beats you (−EV). There's no fold equity and no showdown value, so give up: check and move on. Barrel when they fold; give up when they don't.",
+  "p34-river-barrel": "The river bricks every draw and you have no showdown value, so checking simply gives up (0.00). But a pot-sized third barrel folds villain's bluff-catcher about 55% of the time, netting +0.10 — a hand that can only win by betting should fire. Give up only when you have something to show down.",
   "p34-semibluff-barrel": "This barrel wins two ways. Your nut flush draw plus two overcards is behind villain's top pair right now, but he folds about 40% of the time — and when he calls, ~15 outs still get there by the river. Fold equity now plus a big draw when called makes betting (0.46) beat checking (0.34). Barrel draws that have both.",
   "p34-barrel-a-blank": "The turn is a total brick — no flush, no straight, no scary overcard. Nothing about villain's hand changed: he's still on a draw or a worse pair, and your overpair is still ahead. So keep firing (a second barrel) to charge the draw and get value from worse. Read the turn card: when it's a blank, nothing changes — keep going.",
   "p34-scare-card-shutdown": "Same hand, same flop — but the turn is an ace of hearts, and everything changed. The flush got there and an overcard hit, so the hands that call you now (a made flush, a pair of aces) all beat your kings. A second barrel just bleeds chips into a range that's ahead. Shut down and check. Read the turn card: a scare card can turn your barrel into a fold.",
@@ -500,6 +505,7 @@ export const EXPLAIN: Record<string, string> = {
   "p5-value-vs-raiser": "Villain raises whenever you bet, so lead out with the nuts and let them raise into you. Checking wastes a raise-happy opponent.",
   "p5-vs-checkraise-range": "Villain raises only hands that beat you and folds the rest, so betting gets raised when you're behind and folds out what you beat. Check and take a free showdown.",
   "p5-thin-value-vs-range": "Villain continues only with better hands, so betting gets called only when you're beat. Check to show down and beat the hands that would have folded.",
+  "p5-thin-value-station": "A calling station never folds, so widen the hands you bet for value and stop bluffing. Top pair with a weak kicker is often a check against a thinking player, but the station pays you off with worse aces and second-best kings — bet 0.75 (1.61) crushes checking (0.94). Thin value is the whole exploit against someone who can't fold.",
 };
 
 // A module is "done" once every one of its drills has been graded at least once

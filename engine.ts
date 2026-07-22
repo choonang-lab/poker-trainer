@@ -1563,6 +1563,27 @@ export const STARTER_DRILLS: Drill[] = [
     },
   },
   {
+    id: "p5-thin-value-station",
+    module: "P5",
+    title: "Exploit: value bet thin against a calling station",
+    ask: "action",
+    read: "Villain is a calling station — he calls any bet with any pair or draw and never raises or folds.",
+    // The mirror of the fold-happy exploits: against someone who NEVER folds, widen your VALUE bets, don't bluff.
+    // Hero As 4d = top pair, weak kicker on Ah 9c 5d 2s -- a hand you'd often check against a thinking player, but
+    // the station calls with worse aces and pairs (9h 8h) and second-best kings (Kc Qd). Bet 0.75 (1.61) crushes
+    // checking (0.94): get thin value from a hand that pays off, since he'll never fold the worse ones out.
+    state: {
+      heroHand: hand("As", "4d"), board: hand("Ah", "9c", "5d", "2s"),
+      pot: 1, toAct: "hero",
+      villain: {
+        range: [{ combo: hand("9h", "8h"), weight: 1 }, { combo: hand("Kc", "Qd"), weight: 1 }],
+        strategy: (_s: NodeState, legal: Action[]) =>
+          legal.map((a) => ({ action: a, weight: a.kind === "call" ? 1 : 0 })),
+      },
+      abstraction: { sizes: [0.75], streets: ["turn"], players: 2 },
+    },
+  },
+  {
     id: "p3-3bet-the-nuts",
     module: "P3",
     title: "Raise lines: facing a bet on the turn with the nuts",
@@ -2140,6 +2161,20 @@ export const STARTER_DRILLS: Drill[] = [
     },
   },
   {
+    id: "m1-set-mining",
+    module: "M1",
+    title: "Counting outs: a pocket pair hunting for a set",
+    ask: "outs",
+    state: {
+      // The smallest draw. Hero 6c6d is behind villain's two pair (Ah Kh) on As Kd 9h; only the two remaining
+      // sixes make a set that wins -> just 2 outs. Tiny, which is exactly why set-mining needs big implied odds.
+      heroHand: hand("6c", "6d"), board: hand("As", "Kd", "9h"),
+      pot: 1, toAct: "hero",
+      villain: { range: [{ combo: hand("Ah", "Kh"), weight: 1 }] },
+      abstraction: { sizes: [], streets: [], players: 2 },
+    },
+  },
+  {
     id: "m3-bad-odds-fold",
     module: "M3",
     title: "Pot odds: fold a weak draw at a bad price",
@@ -2564,6 +2599,26 @@ export const STARTER_DRILLS: Drill[] = [
       abstraction: { sizes: [0.75], streets: ["turn"], players: 2 },
     },
   },
+  {
+    id: "p34-river-barrel",
+    module: "P3.4",
+    title: "Barreling: a third barrel on the river with a busted draw",
+    read: "You barreled the flop and turn; the river bricks your draw. Villain's bluff-catcher folds to a pot-sized third barrel about 55% of the time.",
+    ask: "action",
+    // THIRD barrel, on the RIVER (streets:["river"], a one-round decision with no more cards — the new shape
+    // among the turn-rooted barrels). Hero Jh Th missed every draw on As Kd 5c 2h 3s and has NO showdown value,
+    // so checking gives up (0.00). A pot-sized bet folds villain's bluff-catcher (Qc Qd) 55% -> +0.10. With a
+    // hand that can only win by betting, fire the last barrel; give up only when you have something to show down.
+    state: {
+      heroHand: hand("Jh", "Th"), board: hand("As", "Kd", "5c", "2h", "3s"),
+      pot: 1, toAct: "hero",
+      villain: {
+        range: [{ combo: hand("Qc", "Qd"), weight: 1 }],
+        policy: (_combo: Combo) => [{ action: { kind: "fold" }, weight: 0.55 }, { action: { kind: "call" }, weight: 0.45 }],
+      },
+      abstraction: { sizes: [1.0], streets: ["river"], players: 2 },
+    },
+  },
   // ---- M4.5 Counting combos: how many ways can a holding be dealt (with blockers)? ----
   {
     id: "m45-combos-unpaired",
@@ -2703,6 +2758,39 @@ export const STARTER_DRILLS: Drill[] = [
       heroHand: hand("Ks", "Kd"), board: hand("Qh", "7d", "2c"),
       pot: 1, toAct: "hero",
       villain: { range: [{ combo: hand("Ah", "Ad"), weight: 1 }, { combo: hand("Jh", "Th"), weight: 1 }] },
+      abstraction: { sizes: [], streets: [], players: 2 },
+    },
+  },
+  {
+    id: "m5-set-vs-draws",
+    module: "M5",
+    title: "Equity vs a range: top set against a draw-heavy range",
+    ask: "estimate",
+    // Ahead of draws, but not as far ahead as it feels. Hero 7c7d = top set on the wet 7h 6h 2s; villain's
+    // range is all flushes/straights in the making (Ah Th, 9h 8h, 5s 4s, Th 9h). A set is a big favorite (~68%)
+    // yet every card that completes a draw beats it -- being "ahead" of draws is not the lock it looks like.
+    state: {
+      heroHand: hand("7c", "7d"), board: hand("7h", "6h", "2s"),
+      pot: 1, toAct: "hero",
+      villain: { range: [
+        { combo: hand("Ah", "Th"), weight: 1 }, { combo: hand("9h", "8h"), weight: 1 },
+        { combo: hand("5s", "4s"), weight: 1 }, { combo: hand("Th", "9h"), weight: 1 },
+      ] },
+      abstraction: { sizes: [], streets: [], players: 2 },
+    },
+  },
+  {
+    id: "m5-dominated-flushdraw",
+    module: "M5",
+    title: "Equity vs a range: a dominated flush draw",
+    ask: "estimate",
+    // Not all flush draws are equal. Hero 8h9h is drawing to a flush on Kh 7h 2c, but villain's range is a
+    // HIGHER flush draw (Ah Qh) plus a made top pair (Kc Qd). When a heart falls hero often makes the second-best
+    // flush, and he is behind the made hand meanwhile -- so the draw is worth only ~30%, not the ~35% a clean draw is.
+    state: {
+      heroHand: hand("8h", "9h"), board: hand("Kh", "7h", "2c"),
+      pot: 1, toAct: "hero",
+      villain: { range: [{ combo: hand("Ah", "Qh"), weight: 1 }, { combo: hand("Kc", "Qd"), weight: 1 }] },
       abstraction: { sizes: [], streets: [], players: 2 },
     },
   },
