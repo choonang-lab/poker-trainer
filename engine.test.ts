@@ -845,8 +845,8 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
   ok("M4 check regret == 3 bb", approx(m4check.result.regretBb, 3), `got ${m4check.result.regretBb}`);
   ok("M4 check -> m4.misses_street_sequence", m4check.result.leakTag === "m4.misses_street_sequence");
 
-  ok("STARTER_DRILLS now spans 149 drills incl M0/M3.5/M4/M4.5/M5.6/M5.7/P0/P1/P2/P2.5/P3/P3.4/P3.5/P4/P5",
-    STARTER_DRILLS.length === 149 &&
+  ok("STARTER_DRILLS now spans 152 drills incl M0/M3.5/M4/M4.5/M5.6/M5.7/P0/P1/P2/P2.5/P3/P3.4/P3.5/P4/P5",
+    STARTER_DRILLS.length === 152 &&
     ["M0", "M3.5", "M4", "M4.5", "M5.6", "M5.7", "P0", "P1", "P3", "P4", "P5"].every((m) => STARTER_DRILLS.some((d) => d.module === m)));
 
   // M4.5 combo counting: base counts and blocker removal, all hand-checkable.
@@ -1012,6 +1012,18 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
   ok("overbet bluff: overbetting the air is best (bet 1.5)", bestSz("p2-overbet-bluff") === "bet1.5");
   ok("overbet bluff: a small bet gets called -> p2.bets_too_small",
     gradeDrill(session, "p2-overbet-bluff", { kind: "action", action: { kind: "bet", size: 0.5 } }, 0).result.leakTag === "p2.bets_too_small");
+  // Bluff sizing DOWN (mirror of overbet bluff): folds are size-independent, so bet the minimum.
+  ok("bluff small: the 1/3 bluff is best (villain folds either way)", bestSz("p2-bluff-small") === "bet0.33");
+  ok("bluff small: over-sizing the bluff -> p2.bets_too_big",
+    gradeDrill(session, "p2-bluff-small", { kind: "action", action: { kind: "bet", size: 1.0 } }, 0).result.leakTag === "p2.bets_too_big");
+  // Flop protection: size UP to deny a big draw its equity (flop twin of the turn deny-equity drill).
+  ok("protect flop: bet BIG (1.5) is best", bestSz("p2-protect-flop") === "bet1.5");
+  ok("protect flop: under-sizing lets the draw in -> p2.bets_too_small",
+    gradeDrill(session, "p2-protect-flop", { kind: "action", action: { kind: "bet", size: 0.5 } }, 0).result.leakTag === "p2.bets_too_small");
+  // Small c-bet on a dry board: nothing to charge, so size DOWN and keep worse hands in.
+  ok("small c-bet dry: bet SMALL (0.33) is best", bestSz("p2-small-cbet-dry") === "bet0.33");
+  ok("small c-bet dry: over-sizing folds the customers -> p2.bets_too_big",
+    gradeDrill(session, "p2-small-cbet-dry", { kind: "action", action: { kind: "bet", size: 1.0 } }, 0).result.leakTag === "p2.bets_too_big");
 
   // Raise SIZING (raiseSizes): choose how big to raise; villain calls up to a point then folds.
   const rsEvs = actionEVs(buildTree(byId("p2-raise-sizing").state));

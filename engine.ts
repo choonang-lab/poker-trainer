@@ -2604,6 +2604,73 @@ export const STARTER_DRILLS: Drill[] = [
       abstraction: { sizes: [1.0], streets: ["turn"], players: 2, heroFacesBet: 1.0, raiseCap: 1, raiseSizes: [0.5, 1.0, 2.0] },
     },
   },
+  {
+    id: "p2-bluff-small",
+    module: "P2",
+    title: "Sizing: bluffing the minimum on the river",
+    read: "Villain folds the same fraction of the time no matter how much you bet.",
+    ask: "action",
+    // Bluff sizing DOWN — the mirror of p2-overbet-bluff. Hero KhQh missed on As Kd 9c 4h 2s. Villain folds ~60%
+    // to ANY bet (his fold rate doesn't move with size), so a 1/3 bet (EV 0.47) beats a pot bet (0.20): when a
+    // small bet folds them just as often, risk the minimum. (Overbet only when a big bet folds MORE than a small one.)
+    state: {
+      heroHand: hand("Kh", "Qh"), board: hand("As", "Kd", "9c", "4h", "2s"),
+      pot: 1, toAct: "hero",
+      villain: {
+        range: [{ combo: hand("Ac", "Td"), weight: 1 }],
+        policy: (_combo: Combo, _s: NodeState) =>
+          [{ action: { kind: "fold" }, weight: 0.6 }, { action: { kind: "call" }, weight: 0.4 }],
+      },
+      abstraction: { sizes: [0.33, 1.0], streets: ["river"], players: 2 },
+    },
+  },
+  {
+    id: "p2-protect-flop",
+    module: "P2",
+    title: "Sizing: protecting an overpair on a wet flop",
+    read: "Villain is on a big draw with two cards to come — a small bet gives a fair price, a big bet folds it out.",
+    ask: "action",
+    // Protection sizing on the FLOP (the flop counterpart of the turn's p2-bet-big-deny-equity). Hero AsAd is an
+    // overpair on 9h 8h 4c; villain's combo draw (JhTh, ~15 outs, ~54% with two cards) calls a half-pot bet but
+    // folds a 1.5x. Betting big (EV 1.00) denies that huge draw; a small bet (0.375) prices it in; checking (0.437)
+    // gives a free card. On the flop the draw has the MOST equity, so protection matters most — size up.
+    state: {
+      heroHand: hand("As", "Ad"), board: hand("9h", "8h", "4c"),
+      pot: 1, toAct: "hero",
+      villain: {
+        range: [{ combo: hand("Jh", "Th"), weight: 1 }],
+        policy: (_combo: Combo, s: NodeState) => {
+          const small = s.pot <= 1.7; // 1 + 0.5 = 1.5 (calls) vs 1 + 1.5 = 2.5 (folds)
+          return [{ action: { kind: "fold" }, weight: small ? 0 : 1 }, { action: { kind: "call" }, weight: small ? 1 : 0 }];
+        },
+      },
+      abstraction: { sizes: [0.5, 1.5], streets: ["flop"], players: 2 },
+    },
+  },
+  {
+    id: "p2-small-cbet-dry",
+    module: "P2",
+    title: "Sizing: a small bet on a dry board",
+    read: "There are no draws to charge; worse hands call a small bet but fold a big one.",
+    ask: "action",
+    // Range-bet / small c-bet on a DRY board. Hero AsKs = top pair top kicker on Kc 7d 2h -- nothing to protect
+    // against, so bet SMALL and get called by more. A 1/3 bet (EV 1.20) beats a pot bet (1.00): worse pairs and
+    // floats (QJ, T9, 55) pay a small bet and fold a big one. On a dry board, size down and keep them all in.
+    state: {
+      heroHand: hand("As", "Ks"), board: hand("Kc", "7d", "2h"),
+      pot: 1, toAct: "hero",
+      villain: {
+        range: [
+          { combo: hand("Qh", "Jd"), weight: 2 }, { combo: hand("Td", "9d"), weight: 2 }, { combo: hand("5c", "5d"), weight: 1 },
+        ],
+        policy: (_combo: Combo, s: NodeState) => {
+          const small = s.pot <= 1.4; // 1 + 0.33 (call) vs 1 + 1.0 (fold)
+          return [{ action: { kind: "fold" }, weight: small ? 0 : 1 }, { action: { kind: "call" }, weight: small ? 1 : 0 }];
+        },
+      },
+      abstraction: { sizes: [0.33, 1.0], streets: ["flop"], players: 2 },
+    },
+  },
   // ---- P2.5 Taking the lead: continuation bet, donk lead, check-raise ----
   {
     id: "p25-cbet",

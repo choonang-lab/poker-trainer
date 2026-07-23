@@ -282,17 +282,19 @@ export const MODULES: Module[] = [
   },
   {
     id: "P2", track: "P2", title: "Bet sizing",
-    preface: "How much you bet matters as much as whether you bet. Bet big for value or to deny a draw its equity; bet small to keep worse hands in; and overbet a range that can't fold — but not so big it folds.",
+    preface: "How much you bet matters as much as whether you bet. Bet big for value or to deny a draw its equity; bet small on dry boards to keep worse hands in; overbet a range that can't fold; and even size your bluffs — bet the minimum that folds them out.",
     concepts: [
       { term: "Bet size", def: "how much you bet, usually as a fraction of the pot." },
       { term: "Pot-sized / half-pot bet", def: "common reference sizes; bigger bets pressure more and win more when called." },
       { term: "Thin value", def: "a small value bet that only slightly-worse hands will call — bet small so they don't fold." },
-      { term: "Denying equity", def: "betting big so a draw either pays a bad price or folds, surrendering its chance to improve." },
+      { term: "Denying equity", def: "betting big so a draw either pays a bad price or folds, surrendering its chance to improve — matters most on the flop, when the draw has the most equity." },
       { term: "Overbet", def: "betting more than the pot — good with a very strong hand against a range that can't fold." },
+      { term: "Range / small bet", def: "a small bet on a dry board with no draws to charge — keeps worse hands in cheaply." },
+      { term: "Bluff sizing", def: "size a bluff to how villain folds: bet small if a small bet folds them just as often, overbet only if a bigger bet folds MORE." },
     ],
-    objectives: ["Match your bet size to the spot", "Size down for thin value so worse hands still call", "Size up to deny a draw's equity, and overbet a range that can't fold"],
+    objectives: ["Match your bet size to the spot", "Size down for thin value and on dry boards; size up to deny a draw on the flop", "Overbet a range that can't fold, and bluff the minimum that folds them out"],
     example: "With the nuts and a caller, a pot-size bet earns more than a half-pot bet.",
-    drillIds: ["p2-size-up-nuts", "p2-thin-value", "p2-bet-small-thin-value", "p2-bet-big-deny-equity", "p2-overbet-capped-range", "p2-overbet-bluff", "p2-raise-sizing"],
+    drillIds: ["p2-size-up-nuts", "p2-thin-value", "p2-bet-small-thin-value", "p2-bet-big-deny-equity", "p2-overbet-capped-range", "p2-overbet-bluff", "p2-raise-sizing", "p2-bluff-small", "p2-protect-flop", "p2-small-cbet-dry"],
   },
   {
     id: "P2.5", track: "P2", title: "Taking the lead",
@@ -520,6 +522,9 @@ export const EXPLAIN: Record<string, string> = {
   "p25-check-raise-semibluff": "The trap play, but as a semi-bluff. Your open-ender plus flush draw is a huge draw, not a made hand — check-raising folds out villain's weak overcards now and still has a pile of outs when his pair calls. Raising (0.57) beats just calling the draw (0.31): with a big draw, take the lead rather than passively chasing.",
   "p2-overbet-bluff": "Your hand missed — you have nothing to show down. The only way to win is to make villain fold, and his medium hand will pay a normal bet but fold to a huge one. So overbet as a bluff: the big size folds him out and takes the pot, while a small bet just gets called and loses. Good players overbet with a polarized range — their nuts AND their bluffs.",
   "p2-raise-sizing": "It's not just whether to raise — it's how much. You have the nuts, so you want max value, but a giant raise scares even a strong villain into folding, and then you win nothing extra. A small raise under-charges him; the pot-size raise gets the most in while he still calls. Raise as big as they'll pay off, not bigger.",
+  "p2-bluff-small": "This is the mirror of overbetting a bluff. Here villain folds the same share of the time whatever you bet, so a big bluff and a small one succeed equally often — but the big one loses more on the times he calls. When a small bet folds them just as much, bluff the minimum and risk less. Overbet only when a bigger bet actually folds MORE.",
+  "p2-protect-flop": "Two cards to come is exactly when a draw has the most equity, so protection matters most on the flop. Villain's combo draw is around 15 outs — a small bet gives it a fair price to keep drawing, but a big bet folds it out and denies all that equity. Size up to charge (or fold) the draw; a free or cheap card is the worst outcome.",
+  "p2-small-cbet-dry": "On a dry board there are no draws to charge, so there's no reason to bet big — a big bet only folds out the worse hands that would have paid you. Bet small instead: worse pairs and floats call a third-pot bet and fold a pot-sized one. Size down on dry boards and keep the whole field in cheaply.",
   // P3 — multi-street lines
   "p3-value-two-streets": "Unbeatable hand, guaranteed caller: bet every street. Each street you check is money you'll never get back.",
   "p3-3bet-the-nuts": "Facing a bet with the nuts, raising (a 3-bet) builds the pot; flat-calling under-extracts. Raise for value.",

@@ -55,7 +55,7 @@ repetition) with a guided-curriculum PWA on top.
 
 ## State as of 2026-07 (commit 6b80618)
 
-- **526 tests passing**, both type-checks clean, deployed bundle in sync.
+- **532 tests passing**, both type-checks clean, deployed bundle in sync.
 - **Review fixes (2026-07-18, post-audit), cache v21:** (1) `m2-combo-draw`
   board was `9s 8h 2c` (an 8-out spot, 36.9%) but its title/EXPLAIN teach the
   15-out flush+open-ender combo — fixed to `9s 8s 2c` (56.3%); a learner who
@@ -129,7 +129,7 @@ repetition) with a guided-curriculum PWA on top.
 
 Single scan of everything still open after 19 shipped items. The numbered "Next up"
 log below is a DONE-history with declines interleaved; this section is the live to-do.
-Baseline right now: **149 drills, 19 modules, 526 tests, cache v48**, live & in sync.
+Baseline right now: **152 drills, 19 modules, 532 tests, cache v49**, live & in sync.
 
 ### A. Addable now — content-only, no engine change (pick any, each ~1 commit)
 - **More depth in any module.** The engine supports far more than is authored; every
@@ -648,6 +648,26 @@ break that or need a fundamentally different solver. Logged so they aren't re-sc
    - Session total now 37 drills (112 → 149). M5 is still the most extensible for future volume;
      M0/M3/M4/M4.5 are saturated (adding there = near-duplicates). Same live-verification caveat as
      §23–26 (preview HTTP-cache); 526 green + live byte-sync are the proof.
+
+28. ~~**P2 (bet sizing) depth: +3 distinct sizing concepts**~~ — DONE 2026-07-24 (cache v49,
+   532 tests, 152 drills). Owner: "P2 drills seem thin." Diagnosis first: P2's sizing AXES were
+   actually well-covered (up/down for value, deny equity, overbet value+bluff, raise sizing), so the
+   fix was distinct concepts, NOT padding with near-duplicates (which is what makes a module feel
+   thin). Verified 5 candidates, shipped the 3 that were both clean AND genuinely new:
+   - `p2-bluff-small` — bluff sizing DOWN: villain folds a SIZE-INDEPENDENT fraction, so a 1/3 bet
+     (0.47) beats a pot bet (0.20) — bluff the minimum. The explicit mirror of `p2-overbet-bluff`.
+   - `p2-protect-flop` — protection sizing on the FLOP (2 cards → draw has the most equity): overpair
+     vs a ~15-out combo draw, big (1.0) denies, small (0.375) prices it in. A deliberate flop/turn
+     CONTRAST with the turn's `p2-bet-big-deny-equity` (same pattern as M2's flop×4/turn×2 pairs).
+   - `p2-small-cbet-dry` — small c-bet / range bet on a dry board: nothing to charge, so 1/3 (1.20)
+     beats pot (1.00); worse pairs + floats pay small, fold big.
+   - DROPPED (logged so they aren't re-tried): a block-bet (check comes out BETTER than the block in
+     a fixed-villain model — the block bet's real value is denying villain's future big bet, which one
+     fixed villain hand can't express); a non-nut value overbet and a merge-small value bet (both
+     near-duplicates of existing P2 drills, and merge-small also failed the 0.15 sizing-margin guard).
+   - Updated the P2 module preface/concepts/objectives to cover the fuller curriculum (added "Range /
+     small bet" and "Bluff sizing" concepts). P2 is now 10 drills and conceptually complete for a
+     beginner module — further P2 adds would be near-duplicates.
 
 ## Machine-specific notes for macOS
 
