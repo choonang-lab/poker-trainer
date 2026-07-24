@@ -3,7 +3,7 @@ import {
   score5, score7, score7slow, cmpScore, equity, equityVsRange, outs,
   breakEven, callEV, decisionRegret, regret, estimateError, withinBand, brier, calibration, leakReport,
   hand, parseCard, card, rankOf, suitOf, FULL_DECK, madeHand, drawSuit, nutCategory, comboCount,
-  minDefenseFreq, bluffFrequency, icmEquity,
+  minDefenseFreq, bluffFrequency, icmEquity, requiredEquity,
   equityLeaf, bestResponseEV, bestAction, truth, buildTree, realizationFactor,
   fieldEquity, validateAbstraction, ABSTRACTION_LIMITS,
   actionEVs, grade,
@@ -709,6 +709,8 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
           ? { kind: "bluffs", value: 0.33 }              // M5.7 bluff frequency
           : d.ask === "icm"
           ? { kind: "icm", value: 0.33 }                 // T1 tournament ICM
+          : d.ask === "callequity"
+          ? { kind: "callequity", value: 0.5 }           // T1 risk premium
           : (d.state.abstraction.sizes.length === 0 || d.state.abstraction.heroFacesBet !== undefined)
             ? { kind: "action", action: { kind: "call" } } // pillar-1 call/fold OR hero-faces-bet root
             : { kind: "action", action: { kind: "check" } }; // pillar-2 (legal at root)
@@ -855,8 +857,8 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
   ok("M4 check regret == 3 bb", approx(m4check.result.regretBb, 3), `got ${m4check.result.regretBb}`);
   ok("M4 check -> m4.misses_street_sequence", m4check.result.leakTag === "m4.misses_street_sequence");
 
-  ok("STARTER_DRILLS now spans 168 drills incl M0/M3.5/M4/M4.5/M5.6/M5.7/P0/P1/P2/P2.5/P3/P3.4/P3.5/P4/P5/T1",
-    STARTER_DRILLS.length === 168 &&
+  ok("STARTER_DRILLS now spans 172 drills incl M0/M3.5/M4/M4.5/M5.6/M5.7/P0/P1/P2/P2.5/P3/P3.4/P3.5/P4/P5/T1",
+    STARTER_DRILLS.length === 172 &&
     ["M0", "M3.5", "M4", "M4.5", "M5.6", "M5.7", "P0", "P1", "P3", "P4", "P5"].every((m) => STARTER_DRILLS.some((d) => d.module === m)));
 
   // M4.5 combo counting: base counts and blocker removal, all hand-checkable.
@@ -913,6 +915,22 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
   ok("t1 undervaluing the short stack (0.10 vs 0.256) -> t1.undervalues_chips", icmShortUnder.leakTag === "t1.undervalues_chips");
   ok("t1-icm-winner-take-all truth = chip fraction 0.6 (exact)",
     gradeDrill(balSess, "t1-icm-winner-take-all", { kind: "icm", value: 0.6 }, 0).result.estimateError === 0);
+
+  // T1 risk premium: ICM-adjusted equity to call an all-in (0.5 baseline, higher near the money).
+  ok("requiredEquity: winner-take-all = 0.5 (cash-game baseline)", approx(requiredEquity([5000, 5000], [1, 0], 0, 1), 0.5));
+  ok("requiredEquity: in the money, small jumps ≈ 0.523", approx(requiredEquity([6000, 3000, 1000], [0.5, 0.3, 0.2], 0, 1), 0.5227, 0.001));
+  ok("requiredEquity: bubble coinflip ≈ 0.652 (need > 50%)", approx(requiredEquity([5000, 5000, 5000, 5000], [0.5, 0.3, 0.2], 0, 1), 0.6522, 0.001));
+  ok("requiredEquity: extreme bubble (short about to bust) ≈ 0.763", approx(requiredEquity([4000, 4000, 4000, 100], [0.5, 0.3, 0.2], 0, 1), 0.7627, 0.001));
+  ok("requiredEquity: rises with ICM pressure (WTA < ITM < bubble < extreme)",
+    requiredEquity([5000, 5000], [1, 0], 0, 1) < requiredEquity([6000, 3000, 1000], [0.5, 0.3, 0.2], 0, 1) &&
+    requiredEquity([6000, 3000, 1000], [0.5, 0.3, 0.2], 0, 1) < requiredEquity([5000, 5000, 5000, 5000], [0.5, 0.3, 0.2], 0, 1) &&
+    requiredEquity([5000, 5000, 5000, 5000], [0.5, 0.3, 0.2], 0, 1) < requiredEquity([4000, 4000, 4000, 100], [0.5, 0.3, 0.2], 0, 1));
+  const reqBubble = gradeDrill(balSess, "t1-req-bubble", { kind: "callequity", value: 0.65 }, 0).result;
+  ok("t1-req-bubble: 0.65 within tolerance (ok)", reqBubble.leakTag.endsWith(".ok"));
+  const reqLight = gradeDrill(balSess, "t1-req-bubble", { kind: "callequity", value: 0.50 }, 0).result;
+  ok("t1-req-bubble: answering 50% (cash-game) -> t1.calls_too_light", reqLight.leakTag === "t1.calls_too_light");
+  const reqTight = gradeDrill(balSess, "t1-req-in-the-money", { kind: "callequity", value: 0.70 }, 0).result;
+  ok("t1-req ITM: answering 70% -> t1.folds_too_tight", reqTight.leakTag === "t1.folds_too_tight");
 
   // Check-raise-range drill: villain raises only what beats hero (policy + raise).
   const cr = byId("p5-vs-checkraise-range");

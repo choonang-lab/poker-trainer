@@ -7,7 +7,7 @@ import {
   STARTER_DRILLS, loadSession, serializeSession, gradeDrill,
   buildTree, actionEVs, truth, outs, calibration, leakReport,
   rankOf, suitOf, RNAMES, score7, madeHand, drawSuit, nutCategory, comboCount,
-  minDefenseFreq, bluffFrequency, icmEquity,
+  minDefenseFreq, bluffFrequency, icmEquity, requiredEquity,
 } from "../engine.ts";
 import { MODULES, PRIMER, EXPLAIN, moduleStatus, currentStreak } from "../curriculum.ts";
 import type { Drill, Response, Action, State, Module } from "../contract.ts";
@@ -304,7 +304,7 @@ function playDrill(drill: Drill, tagText: string, contLabel: string, onCont: () 
   // Balance-math drills (mdf/bluffs) are pure pot/bet arithmetic — no board, hero
   // hand, or villain holding. Render just the scenario line built from pot & bet.
   const freqAsk = drill.ask === "mdf" || drill.ask === "bluffs";
-  const icmAsk = drill.ask === "icm";
+  const icmAsk = drill.ask === "icm" || drill.ask === "callequity";
   const mathAsk = freqAsk || icmAsk;
   if (freqAsk) {
     const P = s.pot, B = s.toCall ?? 0;
@@ -313,8 +313,9 @@ function playDrill(drill: Drill, tagText: string, contLabel: string, onCont: () 
       : `You bet ${B} into a pot of ${P} on the river.`;
     sec.append(el("div", "tag", tagText), el("h2", "title", drill.title), el("div", "meta", scenario));
   } else if (icmAsk) {
-    const seat = s.heroSeat ?? 0;
-    const stacksStr = (s.stacks ?? []).map((c, i) => i === seat ? `<b>${c} (you)</b>` : `${c}`).join(" · ");
+    const seat = s.heroSeat ?? 0, vill = s.villainSeat;
+    const stacksStr = (s.stacks ?? []).map((c, i) =>
+      i === seat ? `<b>${c} (you)</b>` : i === vill ? `${c} (shove)` : `${c}`).join(" · ");
     const prizesStr = (s.payouts ?? []).map((p) => `${Math.round(p * 100)}%`).join(" / ");
     sec.append(el("div", "tag", tagText), el("h2", "title", drill.title),
       el("div", "meta", `Stacks: ${stacksStr}`),
@@ -432,6 +433,22 @@ function buildControls(controls: HTMLElement, drill: Drill, onAnswer: (r: Respon
     const label = el("label", "prompt", "Your share of the prize pool?") as HTMLLabelElement;
     label.htmlFor = "ans-icm";
     controls.append(label, input, go);
+  } else if (drill.ask === "callequity") {
+    const input = el("input") as HTMLInputElement;
+    input.type = "number"; input.min = "0"; input.max = "100"; input.step = "0.1"; input.placeholder = "e.g. 50 (%)";
+    input.id = "ans-callequity"; input.inputMode = "decimal"; input.setAttribute("aria-label", "Equity needed to call, as a percentage");
+    const go = el("button", "primary", "Submit");
+    const submit = () => {
+      let v = Number(input.value);
+      if (!Number.isFinite(v) || input.value === "") return;
+      if (v > 1) v = v / 100; // percentage entry (65 -> 0.65)
+      onAnswer({ kind: "callequity", value: v });
+    };
+    go.onclick = submit;
+    input.onkeydown = (e) => { if ((e as KeyboardEvent).key === "Enter") submit(); };
+    const label = el("label", "prompt", "Equity needed to call?") as HTMLLabelElement;
+    label.htmlFor = "ans-callequity";
+    controls.append(label, input, go);
   } else if (drill.ask === "category" || drill.ask === "nuts") {
     const nuts = drill.ask === "nuts";
     controls.append(el("label", "prompt", nuts ? "Best possible hand here (the nuts)?" : "Name your made hand:"));
@@ -503,6 +520,14 @@ function renderFeedback(drill: Drill, out: ReturnType<typeof gradeDrill>, contLa
     line = ok
       ? `Correct — ${pct(t)} of the pool`
       : `True share: ${pct(t)} · off by ${parseFloat(((r.estimateError ?? 0) * 100).toFixed(1))} pts`;
+  }
+  else if (drill.ask === "callequity") {
+    const st = drill.state;
+    const t = requiredEquity(st.stacks ?? [], st.payouts ?? [], st.heroSeat ?? 0, st.villainSeat ?? 0);
+    const pct = (v: number) => `${parseFloat((v * 100).toFixed(1))}%`;
+    line = ok
+      ? `Correct — you need ${pct(t)} to call`
+      : `You need ${pct(t)} to call · off by ${parseFloat(((r.estimateError ?? 0) * 100).toFixed(1))} pts`;
   }
   else line = r.regretBb <= 1e-9 ? "Optimal." : `Regret ${r.regretBb.toFixed(2)} bb`;
   // The raw leak tag (e.g. "p2.bets_into_strong_range") is internal taxonomy; the

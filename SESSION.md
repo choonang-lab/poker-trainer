@@ -55,7 +55,7 @@ repetition) with a guided-curriculum PWA on top.
 
 ## State as of 2026-07 (commit 6b80618)
 
-- **559 tests passing**, both type-checks clean, deployed bundle in sync.
+- **567 tests passing**, both type-checks clean, deployed bundle in sync.
 - **Review fixes (2026-07-18, post-audit), cache v21:** (1) `m2-combo-draw`
   board was `9s 8h 2c` (an 8-out spot, 36.9%) but its title/EXPLAIN teach the
   15-out flush+open-ender combo — fixed to `9s 8s 2c` (56.3%); a learner who
@@ -129,7 +129,7 @@ repetition) with a guided-curriculum PWA on top.
 
 Single scan of everything still open after 19 shipped items. The numbered "Next up"
 log below is a DONE-history with declines interleaved; this section is the live to-do.
-Baseline right now: **168 drills, 20 modules, 559 tests, cache v51**, live & in sync.
+Baseline right now: **172 drills, 20 modules, 567 tests, cache v52**, live & in sync.
 
 ### A. Addable now — content-only, no engine change (pick any, each ~1 commit)
 - **More depth in any module.** The engine supports far more than is authored; every
@@ -722,6 +722,29 @@ break that or need a fundamentally different solver. Logged so they aren't re-sc
      falls through to the action path and crashes on an ICM state (empty abstraction → call/fold).
    - Contract note: like minDefenseFreq/bluffFrequency, `icmEquity` is declared in contract.ts but
      the depth-zero helpers aren't pinned in contract.conformance.ts (kept that pattern).
+
+31. ~~**T1 risk premium / bubble factor: +4 drills (the decision half of ICM)**~~ — DONE 2026-07-24
+   (cache v52, 567 tests, 172 drills). The natural next step on the ICM foundation: not just "what's
+   your $-equity" but "how does that change what you can CALL." Pure math again, no tree.
+   - NEW pure fn `requiredEquity(stacks, payouts, heroSeat, villainSeat)` — the ICM-adjusted equity to
+     call an all-in for the effective (smaller) stack. Break-even p* = dLose/(dWin+dLose), where dWin/
+     dLose are the ICM swings from winning/losing (computed via `icmEquity` on the win/lose stack
+     configs). 0.5 = cash-game baseline; >0.5 = a real premium. Returns 0.5 if the denominator is ~0.
+   - NEW response kind `callequity` + grade() branch (tags t1.calls_too_light for answering too LOW /
+     t1.folds_too_tight for too HIGH; 0.02 tol). NEW optional State field `villainSeat` (the shover).
+   - 4 drills spanning the pressure spectrum, all engine-verified: winner-take-all → **0.50** (chips=
+     money, hand-checkable), in-the-money small jumps → **0.523**, bubble coinflip → **0.652** (the
+     core lesson: need ~65% for a flip a cash game calls at 50%), extreme bubble (a short on ~100
+     chips about to bust) → **0.763** (big stacks avoid each other). Added a test that the threshold
+     RISES with ICM pressure across the four.
+   - UI: reused the icm stacks/prizes render (broadened `icmAsk` to include callequity), marking the
+     shover as "(shove)"; new % input ("Equity needed to call?") + feedback ("You need 65.2% to call ·
+     off by 15.2 pts"). The grade-all-drills test loop needed a `callequity` branch too (same trap as
+     icm — else it falls to the action path and crashes). Browser-verified the classic 50% (cash-game)
+     mistake on the bubble → red ring, "You need 65.2%".
+   - T1 is now 9 drills (5 ICM equity + 4 risk premium) — a complete tournament-fundamentals module:
+     what your chips are worth, and what that means for calling all-ins. NEXT tournament step if wanted:
+     push/fold shove ranges (Nash) — but that's a bigger, table-driven addition, not a pure constant.
 
 ## Machine-specific notes for macOS
 

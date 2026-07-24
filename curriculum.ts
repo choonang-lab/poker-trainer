@@ -387,10 +387,13 @@ export const MODULES: Module[] = [
       { term: "$-equity", def: "your expected prize: the average, weighted by how likely you are to finish in each paid place." },
       { term: "Pay jump", def: "the increase in prize from one finishing place to the next; jumps are why survival has value." },
       { term: "Bubble", def: "the spot just before the money — one more bust-out and the rest all get paid, so short stacks tighten up to survive." },
+      { term: "Risk premium", def: "the extra equity you need to CALL an all-in in a tournament versus a cash game, because busting costs more $-equity than doubling gains." },
+      { term: "Bubble factor", def: "how much more a loss hurts than a win helps ($ lost / $ gained); 1 in a cash game, higher near a pay jump — it pushes your call threshold above 50%." },
     ],
-    objectives: ["See that chips aren't money once there's a payout ladder", "Read a big stack's compressed share and a short stack's premium", "Value survival on the bubble"],
+    objectives: ["See that chips aren't money once there's a payout ladder", "Read a big stack's compressed share and a short stack's premium", "Demand a risk premium to call all-ins near the money"],
     example: "With 70% of the chips and prizes of 50/30/20, your equity is only about 44% of the pool — you can't win more than first.",
-    drillIds: ["t1-icm-winner-take-all", "t1-icm-equal-stacks", "t1-icm-chip-leader", "t1-icm-short-stack", "t1-icm-bubble"],
+    drillIds: ["t1-icm-winner-take-all", "t1-icm-equal-stacks", "t1-icm-chip-leader", "t1-icm-short-stack", "t1-icm-bubble",
+      "t1-req-winner-take-all", "t1-req-in-the-money", "t1-req-bubble", "t1-req-bubble-extreme"],
   },
 ];
 
@@ -582,6 +585,10 @@ export const EXPLAIN: Record<string, string> = {
   "t1-icm-chip-leader": "This is the heart of ICM. You hold 70% of the chips but only about 44% of the money: you can never win more than first place, and the 30% and 20% prizes are still up for grabs to the others. A big stack's chips are worth less than their face value — so don't gamble it like it's a cash-game pile.",
   "t1-icm-short-stack": "The mirror of the chip leader: with just 10% of the chips your share is about 26% of the pool. Simply reaching the money is worth something, so the short stack's chips are worth MORE per chip than the big stack's. Survival has real value — which is exactly why you don't punt a short stack away lightly.",
   "t1-icm-bubble": "On the bubble — four left, three paid — even the short stack with 10% of the chips is worth about 14.5% of the pool, because one more bust-out locks up a min-cash for everyone else. Every pay jump matters, so short stacks tighten up and big stacks apply pressure knowing others can't call lightly.",
+  "t1-req-winner-take-all": "With no pay ladder, chips are money: calling a shove is pure pot odds, so you need exactly 50% — the same as a cash game. This is the baseline that every risk premium is measured against.",
+  "t1-req-in-the-money": "You're already in the money and the jumps are small, so ICM barely bites: you need only about 52% to call — a hair over the cash-game 50%. Once the big pay jumps are behind you, tournament play looks a lot like a cash game again.",
+  "t1-req-bubble": "This is the whole point of ICM. On the bubble, busting forfeits a guaranteed min-cash, so a coinflip is a losing call — you need about 65% to call the very same all-in a cash game snaps off at 50%. That gap is the risk premium; it's why good players fold big hands on the bubble.",
+  "t1-req-bubble-extreme": "With a short stack about to bust into the money, two big stacks must avoid each other: you need roughly 76% to call. Busting now — when a min-cash was almost locked — is catastrophic, so unless you have the near-nuts, let the short stack bust first and collect the pay jump for free.",
 };
 
 // A module is "done" once every one of its drills has been graded at least once

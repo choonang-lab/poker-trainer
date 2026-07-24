@@ -374,6 +374,23 @@ export function icmEquity(stacks: number[], payouts: number[]): number[] {
   return eq;
 }
 
+// The ICM risk premium: the equity hero needs to CALL an all-in for the effective
+// (smaller) stack. In chips it's just pot odds (a coinflip needs 50%); in $ it's
+// higher, because busting costs more $-equity than doubling gains (you can't win
+// more than first, and pay jumps compress the upside). Returns the break-even
+// equity p* where calling and folding have equal $EV: p* = dLose / (dWin + dLose),
+// with dWin/dLose the ICM swing from winning/losing the all-in. 0.5 = cash-game
+// baseline (no pay ladder); >0.5 = a real premium (tighten up, e.g. on the bubble).
+export function requiredEquity(stacks: number[], payouts: number[], heroSeat: number, villainSeat: number): number {
+  const eff = Math.min(stacks[heroSeat], stacks[villainSeat]);
+  const cur = icmEquity(stacks, payouts)[heroSeat];
+  const winS = stacks.map((s, i) => i === heroSeat ? s + eff : i === villainSeat ? s - eff : s);
+  const loseS = stacks.map((s, i) => i === heroSeat ? s - eff : i === villainSeat ? s + eff : s);
+  const dWin = icmEquity(winS, payouts)[heroSeat] - cur;
+  const dLose = cur - icmEquity(loseS, payouts)[heroSeat];
+  return dWin + dLose <= 0 ? 0.5 : dLose / (dWin + dLose);
+}
+
 // ---- L4: grading primitives ----------------------------------------------
 export const breakEven = (pot: number, call: number): number => call / (pot + call);
 
@@ -989,6 +1006,15 @@ export function grade(state: State, response: Response): Result {
     const tag = Math.abs(error) < 0.02 ? "p1.ok" : error > 0 ? "p1.overvalues" : "p1.undervalues";
     return { regretBb: 0, estimateError: Math.abs(error), leakTag: tag };
   }
+  if (response.kind === "callequity") {
+    // The ICM-adjusted equity needed to call an all-in. Answering too LOW (e.g. the
+    // cash-game 50%) means calling too light for a tournament; too HIGH means folding
+    // too tight. A 0.02 tolerance, mirroring the icm grade.
+    const target = requiredEquity(state.stacks ?? [], state.payouts ?? [], state.heroSeat ?? 0, state.villainSeat ?? 0);
+    const error = response.value - target;
+    const tag = Math.abs(error) < 0.02 ? "p1.ok" : error > 0 ? "p1.foldstoo_tight" : "p1.callstoo_light";
+    return { regretBb: 0, estimateError: Math.abs(error), leakTag: tag };
+  }
   const evs = decisionEVs(state);
   const chosen = evs.find((e) => sameAction(e.action, response.action));
   if (!chosen) throw new Error(`grade: illegal action ${JSON.stringify(response.action)} for this spot`);
@@ -1087,6 +1113,8 @@ const LEAK_TABLE: Record<string, string> = {
   "M5.7:underbluffs": "m57.underbluffs",
   "T1:overvalues": "t1.overvalues_chips",
   "T1:undervalues": "t1.undervalues_chips",
+  "T1:foldstoo_tight": "t1.folds_too_tight",
+  "T1:callstoo_light": "t1.calls_too_light",
   "P0:overbet": "p0.bets_without_fold_equity",
   "P0:overfold": "p0.overfolds_in_position",
   "P1:overestimate": "p1.overvalues_holding",
@@ -3363,6 +3391,65 @@ export const STARTER_DRILLS: Drill[] = [
       villain: { range: [{ combo: hand("Ah", "Kh"), weight: 1 }] },
       abstraction: { sizes: [], streets: [], players: 4 },
       stacks: [5000, 2500, 1500, 1000], payouts: [0.5, 0.3, 0.2], heroSeat: 3,
+    },
+  },
+  // ---- T1 risk premium: how much equity you need to CALL an all-in under ICM ----
+  {
+    id: "t1-req-winner-take-all",
+    module: "T1",
+    title: "Risk premium: calling an all-in, winner-take-all",
+    read: "Only first place is paid and you're heads-up. Villain shoves; you can call for your whole stack. What equity do you need to call?",
+    ask: "callequity",
+    // Baseline: with no pay ladder, chips = money, so you need exactly 50% (pot odds) — same as a cash game.
+    state: {
+      board: [], pot: 1, toAct: "hero",
+      villain: { range: [{ combo: hand("Ah", "Kh"), weight: 1 }] },
+      abstraction: { sizes: [], streets: [], players: 2 },
+      stacks: [5000, 5000], payouts: [1, 0], heroSeat: 0, villainSeat: 1,
+    },
+  },
+  {
+    id: "t1-req-in-the-money",
+    module: "T1",
+    title: "Risk premium: calling in the money with small pay jumps",
+    read: "Three left, three paid (50% / 30% / 20%). The other big stack shoves; you can call for your stack. What equity do you need?",
+    ask: "callequity",
+    // Already in the money with modest jumps: ICM pressure is mild, so the threshold is only a hair over 50% (~0.523).
+    state: {
+      board: [], pot: 1, toAct: "hero",
+      villain: { range: [{ combo: hand("Ah", "Kh"), weight: 1 }] },
+      abstraction: { sizes: [], streets: [], players: 3 },
+      stacks: [6000, 3000, 1000], payouts: [0.5, 0.3, 0.2], heroSeat: 0, villainSeat: 1,
+    },
+  },
+  {
+    id: "t1-req-bubble",
+    module: "T1",
+    title: "Risk premium: calling a coinflip on the bubble",
+    read: "Four left, three paid (50% / 30% / 20%), everyone even-stacked. Villain shoves; calling risks your stack. What equity do you need?",
+    ask: "callequity",
+    // The core lesson. On the bubble, busting forfeits a guaranteed min-cash, so a coinflip isn't enough — you need
+    // about 65% to call the SAME all-in that a cash game calls at 50%. Survival is worth a big risk premium.
+    state: {
+      board: [], pot: 1, toAct: "hero",
+      villain: { range: [{ combo: hand("Ah", "Kh"), weight: 1 }] },
+      abstraction: { sizes: [], streets: [], players: 4 },
+      stacks: [5000, 5000, 5000, 5000], payouts: [0.5, 0.3, 0.2], heroSeat: 0, villainSeat: 1,
+    },
+  },
+  {
+    id: "t1-req-bubble-extreme",
+    module: "T1",
+    title: "Risk premium: two big stacks with a short about to bust",
+    read: "Four left, three paid; one player is down to a crumb and about to bust. Villain (an equal big stack) shoves. What equity do you need to call?",
+    ask: "callequity",
+    // The extreme case: with a short stack about to bust into the money, two big stacks must AVOID each other —
+    // you need ~76% to call, because busting now (when you were almost guaranteed a cash) is catastrophic.
+    state: {
+      board: [], pot: 1, toAct: "hero",
+      villain: { range: [{ combo: hand("Ah", "Kh"), weight: 1 }] },
+      abstraction: { sizes: [], streets: [], players: 4 },
+      stacks: [4000, 4000, 4000, 100], payouts: [0.5, 0.3, 0.2], heroSeat: 0, villainSeat: 1,
     },
   },
   {
