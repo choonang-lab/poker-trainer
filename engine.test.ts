@@ -3,7 +3,7 @@ import {
   score5, score7, score7slow, cmpScore, equity, equityVsRange, outs,
   breakEven, callEV, decisionRegret, regret, estimateError, withinBand, brier, calibration, leakReport,
   hand, parseCard, card, rankOf, suitOf, FULL_DECK, madeHand, drawSuit, nutCategory, comboCount,
-  minDefenseFreq, bluffFrequency, icmEquity, requiredEquity,
+  minDefenseFreq, bluffFrequency, icmEquity, requiredEquity, shoveEV,
   equityLeaf, bestResponseEV, bestAction, truth, buildTree, realizationFactor,
   fieldEquity, validateAbstraction, ABSTRACTION_LIMITS,
   actionEVs, grade,
@@ -711,6 +711,8 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
           ? { kind: "icm", value: 0.33 }                 // T1 tournament ICM
           : d.ask === "callequity"
           ? { kind: "callequity", value: 0.5 }           // T1 risk premium
+          : d.ask === "shove"
+          ? { kind: "shove", action: "fold" }            // T2 push/fold
           : (d.state.abstraction.sizes.length === 0 || d.state.abstraction.heroFacesBet !== undefined)
             ? { kind: "action", action: { kind: "call" } } // pillar-1 call/fold OR hero-faces-bet root
             : { kind: "action", action: { kind: "check" } }; // pillar-2 (legal at root)
@@ -857,8 +859,8 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
   ok("M4 check regret == 3 bb", approx(m4check.result.regretBb, 3), `got ${m4check.result.regretBb}`);
   ok("M4 check -> m4.misses_street_sequence", m4check.result.leakTag === "m4.misses_street_sequence");
 
-  ok("STARTER_DRILLS now spans 172 drills incl M0/M3.5/M4/M4.5/M5.6/M5.7/P0/P1/P2/P2.5/P3/P3.4/P3.5/P4/P5/T1",
-    STARTER_DRILLS.length === 172 &&
+  ok("STARTER_DRILLS now spans 176 drills incl M0/M3.5/M4/M4.5/M5.6/M5.7/P0/P1/P2/P2.5/P3/P3.4/P3.5/P4/P5/T1/T2",
+    STARTER_DRILLS.length === 176 &&
     ["M0", "M3.5", "M4", "M4.5", "M5.6", "M5.7", "P0", "P1", "P3", "P4", "P5"].every((m) => STARTER_DRILLS.some((d) => d.module === m)));
 
   // M4.5 combo counting: base counts and blocker removal, all hand-checkable.
@@ -931,6 +933,22 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
   ok("t1-req-bubble: answering 50% (cash-game) -> t1.calls_too_light", reqLight.leakTag === "t1.calls_too_light");
   const reqTight = gradeDrill(balSess, "t1-req-in-the-money", { kind: "callequity", value: 0.70 }, 0).result;
   ok("t1-req ITM: answering 70% -> t1.folds_too_tight", reqTight.leakTag === "t1.folds_too_tight");
+
+  // T2 push/fold: chip-EV of shoving the small blind (fold-equity + equity-when-called).
+  ok("shoveEV: short + foldy villain is a +EV shove (>-0.5)", shoveEV(8, 0.15, 0.30) > -0.5 && approx(shoveEV(8, 0.15, 0.30), 0.37, 0.01));
+  ok("shoveEV: same hand DEEPER (25bb) is a fold (<-0.5)", shoveEV(25, 0.15, 0.30) < -0.5 && approx(shoveEV(25, 0.15, 0.30), -0.65, 0.01));
+  ok("shoveEV: loose caller flips it to a fold", shoveEV(10, 0.45, 0.35) < -0.5);
+  ok("shoveEV: premium hand is a huge shove", shoveEV(15, 0.40, 0.65) > 2);
+  ok("shoveEV: deeper stack lowers shove EV (more risk when called and behind)", shoveEV(25, 0.15, 0.30) < shoveEV(8, 0.15, 0.30));
+  const pfShove = gradeDrill(balSess, "t2-shove-short-foldy", { kind: "shove", action: "shove" }, 0).result;
+  ok("t2-shove-short-foldy: shoving is correct (regret 0, ok)", pfShove.regretBb === 0 && pfShove.leakTag === "t2.ok");
+  const pfTooTight = gradeDrill(balSess, "t2-shove-short-foldy", { kind: "shove", action: "fold" }, 0).result;
+  ok("t2 folding a profitable shove -> t2.shoves_too_tight (regret > 0)",
+    pfTooTight.regretBb > 0 && pfTooTight.leakTag === "t2.shoves_too_tight");
+  const pfTooLoose = gradeDrill(balSess, "t2-fold-loose-caller", { kind: "shove", action: "shove" }, 0).result;
+  ok("t2 shoving into a station -> t2.shoves_too_loose", pfTooLoose.leakTag === "t2.shoves_too_loose");
+  ok("t2-fold-deeper: folding is correct (the stack-depth discrimination)",
+    gradeDrill(balSess, "t2-fold-deeper", { kind: "shove", action: "fold" }, 0).result.leakTag === "t2.ok");
 
   // Check-raise-range drill: villain raises only what beats hero (policy + raise).
   const cr = byId("p5-vs-checkraise-range");

@@ -391,6 +391,17 @@ export function requiredEquity(stacks: number[], payouts: number[], heroSeat: nu
   return dWin + dLose <= 0 ? 0.5 : dLose / (dWin + dLose);
 }
 
+// Short-stack push/fold (T2), chip-EV. Folded to hero in the small blind (0.5) with
+// `stack` bb; hero shoves all-in and the big blind calls `callFreq` of the time,
+// giving hero `eqWhenCalled` equity when called. Returns the net bb result versus the
+// pre-decision stack: fold-and-win-the-blind (+1) when villain folds, an all-in for
+// `stack` each ((2e-1)*stack) when called. Compare to folding (foldEV = -0.5): shove
+// iff shoveEV > -0.5. Two things push the threshold to shove WIDER: a shorter stack
+// (the downside when called is smaller) and a foldier villain (more fold equity).
+export function shoveEV(stack: number, callFreq: number, eqWhenCalled: number): number {
+  return (1 - callFreq) * 1 + callFreq * (2 * eqWhenCalled - 1) * stack;
+}
+
 // ---- L4: grading primitives ----------------------------------------------
 export const breakEven = (pot: number, call: number): number => call / (pot + call);
 
@@ -1015,6 +1026,16 @@ export function grade(state: State, response: Response): Result {
     const tag = Math.abs(error) < 0.02 ? "p1.ok" : error > 0 ? "p1.foldstoo_tight" : "p1.callstoo_light";
     return { regretBb: 0, estimateError: Math.abs(error), leakTag: tag };
   }
+  if (response.kind === "shove") {
+    // Push/fold decision graded by chip-EV: shoving vs folding (foldEV = -0.5 bb).
+    const sev = shoveEV(state.effStack ?? 0, state.callFreq ?? 0, state.eqWhenCalled ?? 0);
+    const foldEV = -0.5;
+    const shoveBest = sev > foldEV;
+    const choseShove = response.action === "shove";
+    const regretBb = choseShove === shoveBest ? 0 : Math.abs(sev - foldEV);
+    const tag = regretBb === 0 ? "p1.ok" : shoveBest ? "p1.shoves_too_tight" : "p1.shoves_too_loose";
+    return { regretBb, leakTag: tag };
+  }
   const evs = decisionEVs(state);
   const chosen = evs.find((e) => sameAction(e.action, response.action));
   if (!chosen) throw new Error(`grade: illegal action ${JSON.stringify(response.action)} for this spot`);
@@ -1115,6 +1136,8 @@ const LEAK_TABLE: Record<string, string> = {
   "T1:undervalues": "t1.undervalues_chips",
   "T1:foldstoo_tight": "t1.folds_too_tight",
   "T1:callstoo_light": "t1.calls_too_light",
+  "T2:shoves_too_tight": "t2.shoves_too_tight",
+  "T2:shoves_too_loose": "t2.shoves_too_loose",
   "P0:overbet": "p0.bets_without_fold_equity",
   "P0:overfold": "p0.overfolds_in_position",
   "P1:overestimate": "p1.overvalues_holding",
@@ -3450,6 +3473,69 @@ export const STARTER_DRILLS: Drill[] = [
       villain: { range: [{ combo: hand("Ah", "Kh"), weight: 1 }] },
       abstraction: { sizes: [], streets: [], players: 4 },
       stacks: [4000, 4000, 4000, 100], payouts: [0.5, 0.3, 0.2], heroSeat: 0, villainSeat: 1,
+    },
+  },
+  // ---- T2 Push/fold: short-stack shove/fold by chip-EV (pure arithmetic, no tree) ----
+  // state.effStack = stack in bb, state.callFreq = how often the BB calls, state.eqWhenCalled =
+  // hero's equity when called. The dummy villain/abstraction satisfy the type; nothing touches the tree.
+  {
+    id: "t2-shove-short-foldy",
+    module: "T2",
+    title: "Push/fold: a short stack against a tight big blind",
+    read: "Folded to you in the small blind with 8 bb. The big blind only calls 15% of the time, and even when called you're about 30%. Shove or fold?",
+    ask: "shove",
+    // Fold equity carries it: 85% of the time you win the blind, and 8 bb is little to risk. shoveEV ≈ +0.37
+    // vs folding's −0.5 — a clear shove. With a short stack and a foldy villain, you can shove almost anything.
+    state: {
+      board: [], pot: 1, toAct: "hero",
+      villain: { range: [{ combo: hand("Ah", "Kh"), weight: 1 }] },
+      abstraction: { sizes: [], streets: [], players: 2 },
+      effStack: 8, callFreq: 0.15, eqWhenCalled: 0.30,
+    },
+  },
+  {
+    id: "t2-fold-deeper",
+    module: "T2",
+    title: "Push/fold: the same spot with a deeper stack",
+    read: "Same weak hand and the same tight big blind (calls 15%, you're ~30% when called) — but now you have 25 bb. Shove or fold?",
+    ask: "shove",
+    // The discrimination partner: only the STACK changed. Deeper means the times you're called and behind cost far
+    // more, so the downside now outweighs the fold equity. shoveEV ≈ −0.65 < −0.5: fold. Shove shorter, not deeper.
+    state: {
+      board: [], pot: 1, toAct: "hero",
+      villain: { range: [{ combo: hand("Ah", "Kh"), weight: 1 }] },
+      abstraction: { sizes: [], streets: [], players: 2 },
+      effStack: 25, callFreq: 0.15, eqWhenCalled: 0.30,
+    },
+  },
+  {
+    id: "t2-fold-loose-caller",
+    module: "T2",
+    title: "Push/fold: a short stack against a calling station",
+    read: "Folded to you in the small blind with 10 bb, but the big blind is a station who calls 45% of the time; you're ~35% when called. Shove or fold?",
+    ask: "shove",
+    // Less fold equity flips it: a loose caller means you rarely steal and often go to showdown behind. shoveEV ≈
+    // −0.80 < −0.5: fold this hand. Against a station you shove TIGHTER — the fold equity that carries wide shoves is gone.
+    state: {
+      board: [], pot: 1, toAct: "hero",
+      villain: { range: [{ combo: hand("Ah", "Kh"), weight: 1 }] },
+      abstraction: { sizes: [], streets: [], players: 2 },
+      effStack: 10, callFreq: 0.45, eqWhenCalled: 0.35,
+    },
+  },
+  {
+    id: "t2-shove-premium",
+    module: "T2",
+    title: "Push/fold: a premium hand against a caller",
+    read: "Folded to you in the small blind with 15 bb. The big blind calls 40% of the time, but you have a big hand — about 65% when called. Shove or fold?",
+    ask: "shove",
+    // With a real hand you WANT to get called: equity when called does the work, on top of the fold equity. shoveEV
+    // ≈ +2.4, a huge shove. Wide shoves lean on fold equity; premium shoves lean on equity when called — both shove.
+    state: {
+      board: [], pot: 1, toAct: "hero",
+      villain: { range: [{ combo: hand("Ah", "Kh"), weight: 1 }] },
+      abstraction: { sizes: [], streets: [], players: 2 },
+      effStack: 15, callFreq: 0.40, eqWhenCalled: 0.65,
     },
   },
   {

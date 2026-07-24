@@ -7,7 +7,7 @@ import {
   STARTER_DRILLS, loadSession, serializeSession, gradeDrill,
   buildTree, actionEVs, truth, outs, calibration, leakReport,
   rankOf, suitOf, RNAMES, score7, madeHand, drawSuit, nutCategory, comboCount,
-  minDefenseFreq, bluffFrequency, icmEquity, requiredEquity,
+  minDefenseFreq, bluffFrequency, icmEquity, requiredEquity, shoveEV,
 } from "../engine.ts";
 import { MODULES, PRIMER, EXPLAIN, moduleStatus, currentStreak } from "../curriculum.ts";
 import type { Drill, Response, Action, State, Module } from "../contract.ts";
@@ -305,7 +305,8 @@ function playDrill(drill: Drill, tagText: string, contLabel: string, onCont: () 
   // hand, or villain holding. Render just the scenario line built from pot & bet.
   const freqAsk = drill.ask === "mdf" || drill.ask === "bluffs";
   const icmAsk = drill.ask === "icm" || drill.ask === "callequity";
-  const mathAsk = freqAsk || icmAsk;
+  const shoveAsk = drill.ask === "shove";
+  const mathAsk = freqAsk || icmAsk || shoveAsk;
   if (freqAsk) {
     const P = s.pot, B = s.toCall ?? 0;
     const scenario = drill.ask === "mdf"
@@ -320,6 +321,9 @@ function playDrill(drill: Drill, tagText: string, contLabel: string, onCont: () 
     sec.append(el("div", "tag", tagText), el("h2", "title", drill.title),
       el("div", "meta", `Stacks: ${stacksStr}`),
       el("div", "meta", `Prizes: ${prizesStr} of the pool`));
+  } else if (shoveAsk) {
+    const scenario = `${s.effStack} bb · big blind calls ${Math.round((s.callFreq ?? 0) * 100)}% · you're ${Math.round((s.eqWhenCalled ?? 0) * 100)}% when called`;
+    sec.append(el("div", "tag", tagText), el("h2", "title", drill.title), el("div", "meta", scenario));
   } else sec.append(
     el("div", "tag", tagText),
     el("h2", "title", drill.title),
@@ -449,6 +453,13 @@ function buildControls(controls: HTMLElement, drill: Drill, onAnswer: (r: Respon
     const label = el("label", "prompt", "Equity needed to call?") as HTMLLabelElement;
     label.htmlFor = "ans-callequity";
     controls.append(label, input, go);
+  } else if (drill.ask === "shove") {
+    controls.append(el("label", "prompt", "Your move:"));
+    for (const a of ["shove", "fold"] as const) {
+      const b = el("button", "action", a === "shove" ? "Shove all-in" : "Fold");
+      b.onclick = () => onAnswer({ kind: "shove", action: a });
+      controls.append(b);
+    }
   } else if (drill.ask === "category" || drill.ask === "nuts") {
     const nuts = drill.ask === "nuts";
     controls.append(el("label", "prompt", nuts ? "Best possible hand here (the nuts)?" : "Name your made hand:"));
@@ -528,6 +539,14 @@ function renderFeedback(drill: Drill, out: ReturnType<typeof gradeDrill>, contLa
     line = ok
       ? `Correct — you need ${pct(t)} to call`
       : `You need ${pct(t)} to call · off by ${parseFloat(((r.estimateError ?? 0) * 100).toFixed(1))} pts`;
+  }
+  else if (drill.ask === "shove") {
+    const st = drill.state;
+    const sev = shoveEV(st.effStack ?? 0, st.callFreq ?? 0, st.eqWhenCalled ?? 0);
+    const best = sev > -0.5 ? "Shove" : "Fold";
+    line = ok
+      ? `Correct — ${best} (shove EV ${sev.toFixed(2)} bb vs fold −0.5)`
+      : `Best: ${best} · shove EV ${sev.toFixed(2)} bb vs fold −0.5 (cost ${r.regretBb.toFixed(2)} bb)`;
   }
   else line = r.regretBb <= 1e-9 ? "Optimal." : `Regret ${r.regretBb.toFixed(2)} bb`;
   // The raw leak tag (e.g. "p2.bets_into_strong_range") is internal taxonomy; the

@@ -395,6 +395,20 @@ export const MODULES: Module[] = [
     drillIds: ["t1-icm-winner-take-all", "t1-icm-equal-stacks", "t1-icm-chip-leader", "t1-icm-short-stack", "t1-icm-bubble",
       "t1-req-winner-take-all", "t1-req-in-the-money", "t1-req-bubble", "t1-req-bubble-extreme"],
   },
+  {
+    id: "T2", track: "P2", title: "Push/fold",
+    preface: "With a short stack there's no room to play after the flop — it's shove all-in or fold before it. A shove wins two ways: the blinds fold, or you win at showdown when called. Add those up and you can profitably shove far more hands than you'd ever open-raise, especially when you're short and the blinds fold a lot.",
+    concepts: [
+      { term: "Push/fold", def: "short-stack play where every hand is either an all-in shove or a fold — no calling, no post-flop." },
+      { term: "Fold equity", def: "the value of the times everyone folds to your shove and you win the blinds uncontested." },
+      { term: "Equity when called", def: "your chance of winning the pot the times you DO get called and go to showdown." },
+      { term: "Effective stack", def: "the smaller of the two stacks — all that can actually go in; measured in big blinds (bb)." },
+      { term: "Shove EV", def: "fold-equity value plus equity-when-called value; shove whenever that beats folding (which just forfeits the small blind)." },
+    ],
+    objectives: ["Add fold equity to equity-when-called to judge a shove", "Shove wider when you're shorter and when the blinds fold more", "Tighten up against a station and lean on real equity"],
+    example: "At 8 bb against a big blind who folds 85%, even a weak hand shoves for a profit — the fold equity alone carries it.",
+    drillIds: ["t2-shove-short-foldy", "t2-fold-deeper", "t2-fold-loose-caller", "t2-shove-premium"],
+  },
 ];
 
 // Post-answer explanations, keyed by drill id — the WHY behind each spot, shown
@@ -589,6 +603,10 @@ export const EXPLAIN: Record<string, string> = {
   "t1-req-in-the-money": "You're already in the money and the jumps are small, so ICM barely bites: you need only about 52% to call — a hair over the cash-game 50%. Once the big pay jumps are behind you, tournament play looks a lot like a cash game again.",
   "t1-req-bubble": "This is the whole point of ICM. On the bubble, busting forfeits a guaranteed min-cash, so a coinflip is a losing call — you need about 65% to call the very same all-in a cash game snaps off at 50%. That gap is the risk premium; it's why good players fold big hands on the bubble.",
   "t1-req-bubble-extreme": "With a short stack about to bust into the money, two big stacks must avoid each other: you need roughly 76% to call. Busting now — when a min-cash was almost locked — is catastrophic, so unless you have the near-nuts, let the short stack bust first and collect the pay jump for free.",
+  "t2-shove-short-foldy": "Fold equity carries this: 85% of the time the big blind folds and you win the blinds, and 8 bb is a small amount to risk on the 15% you're called. Adding it up, shoving nets about +0.37 bb versus folding's −0.5 — a clear shove. Short stack + a folding villain = you can shove almost any two cards.",
+  "t2-fold-deeper": "Only the stack changed — 8 bb became 25 bb. Now the times you're called and behind cost you 25 bb, not 8, so that downside swamps the fold equity: shoving nets about −0.65, worse than folding. This is the core push/fold rule — shove wider when you're SHORTER, tighter when you're deeper.",
+  "t2-fold-loose-caller": "A station kills your fold equity: called 45% of the time, you rarely steal the blinds and usually go to showdown as an underdog, so shoving nets about −0.80 — a fold. Against someone who calls too much, shove TIGHTER and let real hands do the work, not the bluff.",
+  "t2-shove-premium": "With a big hand you're happy to be called: equity when called (about 65%) does the work on top of the fold equity, so shoving nets around +2.4 bb — a massive shove. Wide shoves lean on fold equity; premium shoves lean on equity when called. Either way, you shove.",
 };
 
 // A module is "done" once every one of its drills has been graded at least once

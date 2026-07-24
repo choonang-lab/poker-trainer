@@ -35,6 +35,7 @@ export declare function minDefenseFreq(pot: number, bet: number): number;       
 export declare function bluffFrequency(pot: number, bet: number): number;                   // bet/(pot+2*bet): bluff share of a betting range
 export declare function icmEquity(stacks: number[], payouts: number[]): number[];           // Malmuth-Harville ICM: expected prize (same units as payouts) per seat
 export declare function requiredEquity(stacks: number[], payouts: number[], heroSeat: number, villainSeat: number): number; // ICM-adjusted equity to call an all-in for the effective stack (0.5 = cash-game baseline)
+export declare function shoveEV(stack: number, callFreq: number, eqWhenCalled: number): number; // chip-EV (net bb) of shoving the small blind; compare to folding (-0.5)
 
 // ===========================================================================
 // L4 — grading primitives (implemented, tested)
@@ -101,6 +102,9 @@ export interface State {
   payouts?: number[];               // ICM drills (T1): prize for each finishing place (fractions of the pool)
   heroSeat?: number;                // ICM drills (T1): which seat in `stacks` is hero (default 0)
   villainSeat?: number;             // T1 risk-premium drills: the seat shoving all-in that hero may call
+  effStack?: number;                // T2 push/fold: effective stack in big blinds
+  callFreq?: number;                // T2 push/fold: how often the big blind calls a shove (0-1)
+  eqWhenCalled?: number;            // T2 push/fold: hero's equity when the shove is called (0-1)
 }
 
 // The leaner state carried INSIDE the tree. A node only needs the board/pot/
@@ -195,7 +199,8 @@ export type Response =
   | { kind: "mdf"; value: number }             // minimum defense frequency (0-1) from pot/bet, M5.7
   | { kind: "bluffs"; value: number }          // optimal bluff fraction of a betting range (0-1), M5.7
   | { kind: "icm"; value: number }             // hero's tournament $-equity as a share (0-1) of the prize pool, T1
-  | { kind: "callequity"; value: number };     // ICM-adjusted equity (0-1) needed to CALL an all-in, T1 risk premium
+  | { kind: "callequity"; value: number }      // ICM-adjusted equity (0-1) needed to CALL an all-in, T1 risk premium
+  | { kind: "shove"; action: "shove" | "fold" }; // a short-stack push/fold decision, T2
 
 // Per-action EVs at a HERO node — the source bestAction argmaxes and grade()
 // computes regret from.
@@ -236,7 +241,7 @@ export interface Drill {
   id: string;
   module: string;                   // curriculum tag, e.g. "M2", "M3", "P2"
   title: string;                    // human-facing label
-  ask: "estimate" | "action" | "category" | "outs" | "nuts" | "combos" | "mdf" | "bluffs" | "icm" | "callequity";  // the response kind this drill expects
+  ask: "estimate" | "action" | "category" | "outs" | "nuts" | "combos" | "mdf" | "bluffs" | "icm" | "callequity" | "shove";  // the response kind this drill expects
   read?: string;                    // optional villain read/situational note (the strategy isn't visible from cards alone)
   state: State;
 }

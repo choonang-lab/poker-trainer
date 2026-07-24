@@ -55,7 +55,7 @@ repetition) with a guided-curriculum PWA on top.
 
 ## State as of 2026-07 (commit 6b80618)
 
-- **567 tests passing**, both type-checks clean, deployed bundle in sync.
+- **576 tests passing**, both type-checks clean, deployed bundle in sync.
 - **Review fixes (2026-07-18, post-audit), cache v21:** (1) `m2-combo-draw`
   board was `9s 8h 2c` (an 8-out spot, 36.9%) but its title/EXPLAIN teach the
   15-out flush+open-ender combo — fixed to `9s 8s 2c` (56.3%); a learner who
@@ -129,7 +129,7 @@ repetition) with a guided-curriculum PWA on top.
 
 Single scan of everything still open after 19 shipped items. The numbered "Next up"
 log below is a DONE-history with declines interleaved; this section is the live to-do.
-Baseline right now: **172 drills, 20 modules, 567 tests, cache v52**, live & in sync.
+Baseline right now: **176 drills, 21 modules, 576 tests, cache v53**, live & in sync.
 
 ### A. Addable now — content-only, no engine change (pick any, each ~1 commit)
 - **More depth in any module.** The engine supports far more than is authored; every
@@ -745,6 +745,31 @@ break that or need a fundamentally different solver. Logged so they aren't re-sc
    - T1 is now 9 drills (5 ICM equity + 4 risk premium) — a complete tournament-fundamentals module:
      what your chips are worth, and what that means for calling all-ins. NEXT tournament step if wanted:
      push/fold shove ranges (Nash) — but that's a bigger, table-driven addition, not a pure constant.
+
+32. ~~**T2 Push/fold: +4 drills (short-stack shove decisions, new module)**~~ — DONE 2026-07-24
+   (cache v53, 576 tests, 176 drills, 21 modules). The push/fold rung — but NOT Nash charts (those
+   are a fixed-point solver + a wide caller range, which the engine can't do fast). KEY FINDING
+   (measured): preflop `equityVsRange` is ~0.5s/combo, so a realistic wide calling range (~20+
+   combos) is 8s+ — too slow, and vs a tractable TIGHT range you shove almost everything (one-note,
+   can't show the fold side). So I built the **pure shove-EV arithmetic** instead (fold-equity +
+   equity-when-called), the depth-zero slice — exactly the MDF/ICM pattern (state the numbers, learn
+   the framework), fast, and it shows BOTH shove and fold cleanly.
+   - NEW pure fn `shoveEV(stack, callFreq, eqWhenCalled)` = (1−C)·1 + C·(2E−1)·S (net bb; SB shoves,
+     +1 when BB folds, (2e−1)S when called). Compare to foldEV = −0.5 (forfeit the small blind).
+   - NEW response kind `shove` with `action: "shove"|"fold"` (a BINARY decision — the first non-numeric,
+     non-tree action kind; graded by regret |shoveEV−foldEV|, tags t2.shoves_too_tight / _too_loose).
+     NEW State fields effStack / callFreq / eqWhenCalled.
+   - NEW module **T2 · Push/fold** (track P2, after T1), 4 drills teaching the 4 levers: short+foldy →
+     shove (+0.37), same hand DEEPER (25bb) → fold (−0.65, the stack-depth discrimination), loose
+     caller → fold (−0.80, no fold equity), premium hand → shove (+2.4, equity when called).
+   - UI: `shoveAsk` scenario line ("8 bb · big blind calls 15% · you're 30% when called") + two
+     buttons (Shove all-in / Fold) + feedback "Correct — Shove (shove EV 0.37 bb vs fold −0.5)".
+     Grade-all-drills loop needed a `shove` branch too. Browser-verified the correct shove path.
+   - GOTCHA: the correct-answer tag is `t2.ok` (not `p1.ok`) — grade() emits "p1.ok" but classifyLeak
+     refines via the DRILL's module → `t2.ok` (module fallback, no LEAK_TABLE T2:ok entry). Two test
+     assertions had to change from p1.ok → t2.ok. (Same refinement applies to any new module's .ok.)
+   - Tournaments (T1+T2) now 13 drills. Nash push/fold CHARTS remain out (solver + wide-range equity);
+     the shove-EV framework is the gradeable, on-design slice, and it's the actually-useful skill.
 
 ## Machine-specific notes for macOS
 
