@@ -55,7 +55,7 @@ repetition) with a guided-curriculum PWA on top.
 
 ## State as of 2026-07 (commit 6b80618)
 
-- **607 tests passing**, both type-checks clean, deployed bundle in sync.
+- **614 tests passing**, both type-checks clean, deployed bundle in sync.
 - **Review fixes (2026-07-18, post-audit), cache v21:** (1) `m2-combo-draw`
   board was `9s 8h 2c` (an 8-out spot, 36.9%) but its title/EXPLAIN teach the
   15-out flush+open-ender combo — fixed to `9s 8s 2c` (56.3%); a learner who
@@ -129,7 +129,7 @@ repetition) with a guided-curriculum PWA on top.
 
 Single scan of everything still open after 19 shipped items. The numbered "Next up"
 log below is a DONE-history with declines interleaved; this section is the live to-do.
-Baseline right now: **190 drills, 23 modules, 607 tests, cache v56**, live & in sync.
+Baseline right now: **194 drills, 24 modules, 614 tests, cache v57**, live & in sync.
 
 ### A. Addable now — content-only, no engine change (pick any, each ~1 commit)
 - **More depth in any module.** The engine supports far more than is authored; every
@@ -833,6 +833,24 @@ break that or need a fundamentally different solver. Logged so they aren't re-sc
    - REMEMBER: a new module's correct-answer tag is `<module>.ok` via the classifyLeak fallback (e.g.
      `t2.ok`), NOT `p1.ok`; and any new `ask` kind needs a branch in the grade-all-drills TEST loop or
      it falls through to the action path and crashes. Both bit me earlier; watch for them.
+
+36. ~~**Bankroll / risk of ruin: new module M5.10 (+4 drills)**~~ — DONE 2026-07-24 (cache v57, 614
+   tests, 194 drills, 24 modules). The last "small constant" from the menu — the meta-game one.
+   - NEW pure fn `riskOfRuin(winRate, stdDev, bankroll)` = exp(-2·wr·B/sd²) (Brownian model; all in
+     bb/100 & bb). Guard: winRate <= 0 → 1 (a non-winner is certain to bust — a nice teachable case).
+     New `ror` response kind (%); new State fields winRate/stdDev/bankroll.
+   - NEW module **M5.10 · Bankroll management** (track P1 after M5.9), 4 drills with ROUND exponents
+     (2·wr·B/sd² = 1..4) so RoR lands on the memorable e^-1..e^-4 = 37/14/5/2%: small edge 20bi → 37%,
+     5bb 20bi → 14%, 30bi → 5%, 40bi → 2%. Teaches both levers (win rate + bankroll) and that risk
+     falls EXPONENTIALLY with buy-ins (why "add buy-ins" is the answer to variance).
+   - NOTE on the framing: RoR is inherently exp (not mental-math-friendly like MDF/SPR), so I made the
+     drills use integer exponents and the EXPLAINs spell out "exponent = 2·wr·B/sd², RoR = e^-exponent"
+     — the learnable skill is compute-the-exponent then recall the exp value. Tolerance 0.025 (it's an
+     estimate). UI shows the bankroll in BUY-INS (bb/100 conversion) + a % input. Browser-verified the
+     30-buy-in drill (→ "risk of ruin 5%", exponent shown).
+   - Tournaments + bankroll + SPR + range advantage all now exist. The engine menu ("what other
+     engines") is essentially exhausted for the small/on-pattern tier; remaining items are the declined
+     big ones (CFR/GTO, true multiway tree, preflop-postflop sampling) or pure volume.
 
 ## Machine-specific notes for macOS
 

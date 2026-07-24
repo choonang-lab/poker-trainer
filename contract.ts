@@ -40,6 +40,7 @@ export declare function rangeVsRange(heroRange: Range, villRange: Range, board: 
 export declare function boardTexture(board: Board): { paired: boolean; suitedness: "rainbow" | "two-tone" | "mono"; connected: boolean; topRank: number }; // pure board classification for range-interaction reads
 export declare function semiBluffBreakeven(pot: number, bet: number, equity: number): number; // fold frequency a semi-bluff needs to break even (0 = +EV even if never folded)
 export declare function spr(stack: number, pot: number): number; // stack-to-pot ratio: effective stack / pot
+export declare function riskOfRuin(winRate: number, stdDev: number, bankroll: number): number; // probability of busting the bankroll (1 if not a winner)
 
 // ===========================================================================
 // L4 — grading primitives (implemented, tested)
@@ -109,6 +110,9 @@ export interface State {
   effStack?: number;                // T2 push/fold: effective stack in big blinds
   callFreq?: number;                // T2 push/fold: how often the big blind calls a shove (0-1)
   eqWhenCalled?: number;            // T2 push/fold: hero's equity when the shove is called (0-1)
+  winRate?: number;                 // M5.10 bankroll: win rate in bb / 100 hands
+  stdDev?: number;                  // M5.10 bankroll: standard deviation in bb / 100 hands
+  bankroll?: number;                // M5.10 bankroll: bankroll in big blinds
 }
 
 // The leaner state carried INSIDE the tree. A node only needs the board/pot/
@@ -207,7 +211,8 @@ export type Response =
   | { kind: "shove"; action: "shove" | "fold" }  // a short-stack push/fold decision, T2
   | { kind: "rangeadv"; value: number }          // hero's whole-range equity (0-1) vs villain's range, M5.8
   | { kind: "semibluff"; value: number }         // fold frequency (0-1) a semi-bluff needs to break even, M5.7
-  | { kind: "spr"; value: number };              // stack-to-pot ratio (a plain number), M5.9
+  | { kind: "spr"; value: number }               // stack-to-pot ratio (a plain number), M5.9
+  | { kind: "ror"; value: number };              // risk of ruin (0-1) from win rate, std dev, bankroll, M5.10
 
 // Per-action EVs at a HERO node — the source bestAction argmaxes and grade()
 // computes regret from.
@@ -248,7 +253,7 @@ export interface Drill {
   id: string;
   module: string;                   // curriculum tag, e.g. "M2", "M3", "P2"
   title: string;                    // human-facing label
-  ask: "estimate" | "action" | "category" | "outs" | "nuts" | "combos" | "mdf" | "bluffs" | "icm" | "callequity" | "shove" | "rangeadv" | "semibluff" | "spr";  // the response kind this drill expects
+  ask: "estimate" | "action" | "category" | "outs" | "nuts" | "combos" | "mdf" | "bluffs" | "icm" | "callequity" | "shove" | "rangeadv" | "semibluff" | "spr" | "ror";  // the response kind this drill expects
   read?: string;                    // optional villain read/situational note (the strategy isn't visible from cards alone)
   state: State;
 }

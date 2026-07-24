@@ -280,6 +280,20 @@ export const MODULES: Module[] = [
     example: "Pot 20, stack 40 → SPR 2: top pair is committed. Pot 6, stack 90 → SPR 15: top pair is just one pair, don't stack off.",
     drillIds: ["m59-spr-committed", "m59-spr-medium", "m59-spr-deep", "m59-spr-shove-commit"],
   },
+  {
+    id: "M5.10", track: "P1", title: "Bankroll management",
+    preface: "Being a winning player isn't enough — variance can bust you before your edge pays off if your bankroll is too thin. 'Risk of ruin' is the chance you go broke, and it depends on three things: how much you win, how swingy the game is, and how many buy-ins deep you are. The good news: risk falls exponentially as you add buy-ins.",
+    concepts: [
+      { term: "Risk of ruin", def: "the probability you eventually lose your whole bankroll; it drops exponentially as the bankroll grows." },
+      { term: "Win rate", def: "how much you win on average, in big blinds per 100 hands (bb/100); a bigger edge means a smaller bankroll is safe." },
+      { term: "Standard deviation", def: "how swingy your results are, in bb/100 — higher variance games need a bigger bankroll." },
+      { term: "Buy-ins", def: "the usual way to size a bankroll: a 100 bb buy-in, so 3000 bb = 30 buy-ins. Cash rules of thumb are ~30-50." },
+      { term: "The exponent", def: "risk of ruin = e to the power of −(2 × win rate × bankroll ÷ std dev²); every whole step of that exponent roughly cuts the risk to a third." },
+    ],
+    objectives: ["See that risk of ruin depends on win rate, variance AND bankroll", "Know that adding buy-ins cuts risk exponentially", "Know that a thinner edge or a swingier game needs more buy-ins"],
+    example: "At 5 bb/100 and 100 bb/100 std dev: 20 buy-ins is ~14% risk, 30 is ~5%, 40 is ~2%.",
+    drillIds: ["m510-ror-small-edge", "m510-ror-bigger-edge", "m510-ror-more-roll", "m510-ror-safe"],
+  },
   // ---- Pillar 2 · decide ----
   {
     id: "P0", track: "P2", title: "Position and realization",
@@ -570,6 +584,10 @@ export const EXPLAIN: Record<string, string> = {
   "m59-spr-medium": "SPR = 48 / 12 = 4. This is the interesting middle: top pair is worth a bet or two but not your whole stack, so play carefully and don't auto-commit. Most single-raised pots land around here — neither pot-committed nor deep enough to need a monster.",
   "m59-spr-deep": "SPR = 90 / 6 = 15. A high SPR means you're NOT committed: top pair is just one pair, not a stack-off, and you need two pair, a set or better to play a big pot. Deep stacks with small pots make every hand play smaller than its raw strength.",
   "m59-spr-shove-commit": "SPR = 25 / 25 = 1. There's only one pot-sized bet left, so almost any pair or decent draw is committed — the flop is effectively shove-or-fold. The lower the SPR, the wider the range you're happy to get all-in with; at SPR 1 that range is very wide.",
+  "m510-ror-small-edge": "The exponent is 2 × 2.5 × 2000 ÷ 100² = 1, so the risk of ruin is e^-1 ≈ 37%. A thin 2.5 bb/100 edge with only 20 buy-ins busts about a third of the time — variance overwhelms a small edge. The smaller your win rate, the deeper a bankroll you need.",
+  "m510-ror-bigger-edge": "Exponent = 2 × 5 × 2000 ÷ 100² = 2, so risk ≈ e^-2 ≈ 14%. Just doubling the win rate (same bankroll, same variance) cut the risk from 37% to 14%. A bigger edge protects your bankroll as surely as more buy-ins do.",
+  "m510-ror-more-roll": "Exponent = 2 × 5 × 3000 ÷ 100² = 3, so risk ≈ e^-3 ≈ 5%. Ten more buy-ins dropped the risk from 14% to 5% — because risk of ruin falls EXPONENTIALLY with bankroll. That's why the standard advice for variance is simply 'add buy-ins.'",
+  "m510-ror-safe": "Exponent = 2 × 5 × 4000 ÷ 100² = 4, so risk ≈ e^-4 ≈ 2%. At 40 buy-ins a solid winner is very safe — which is exactly why the common cash rule of ~30-50 buy-ins exists: it pins the chance of ever going broke down to a couple of percent.",
   // P0 — position and realization
   "p0-oop-no-equity": "No equity, and a villain who bets when you check but never folds — betting only loses more. Out of position you can't take a free showdown, so check and fold. In position you could have checked it down; that's what position buys you.",
   "p0-ip-realize-equity": "Acting last, a check ends the round and buys a free river — you realize your full draw (9 outs, about 20%). Betting is a trap: this villain never folds, so a semi-bluff with no fold equity just burns chips. Out of position that same check would face a bet and realize nothing — the free card is what position buys you.",

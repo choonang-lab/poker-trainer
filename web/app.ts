@@ -7,7 +7,7 @@ import {
   STARTER_DRILLS, loadSession, serializeSession, gradeDrill,
   buildTree, actionEVs, truth, outs, calibration, leakReport,
   rankOf, suitOf, RNAMES, score7, madeHand, drawSuit, nutCategory, comboCount,
-  minDefenseFreq, bluffFrequency, icmEquity, requiredEquity, shoveEV, rangeVsRange, boardTexture, semiBluffBreakeven, spr,
+  minDefenseFreq, bluffFrequency, icmEquity, requiredEquity, shoveEV, rangeVsRange, boardTexture, semiBluffBreakeven, spr, riskOfRuin,
 } from "../engine.ts";
 import { MODULES, PRIMER, EXPLAIN, moduleStatus, currentStreak } from "../curriculum.ts";
 import type { Drill, Response, Action, State, Module } from "../contract.ts";
@@ -306,7 +306,7 @@ function playDrill(drill: Drill, tagText: string, contLabel: string, onCont: () 
   const freqAsk = drill.ask === "mdf" || drill.ask === "bluffs";
   const icmAsk = drill.ask === "icm" || drill.ask === "callequity";
   const shoveAsk = drill.ask === "shove";
-  const otherMathAsk = drill.ask === "semibluff" || drill.ask === "spr";
+  const otherMathAsk = drill.ask === "semibluff" || drill.ask === "spr" || drill.ask === "ror";
   const mathAsk = freqAsk || icmAsk || shoveAsk || otherMathAsk;
   if (freqAsk) {
     const P = s.pot, B = s.toCall ?? 0;
@@ -330,6 +330,10 @@ function playDrill(drill: Drill, tagText: string, contLabel: string, onCont: () 
     sec.append(el("div", "tag", tagText), el("h2", "title", drill.title), el("div", "meta", scenario));
   } else if (drill.ask === "spr") {
     const scenario = `Pot ${s.pot} bb · effective stack ${s.effStack} bb behind`;
+    sec.append(el("div", "tag", tagText), el("h2", "title", drill.title), el("div", "meta", scenario));
+  } else if (drill.ask === "ror") {
+    const bi = Math.round((s.bankroll ?? 0) / 100);
+    const scenario = `${s.winRate} bb/100 · std dev ${s.stdDev} bb/100 · bankroll ${bi} buy-ins`;
     sec.append(el("div", "tag", tagText), el("h2", "title", drill.title), el("div", "meta", scenario));
   } else if (drill.ask === "rangeadv") {
     const tex = boardTexture(s.board);
@@ -513,6 +517,22 @@ function buildControls(controls: HTMLElement, drill: Drill, onAnswer: (r: Respon
     const label = el("label", "prompt", "The SPR (stack ÷ pot)?") as HTMLLabelElement;
     label.htmlFor = "ans-spr";
     controls.append(label, input, go);
+  } else if (drill.ask === "ror") {
+    const input = el("input") as HTMLInputElement;
+    input.type = "number"; input.min = "0"; input.max = "100"; input.step = "0.1"; input.placeholder = "e.g. 14 (%)";
+    input.id = "ans-ror"; input.inputMode = "decimal"; input.setAttribute("aria-label", "Risk of ruin as a percentage");
+    const go = el("button", "primary", "Submit");
+    const submit = () => {
+      let v = Number(input.value);
+      if (!Number.isFinite(v) || input.value === "") return;
+      if (v > 1) v = v / 100; // percentage entry (14 -> 0.14)
+      onAnswer({ kind: "ror", value: v });
+    };
+    go.onclick = submit;
+    input.onkeydown = (e) => { if ((e as KeyboardEvent).key === "Enter") submit(); };
+    const label = el("label", "prompt", "Risk of ruin?") as HTMLLabelElement;
+    label.htmlFor = "ans-ror";
+    controls.append(label, input, go);
   } else if (drill.ask === "shove") {
     controls.append(el("label", "prompt", "Your move:"));
     for (const a of ["shove", "fold"] as const) {
@@ -611,6 +631,14 @@ function renderFeedback(drill: Drill, out: ReturnType<typeof gradeDrill>, contLa
   else if (drill.ask === "spr") {
     const t = spr(drill.state.effStack ?? 0, drill.state.pot);
     line = ok ? `Correct — SPR ${parseFloat(t.toFixed(2))}` : `True SPR: ${parseFloat(t.toFixed(2))} · off by ${parseFloat((r.estimateError ?? 0).toFixed(2))}`;
+  }
+  else if (drill.ask === "ror") {
+    const st = drill.state;
+    const t = riskOfRuin(st.winRate ?? 0, st.stdDev ?? 0, st.bankroll ?? 0);
+    const pct = (v: number) => `${parseFloat((v * 100).toFixed(1))}%`;
+    line = ok
+      ? `Correct — risk of ruin ${pct(t)}`
+      : `Risk of ruin: ${pct(t)} · off by ${parseFloat(((r.estimateError ?? 0) * 100).toFixed(1))} pts`;
   }
   else if (drill.ask === "rangeadv") {
     const t = rangeVsRange(drill.state.heroRange ?? [], drill.state.villain.range, drill.state.board);

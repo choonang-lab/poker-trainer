@@ -3,7 +3,7 @@ import {
   score5, score7, score7slow, cmpScore, equity, equityVsRange, outs,
   breakEven, callEV, decisionRegret, regret, estimateError, withinBand, brier, calibration, leakReport,
   hand, parseCard, card, rankOf, suitOf, FULL_DECK, madeHand, drawSuit, nutCategory, comboCount,
-  minDefenseFreq, bluffFrequency, icmEquity, requiredEquity, shoveEV, rangeVsRange, boardTexture, semiBluffBreakeven, spr,
+  minDefenseFreq, bluffFrequency, icmEquity, requiredEquity, shoveEV, rangeVsRange, boardTexture, semiBluffBreakeven, spr, riskOfRuin,
   equityLeaf, bestResponseEV, bestAction, truth, buildTree, realizationFactor,
   fieldEquity, validateAbstraction, ABSTRACTION_LIMITS,
   actionEVs, grade,
@@ -719,6 +719,8 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
           ? { kind: "semibluff", value: 0.3 }            // M5.7 semi-bluff break-even
           : d.ask === "spr"
           ? { kind: "spr", value: 4 }                    // M5.9 stack-to-pot ratio
+          : d.ask === "ror"
+          ? { kind: "ror", value: 0.1 }                  // M5.10 bankroll / risk of ruin
           : (d.state.abstraction.sizes.length === 0 || d.state.abstraction.heroFacesBet !== undefined)
             ? { kind: "action", action: { kind: "call" } } // pillar-1 call/fold OR hero-faces-bet root
             : { kind: "action", action: { kind: "check" } }; // pillar-2 (legal at root)
@@ -865,8 +867,8 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
   ok("M4 check regret == 3 bb", approx(m4check.result.regretBb, 3), `got ${m4check.result.regretBb}`);
   ok("M4 check -> m4.misses_street_sequence", m4check.result.leakTag === "m4.misses_street_sequence");
 
-  ok("STARTER_DRILLS now spans 190 drills incl M0/M3.5/M4/M4.5/M5.6/M5.7/M5.8/M5.9/P0/P1/P2/P2.5/P3/P3.4/P3.5/P4/P5/T1/T2",
-    STARTER_DRILLS.length === 190 &&
+  ok("STARTER_DRILLS now spans 194 drills incl M0/M3.5/M4/M4.5/M5.6/M5.7/M5.8/M5.9/M5.10/P0/P1/P2/P2.5/P3/P3.4/P3.5/P4/P5/T1/T2",
+    STARTER_DRILLS.length === 194 &&
     ["M0", "M3.5", "M4", "M4.5", "M5.6", "M5.7", "P0", "P1", "P3", "P4", "P5"].every((m) => STARTER_DRILLS.some((d) => d.module === m)));
 
   // M4.5 combo counting: base counts and blocker removal, all hand-checkable.
@@ -1008,6 +1010,17 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
   ok("m59-spr-deep truth = 15 (exact)", gradeDrill(balSess, "m59-spr-deep", { kind: "spr", value: 15 }, 0).result.estimateError === 0);
   ok("m59 overestimating the SPR -> m59.overrates_spr",
     gradeDrill(balSess, "m59-spr-committed", { kind: "spr", value: 6 }, 0).result.leakTag === "m59.overrates_spr");
+
+  // M5.10 bankroll / risk of ruin: exp(-2*wr*B/sd^2); adding buy-ins cuts risk exponentially.
+  ok("riskOfRuin: exp 1 (wr2.5,sd100,B2000) ≈ 0.368", approx(riskOfRuin(2.5, 100, 2000), Math.exp(-1), 0.001));
+  ok("riskOfRuin: exp 2 (wr5,sd100,B2000) ≈ 0.135", approx(riskOfRuin(5, 100, 2000), Math.exp(-2), 0.001));
+  ok("riskOfRuin: exp 4 (wr5,sd100,B4000) ≈ 0.018", approx(riskOfRuin(5, 100, 4000), Math.exp(-4), 0.001));
+  ok("riskOfRuin: more bankroll strictly lowers risk", riskOfRuin(5, 100, 4000) < riskOfRuin(5, 100, 2000));
+  ok("riskOfRuin: a non-winner is certain to bust (wr<=0 -> 1)", riskOfRuin(0, 100, 4000) === 1 && riskOfRuin(-1, 100, 9999) === 1);
+  const rorMid = gradeDrill(balSess, "m510-ror-bigger-edge", { kind: "ror", value: 0.14 }, 0).result;
+  ok("m510-ror-bigger-edge: 14% within band (ok)", rorMid.leakTag.endsWith(".ok"));
+  ok("m510 overestimating the risk -> m510.overrates_risk",
+    gradeDrill(balSess, "m510-ror-safe", { kind: "ror", value: 0.20 }, 0).result.leakTag === "m510.overrates_risk");
 
   // Check-raise-range drill: villain raises only what beats hero (policy + raise).
   const cr = byId("p5-vs-checkraise-range");

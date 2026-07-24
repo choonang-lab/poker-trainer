@@ -459,6 +459,18 @@ export function spr(stack: number, pot: number): number {
   return pot === 0 ? Infinity : stack / pot;
 }
 
+// Risk of ruin (M5.10): the probability of eventually busting a `bankroll` (in bb),
+// given a `winRate` and `stdDev` in bb per 100 hands. Continuous (Brownian) model:
+//   RoR = exp(-2 * winRate * bankroll / stdDev^2).
+// The exponent 2*wr*B/sd^2 is simple arithmetic; every whole step it grows, RoR shrinks
+// exponentially, so more bankroll pays off fast. A non-winner (winRate <= 0) is certain
+// to bust eventually (RoR = 1) — no bankroll is safe if you don't beat the game.
+export function riskOfRuin(winRate: number, stdDev: number, bankroll: number): number {
+  if (winRate <= 0) return 1;
+  if (stdDev <= 0) return 0;
+  return Math.exp((-2 * winRate * bankroll) / (stdDev * stdDev));
+}
+
 // ---- L4: grading primitives ----------------------------------------------
 export const breakEven = (pot: number, call: number): number => call / (pot + call);
 
@@ -1116,6 +1128,14 @@ export function grade(state: State, response: Response): Result {
     const tag = Math.abs(error) < 0.3 ? "p1.ok" : error > 0 ? "p1.overestimate" : "p1.underestimate";
     return { regretBb: 0, estimateError: Math.abs(error), leakTag: tag };
   }
+  if (response.kind === "ror") {
+    // Risk of ruin from win rate / std dev / bankroll. A 0.025 tolerance (2.5 pts) — RoR is
+    // exponential, so it's an estimate, not exact mental arithmetic.
+    const target = riskOfRuin(state.winRate ?? 0, state.stdDev ?? 0, state.bankroll ?? 0);
+    const error = response.value - target;
+    const tag = Math.abs(error) < 0.025 ? "p1.ok" : error > 0 ? "p1.overestimate" : "p1.underestimate";
+    return { regretBb: 0, estimateError: Math.abs(error), leakTag: tag };
+  }
   const evs = decisionEVs(state);
   const chosen = evs.find((e) => sameAction(e.action, response.action));
   if (!chosen) throw new Error(`grade: illegal action ${JSON.stringify(response.action)} for this spot`);
@@ -1224,6 +1244,8 @@ const LEAK_TABLE: Record<string, string> = {
   "M5.7:underestimate": "m57.underrates_fold_equity",
   "M5.9:overestimate": "m59.overrates_spr",
   "M5.9:underestimate": "m59.underrates_spr",
+  "M5.10:overestimate": "m510.overrates_risk",
+  "M5.10:underestimate": "m510.underrates_risk",
   "P0:overbet": "p0.bets_without_fold_equity",
   "P0:overfold": "p0.overfolds_in_position",
   "P1:overestimate": "p1.overvalues_holding",
@@ -3835,6 +3857,69 @@ export const STARTER_DRILLS: Drill[] = [
       villain: { range: [{ combo: hand("Ah", "Kh"), weight: 1 }] },
       abstraction: { sizes: [], streets: [], players: 2 },
       effStack: 25,
+    },
+  },
+  // ---- M5.10 Bankroll management: risk of ruin from win rate / variance / bankroll ----
+  // state.winRate & state.stdDev in bb/100, state.bankroll in bb. Drills use round exponents
+  // (2*wr*B/sd^2 = 1..4) so the risk lands on the memorable e^-1..e^-4 = 37/14/5/2%.
+  {
+    id: "m510-ror-small-edge",
+    module: "M5.10",
+    title: "Bankroll: a small edge, 20 buy-ins",
+    read: "You win 2.5 bb/100 with a standard deviation of 100 bb/100, and your bankroll is 2000 bb (20 buy-ins). Roughly what's your risk of going broke?",
+    ask: "ror",
+    // Exponent = 2*2.5*2000/100^2 = 1, so RoR = e^-1 ≈ 37%. A thin edge with only 20 buy-ins is dangerous —
+    // a third of the time you bust. The smaller your win rate, the bigger the bankroll you need to survive variance.
+    state: {
+      board: [], pot: 1, toAct: "hero",
+      villain: { range: [{ combo: hand("Ah", "Kh"), weight: 1 }] },
+      abstraction: { sizes: [], streets: [], players: 2 },
+      winRate: 2.5, stdDev: 100, bankroll: 2000,
+    },
+  },
+  {
+    id: "m510-ror-bigger-edge",
+    module: "M5.10",
+    title: "Bankroll: double the win rate, same 20 buy-ins",
+    read: "Same 20-buy-in (2000 bb) bankroll and 100 bb/100 standard deviation, but now you win 5 bb/100. Roughly what's your risk of ruin?",
+    ask: "ror",
+    // Exponent = 2*5*2000/100^2 = 2, so RoR = e^-2 ≈ 14%. Doubling your win rate roughly halves the exponent's
+    // partner and cuts the risk from 37% to 14%. A bigger edge is worth as much as a bigger bankroll.
+    state: {
+      board: [], pot: 1, toAct: "hero",
+      villain: { range: [{ combo: hand("Ah", "Kh"), weight: 1 }] },
+      abstraction: { sizes: [], streets: [], players: 2 },
+      winRate: 5, stdDev: 100, bankroll: 2000,
+    },
+  },
+  {
+    id: "m510-ror-more-roll",
+    module: "M5.10",
+    title: "Bankroll: 30 buy-ins",
+    read: "Same 5 bb/100 win rate and 100 bb/100 standard deviation, but you build the bankroll to 3000 bb (30 buy-ins). Roughly what's your risk of ruin?",
+    ask: "ror",
+    // Exponent = 2*5*3000/100^2 = 3, so RoR = e^-3 ≈ 5%. Ten more buy-ins takes the risk from 14% to 5%. Risk of
+    // ruin falls EXPONENTIALLY with bankroll, which is why 'add buy-ins' is almost always the answer to variance.
+    state: {
+      board: [], pot: 1, toAct: "hero",
+      villain: { range: [{ combo: hand("Ah", "Kh"), weight: 1 }] },
+      abstraction: { sizes: [], streets: [], players: 2 },
+      winRate: 5, stdDev: 100, bankroll: 3000,
+    },
+  },
+  {
+    id: "m510-ror-safe",
+    module: "M5.10",
+    title: "Bankroll: 40 buy-ins",
+    read: "Same 5 bb/100 win rate and 100 bb/100 standard deviation, with a 4000 bb (40 buy-ins) bankroll. Roughly what's your risk of ruin?",
+    ask: "ror",
+    // Exponent = 2*5*4000/100^2 = 4, so RoR = e^-4 ≈ 2%. At 40 buy-ins a solid winner is very safe. This is why
+    // the common cash rule is ~30-50 buy-ins: it drives the risk of ever going broke down to a couple of percent.
+    state: {
+      board: [], pot: 1, toAct: "hero",
+      villain: { range: [{ combo: hand("Ah", "Kh"), weight: 1 }] },
+      abstraction: { sizes: [], streets: [], players: 2 },
+      winRate: 5, stdDev: 100, bankroll: 4000,
     },
   },
   {
