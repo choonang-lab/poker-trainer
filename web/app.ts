@@ -7,7 +7,7 @@ import {
   STARTER_DRILLS, loadSession, serializeSession, gradeDrill,
   buildTree, actionEVs, truth, outs, calibration, leakReport,
   rankOf, suitOf, RNAMES, score7, madeHand, drawSuit, nutCategory, comboCount,
-  minDefenseFreq, bluffFrequency,
+  minDefenseFreq, bluffFrequency, icmEquity,
 } from "../engine.ts";
 import { MODULES, PRIMER, EXPLAIN, moduleStatus, currentStreak } from "../curriculum.ts";
 import type { Drill, Response, Action, State, Module } from "../contract.ts";
@@ -304,12 +304,21 @@ function playDrill(drill: Drill, tagText: string, contLabel: string, onCont: () 
   // Balance-math drills (mdf/bluffs) are pure pot/bet arithmetic — no board, hero
   // hand, or villain holding. Render just the scenario line built from pot & bet.
   const freqAsk = drill.ask === "mdf" || drill.ask === "bluffs";
+  const icmAsk = drill.ask === "icm";
+  const mathAsk = freqAsk || icmAsk;
   if (freqAsk) {
     const P = s.pot, B = s.toCall ?? 0;
     const scenario = drill.ask === "mdf"
       ? `Villain bets ${B} into a pot of ${P}.`
       : `You bet ${B} into a pot of ${P} on the river.`;
     sec.append(el("div", "tag", tagText), el("h2", "title", drill.title), el("div", "meta", scenario));
+  } else if (icmAsk) {
+    const seat = s.heroSeat ?? 0;
+    const stacksStr = (s.stacks ?? []).map((c, i) => i === seat ? `<b>${c} (you)</b>` : `${c}`).join(" · ");
+    const prizesStr = (s.payouts ?? []).map((p) => `${Math.round(p * 100)}%`).join(" / ");
+    sec.append(el("div", "tag", tagText), el("h2", "title", drill.title),
+      el("div", "meta", `Stacks: ${stacksStr}`),
+      el("div", "meta", `Prizes: ${prizesStr} of the pool`));
   } else sec.append(
     el("div", "tag", tagText),
     el("h2", "title", drill.title),
@@ -341,7 +350,7 @@ function playDrill(drill: Drill, tagText: string, contLabel: string, onCont: () 
     // A preflop grade enumerates a full 5-card runout (seconds on some devices).
     // Swap the controls for a "Checking…" note and defer, so the UI repaints
     // before the synchronous enumeration blocks the main thread.
-    if (drill.state.board.length === 0 && !freqAsk) {
+    if (drill.state.board.length === 0 && !mathAsk) {
       (sec.querySelector(".controls") as HTMLElement | null)?.replaceChildren(el("div", "calc", "Checking…"));
       setTimeout(finish, 30);
     } else finish();
@@ -407,6 +416,22 @@ function buildControls(controls: HTMLElement, drill: Drill, onAnswer: (r: Respon
     const label = el("label", "prompt", prompt) as HTMLLabelElement;
     label.htmlFor = "ans-freq";
     controls.append(label, input, go);
+  } else if (drill.ask === "icm") {
+    const input = el("input") as HTMLInputElement;
+    input.type = "number"; input.min = "0"; input.max = "100"; input.step = "0.1"; input.placeholder = "e.g. 33 (%)";
+    input.id = "ans-icm"; input.inputMode = "decimal"; input.setAttribute("aria-label", "Your share of the prize pool as a percentage");
+    const go = el("button", "primary", "Submit");
+    const submit = () => {
+      let v = Number(input.value);
+      if (!Number.isFinite(v) || input.value === "") return;
+      if (v > 1) v = v / 100; // percentage entry (33 -> 0.33), same as the equity input
+      onAnswer({ kind: "icm", value: v });
+    };
+    go.onclick = submit;
+    input.onkeydown = (e) => { if ((e as KeyboardEvent).key === "Enter") submit(); };
+    const label = el("label", "prompt", "Your share of the prize pool?") as HTMLLabelElement;
+    label.htmlFor = "ans-icm";
+    controls.append(label, input, go);
   } else if (drill.ask === "category" || drill.ask === "nuts") {
     const nuts = drill.ask === "nuts";
     controls.append(el("label", "prompt", nuts ? "Best possible hand here (the nuts)?" : "Name your made hand:"));
@@ -471,6 +496,13 @@ function renderFeedback(drill: Drill, out: ReturnType<typeof gradeDrill>, contLa
     line = ok  // `ok` mirrors the engine's .ok tag, so UI and grading agree on the tolerance
       ? `Correct — ${pct(t)}`
       : `True ${noun}: ${pct(t)} · off by ${parseFloat(((r.estimateError ?? 0) * 100).toFixed(1))} pts`;
+  }
+  else if (drill.ask === "icm") {
+    const t = icmEquity(drill.state.stacks ?? [], drill.state.payouts ?? [])[drill.state.heroSeat ?? 0] ?? 0;
+    const pct = (v: number) => `${parseFloat((v * 100).toFixed(1))}%`;
+    line = ok
+      ? `Correct — ${pct(t)} of the pool`
+      : `True share: ${pct(t)} · off by ${parseFloat(((r.estimateError ?? 0) * 100).toFixed(1))} pts`;
   }
   else line = r.regretBb <= 1e-9 ? "Optimal." : `Regret ${r.regretBb.toFixed(2)} bb`;
   // The raw leak tag (e.g. "p2.bets_into_strong_range") is internal taxonomy; the

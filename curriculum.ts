@@ -378,6 +378,20 @@ export const MODULES: Module[] = [
     example: "If a villain raises only hands that beat you, betting just gets you raised off your equity.",
     drillIds: ["p5-exploit-overfolder", "p5-value-vs-raiser", "p5-thin-value-vs-range", "p5-vs-checkraise-range", "p5-exploit-floater", "p5-exploit-maniac", "p5-exploit-nit", "p5-thin-value-station"],
   },
+  {
+    id: "T1", track: "P2", title: "Tournament ICM",
+    preface: "In a tournament you play for prize money, not chips — and the two aren't the same. Because you can't win more than first place and each pay jump is worth real money, a big stack's chips are worth less than their face value and a short stack's are worth more. This is the Independent Chip Model (ICM).",
+    concepts: [
+      { term: "ICM", def: "the Independent Chip Model: converts chip stacks and the payout structure into each player's expected prize money ($-equity)." },
+      { term: "Chips ≠ money", def: "your share of the prize pool is not your share of the chips — except in a winner-take-all, where they're equal." },
+      { term: "$-equity", def: "your expected prize: the average, weighted by how likely you are to finish in each paid place." },
+      { term: "Pay jump", def: "the increase in prize from one finishing place to the next; jumps are why survival has value." },
+      { term: "Bubble", def: "the spot just before the money — one more bust-out and the rest all get paid, so short stacks tighten up to survive." },
+    ],
+    objectives: ["See that chips aren't money once there's a payout ladder", "Read a big stack's compressed share and a short stack's premium", "Value survival on the bubble"],
+    example: "With 70% of the chips and prizes of 50/30/20, your equity is only about 44% of the pool — you can't win more than first.",
+    drillIds: ["t1-icm-winner-take-all", "t1-icm-equal-stacks", "t1-icm-chip-leader", "t1-icm-short-stack", "t1-icm-bubble"],
+  },
 ];
 
 // Post-answer explanations, keyed by drill id — the WHY behind each spot, shown
@@ -563,6 +577,11 @@ export const EXPLAIN: Record<string, string> = {
   "p5-vs-checkraise-range": "Villain raises only hands that beat you and folds the rest, so betting gets raised when you're behind and folds out what you beat. Check and take a free showdown.",
   "p5-thin-value-vs-range": "Villain continues only with better hands, so betting gets called only when you're beat. Check to show down and beat the hands that would have folded.",
   "p5-thin-value-station": "A calling station never folds, so widen the hands you bet for value and stop bluffing. Top pair with a weak kicker is often a check against a thinking player, but the station pays you off with worse aces and second-best kings — bet 0.75 (1.61) crushes checking (0.94). Thin value is the whole exploit against someone who can't fold.",
+  "t1-icm-winner-take-all": "Winner-take-all is the one time chips ARE money: only first place pays, so your equity is exactly your chip fraction. 6000 of 10000 chips = 60% of the chips = 60% of the single prize. Add a second or third prize and this stops being true.",
+  "t1-icm-equal-stacks": "With equal stacks everyone is equally likely to finish anywhere, so each of three players gets the average of the prizes: (50 + 30 + 20) / 3 = 33.3% of the pool — not the 50% first prize. Your $-equity is an average over every place you might finish, not just the top.",
+  "t1-icm-chip-leader": "This is the heart of ICM. You hold 70% of the chips but only about 44% of the money: you can never win more than first place, and the 30% and 20% prizes are still up for grabs to the others. A big stack's chips are worth less than their face value — so don't gamble it like it's a cash-game pile.",
+  "t1-icm-short-stack": "The mirror of the chip leader: with just 10% of the chips your share is about 26% of the pool. Simply reaching the money is worth something, so the short stack's chips are worth MORE per chip than the big stack's. Survival has real value — which is exactly why you don't punt a short stack away lightly.",
+  "t1-icm-bubble": "On the bubble — four left, three paid — even the short stack with 10% of the chips is worth about 14.5% of the pool, because one more bust-out locks up a min-cash for everyone else. Every pay jump matters, so short stacks tighten up and big stacks apply pressure knowing others can't call lightly.",
 };
 
 // A module is "done" once every one of its drills has been graded at least once

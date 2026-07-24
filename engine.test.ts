@@ -3,7 +3,7 @@ import {
   score5, score7, score7slow, cmpScore, equity, equityVsRange, outs,
   breakEven, callEV, decisionRegret, regret, estimateError, withinBand, brier, calibration, leakReport,
   hand, parseCard, card, rankOf, suitOf, FULL_DECK, madeHand, drawSuit, nutCategory, comboCount,
-  minDefenseFreq, bluffFrequency,
+  minDefenseFreq, bluffFrequency, icmEquity,
   equityLeaf, bestResponseEV, bestAction, truth, buildTree, realizationFactor,
   fieldEquity, validateAbstraction, ABSTRACTION_LIMITS,
   actionEVs, grade,
@@ -707,6 +707,8 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
           ? { kind: "mdf", value: 0.5 }                  // M5.7 minimum defense frequency
           : d.ask === "bluffs"
           ? { kind: "bluffs", value: 0.33 }              // M5.7 bluff frequency
+          : d.ask === "icm"
+          ? { kind: "icm", value: 0.33 }                 // T1 tournament ICM
           : (d.state.abstraction.sizes.length === 0 || d.state.abstraction.heroFacesBet !== undefined)
             ? { kind: "action", action: { kind: "call" } } // pillar-1 call/fold OR hero-faces-bet root
             : { kind: "action", action: { kind: "check" } }; // pillar-2 (legal at root)
@@ -853,8 +855,8 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
   ok("M4 check regret == 3 bb", approx(m4check.result.regretBb, 3), `got ${m4check.result.regretBb}`);
   ok("M4 check -> m4.misses_street_sequence", m4check.result.leakTag === "m4.misses_street_sequence");
 
-  ok("STARTER_DRILLS now spans 163 drills incl M0/M3.5/M4/M4.5/M5.6/M5.7/P0/P1/P2/P2.5/P3/P3.4/P3.5/P4/P5",
-    STARTER_DRILLS.length === 163 &&
+  ok("STARTER_DRILLS now spans 168 drills incl M0/M3.5/M4/M4.5/M5.6/M5.7/P0/P1/P2/P2.5/P3/P3.4/P3.5/P4/P5/T1",
+    STARTER_DRILLS.length === 168 &&
     ["M0", "M3.5", "M4", "M4.5", "M5.6", "M5.7", "P0", "P1", "P3", "P4", "P5"].every((m) => STARTER_DRILLS.some((d) => d.module === m)));
 
   // M4.5 combo counting: base counts and blocker removal, all hand-checkable.
@@ -894,6 +896,23 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
   ok("m57-bluff-pot-bet: 33.3% within tolerance (ok)", bluffPot.leakTag.endsWith(".ok"));
   const bluffOver = gradeDrill(balSess, "m57-bluff-half-pot", { kind: "bluffs", value: 0.5 }, 0).result;
   ok("m57-bluff-half-pot overbluff (50% vs 25%) -> m57.overbluffs", bluffOver.leakTag === "m57.overbluffs");
+
+  // T1 Tournament ICM: Malmuth-Harville expected prize, all hand-checkable.
+  ok("icmEquity: equal stacks split the pool evenly", approx(icmEquity([1, 1, 1], [0.5, 0.3, 0.2])[0], 1 / 3));
+  ok("icmEquity: winner-take-all = chip fraction", approx(icmEquity([6000, 3000, 1000], [1, 0, 0])[0], 0.6)
+    && approx(icmEquity([6000, 3000, 1000], [1, 0, 0])[2], 0.1));
+  ok("icmEquity: chip leader (70% chips) worth only ~0.435 of the pool", approx(icmEquity([7000, 2000, 1000], [0.5, 0.3, 0.2])[0], 0.4353, 0.001));
+  ok("icmEquity: short stack (10% chips) worth ~0.256 of the pool", approx(icmEquity([7000, 2000, 1000], [0.5, 0.3, 0.2])[2], 0.2558, 0.001));
+  ok("icmEquity: shares sum to 1 (payouts summing to 1)", approx(icmEquity([7000, 2000, 1000], [0.5, 0.3, 0.2]).reduce((a, b) => a + b, 0), 1));
+  ok("icmEquity: bubble short stack still ~0.145", approx(icmEquity([5000, 2500, 1500, 1000], [0.5, 0.3, 0.2])[3], 0.1454, 0.001));
+  const icmLeader = gradeDrill(balSess, "t1-icm-chip-leader", { kind: "icm", value: 0.435 }, 0).result;
+  ok("t1-icm-chip-leader: 0.435 is within tolerance (ok)", icmLeader.leakTag.endsWith(".ok"));
+  const icmOver = gradeDrill(balSess, "t1-icm-chip-leader", { kind: "icm", value: 0.70 }, 0).result;
+  ok("t1 overvaluing chips (0.70 vs 0.435) -> t1.overvalues_chips", icmOver.leakTag === "t1.overvalues_chips");
+  const icmShortUnder = gradeDrill(balSess, "t1-icm-short-stack", { kind: "icm", value: 0.10 }, 0).result;
+  ok("t1 undervaluing the short stack (0.10 vs 0.256) -> t1.undervalues_chips", icmShortUnder.leakTag === "t1.undervalues_chips");
+  ok("t1-icm-winner-take-all truth = chip fraction 0.6 (exact)",
+    gradeDrill(balSess, "t1-icm-winner-take-all", { kind: "icm", value: 0.6 }, 0).result.estimateError === 0);
 
   // Check-raise-range drill: villain raises only what beats hero (policy + raise).
   const cr = byId("p5-vs-checkraise-range");

@@ -350,6 +350,30 @@ export function bluffFrequency(pot: number, bet: number): number {
   return bet / (pot + 2 * bet);
 }
 
+// Tournament ICM (T1) — the depth-zero slice of tournament play, exactly like pot
+// odds / combos / MDF are for cash. Given chip `stacks` and a `payouts` structure
+// (prize per finishing place, in any units), returns each seat's expected prize by
+// the Malmuth-Harville model: P(a seat finishes 1st) is its share of the chips;
+// remove it and repeat for 2nd, 3rd, … The point it teaches: chips are NOT money —
+// a big stack's prize is far less than its chip fraction (it can't win more than
+// first), and a short stack's is more (survival has value). O(n!/(n-M)!) over the
+// M paid places — fine for the small fields tournaments actually reach.
+export function icmEquity(stacks: number[], payouts: number[]): number[] {
+  const eq = stacks.map(() => 0);
+  const recurse = (rem: number[], place: number, prob: number): void => {
+    if (place >= payouts.length || rem.length === 0) return;
+    const remTotal = rem.reduce((a, i) => a + stacks[i], 0);
+    if (remTotal <= 0) return;
+    for (const i of rem) {
+      const p = prob * (stacks[i] / remTotal);
+      eq[i] += p * payouts[place];
+      recurse(rem.filter((j) => j !== i), place + 1, p);
+    }
+  };
+  recurse(stacks.map((_, i) => i), 0, 1);
+  return eq;
+}
+
 // ---- L4: grading primitives ----------------------------------------------
 export const breakEven = (pot: number, call: number): number => call / (pot + call);
 
@@ -956,6 +980,15 @@ export function grade(state: State, response: Response): Result {
     const tag = Math.abs(error) < 5e-3 ? "p1.ok" : error > 0 ? "p1.overbluffs" : "p1.underbluffs";
     return { regretBb: 0, estimateError: Math.abs(error), leakTag: tag };
   }
+  if (response.kind === "icm") {
+    // Hero's ICM $-equity as a share of the prize pool, from the declared stacks/payouts.
+    // A 0.02 tolerance (2 points of the pool) counts as "ok". Over/under keep distinct
+    // suffixes so the module can distinguish overvaluing chips from undervaluing them.
+    const target = icmEquity(state.stacks ?? [], state.payouts ?? [])[state.heroSeat ?? 0] ?? 0;
+    const error = response.value - target;
+    const tag = Math.abs(error) < 0.02 ? "p1.ok" : error > 0 ? "p1.overvalues" : "p1.undervalues";
+    return { regretBb: 0, estimateError: Math.abs(error), leakTag: tag };
+  }
   const evs = decisionEVs(state);
   const chosen = evs.find((e) => sameAction(e.action, response.action));
   if (!chosen) throw new Error(`grade: illegal action ${JSON.stringify(response.action)} for this spot`);
@@ -1052,6 +1085,8 @@ const LEAK_TABLE: Record<string, string> = {
   "M5.7:underdefends": "m57.underdefends",
   "M5.7:overbluffs": "m57.overbluffs",
   "M5.7:underbluffs": "m57.underbluffs",
+  "T1:overvalues": "t1.overvalues_chips",
+  "T1:undervalues": "t1.undervalues_chips",
   "P0:overbet": "p0.bets_without_fold_equity",
   "P0:overfold": "p0.overfolds_in_position",
   "P1:overestimate": "p1.overvalues_holding",
@@ -3249,6 +3284,85 @@ export const STARTER_DRILLS: Drill[] = [
       board: [], pot: 1, toCall: 0.5, toAct: "hero",
       villain: { range: [{ combo: hand("Ah", "Kh"), weight: 1 }] },
       abstraction: { sizes: [], streets: [], players: 2 },
+    },
+  },
+  // ---- T1 Tournament ICM: chips are not money (pure stacks/payouts math, no tree) ----
+  // These carry no board/hero/villain; state.stacks = chips per seat, state.payouts =
+  // prize per finishing place (as a share of the pool), state.heroSeat = which seat is you.
+  // The dummy villain satisfies the type; nothing here touches the tree.
+  {
+    id: "t1-icm-winner-take-all",
+    module: "T1",
+    title: "ICM: your share when it's winner-take-all",
+    read: "Only first place is paid. What share of the prize pool is your equity?",
+    ask: "icm",
+    // Winner-take-all is the ONE case where chips = money: your $-share equals your chip fraction.
+    // 6000 of 10000 chips = 60% of the chips = 60% of the (single) prize.
+    state: {
+      board: [], pot: 1, toAct: "hero",
+      villain: { range: [{ combo: hand("Ah", "Kh"), weight: 1 }] },
+      abstraction: { sizes: [], streets: [], players: 3 },
+      stacks: [6000, 3000, 1000], payouts: [1, 0, 0], heroSeat: 0,
+    },
+  },
+  {
+    id: "t1-icm-equal-stacks",
+    module: "T1",
+    title: "ICM: your share with equal stacks",
+    read: "Three equal stacks; prizes are 50% / 30% / 20% of the pool. What's your share?",
+    ask: "icm",
+    // Equal stacks -> equal $: each of three players averages (50+30+20)/3 = 33.3% of the pool,
+    // NOT the 50% first prize. Your equity is the average over every place you might finish.
+    state: {
+      board: [], pot: 1, toAct: "hero",
+      villain: { range: [{ combo: hand("Ah", "Kh"), weight: 1 }] },
+      abstraction: { sizes: [], streets: [], players: 3 },
+      stacks: [4000, 4000, 4000], payouts: [0.5, 0.3, 0.2], heroSeat: 0,
+    },
+  },
+  {
+    id: "t1-icm-chip-leader",
+    module: "T1",
+    title: "ICM: the chip leader's real share",
+    read: "You have 70% of the chips; prizes are 50% / 30% / 20%. Is your equity 70% of the pool?",
+    ask: "icm",
+    // The core ICM lesson. 7000 of 10000 chips is 70% of the chips but only ~44% of the money: you
+    // can't win more than first place, and the pay jumps compress a big stack's value. Chips are not money.
+    state: {
+      board: [], pot: 1, toAct: "hero",
+      villain: { range: [{ combo: hand("Ah", "Kh"), weight: 1 }] },
+      abstraction: { sizes: [], streets: [], players: 3 },
+      stacks: [7000, 2000, 1000], payouts: [0.5, 0.3, 0.2], heroSeat: 0,
+    },
+  },
+  {
+    id: "t1-icm-short-stack",
+    module: "T1",
+    title: "ICM: the short stack's real share",
+    read: "Same table, but now you're the short stack with 10% of the chips. What's your share?",
+    ask: "icm",
+    // The mirror of the chip-leader drill (same table, heroSeat = the 1000 stack). 10% of the chips is worth
+    // ~26% of the money: survival has value, so a short stack's chips are worth MORE per chip than a big stack's.
+    state: {
+      board: [], pot: 1, toAct: "hero",
+      villain: { range: [{ combo: hand("Ah", "Kh"), weight: 1 }] },
+      abstraction: { sizes: [], streets: [], players: 3 },
+      stacks: [7000, 2000, 1000], payouts: [0.5, 0.3, 0.2], heroSeat: 2,
+    },
+  },
+  {
+    id: "t1-icm-bubble",
+    module: "T1",
+    title: "ICM: the short stack on the bubble",
+    read: "Four players left, three get paid (50% / 30% / 20%). You're the short stack. What's your share?",
+    ask: "icm",
+    // On the bubble the short stack still has real equity (~14.5% with 10% of the chips) because reaching the
+    // money at all is worth something. Every pay jump matters, which is why survival tightens up short stacks.
+    state: {
+      board: [], pot: 1, toAct: "hero",
+      villain: { range: [{ combo: hand("Ah", "Kh"), weight: 1 }] },
+      abstraction: { sizes: [], streets: [], players: 4 },
+      stacks: [5000, 2500, 1500, 1000], payouts: [0.5, 0.3, 0.2], heroSeat: 3,
     },
   },
   {

@@ -55,7 +55,7 @@ repetition) with a guided-curriculum PWA on top.
 
 ## State as of 2026-07 (commit 6b80618)
 
-- **549 tests passing**, both type-checks clean, deployed bundle in sync.
+- **559 tests passing**, both type-checks clean, deployed bundle in sync.
 - **Review fixes (2026-07-18, post-audit), cache v21:** (1) `m2-combo-draw`
   board was `9s 8h 2c` (an 8-out spot, 36.9%) but its title/EXPLAIN teach the
   15-out flush+open-ender combo — fixed to `9s 8s 2c` (56.3%); a learner who
@@ -129,7 +129,7 @@ repetition) with a guided-curriculum PWA on top.
 
 Single scan of everything still open after 19 shipped items. The numbered "Next up"
 log below is a DONE-history with declines interleaved; this section is the live to-do.
-Baseline right now: **163 drills, 19 modules, 549 tests, cache v50**, live & in sync.
+Baseline right now: **168 drills, 20 modules, 559 tests, cache v51**, live & in sync.
 
 ### A. Addable now — content-only, no engine change (pick any, each ~1 commit)
 - **More depth in any module.** The engine supports far more than is authored; every
@@ -695,6 +695,33 @@ break that or need a fundamentally different solver. Logged so they aren't re-sc
      `actionEVs(...).find(bet).action`, never a literal `{kind:"bet",size:1.0}` (throws "illegal action").
    - Pillar 2 now 62 drills. The remaining gap vs Pillar 1 is structural (P0/P1/P4 engine-capped) +
      the genuinely-advanced skills (GTO/ICM/true-multiway/preflop-postflop) that need new engines.
+
+30. ~~**Scoping the "different engine" builds → built ICM**~~ — DONE 2026-07-24 (cache v51, 559
+   tests, 168 drills, 20 modules). Owner asked to scope the engine-capped areas; I ranked them
+   (ICM=S, P0 realization=S-M/villain-modeling-not-engine, preflop-decisions=M-L/breaks exact tests,
+   true-multiway=L, CFR/GTO=XL/different product) and owner picked **ICM** — the standout, because
+   it opens TOURNAMENTS (a topic that was 100% absent) for a small, on-pattern, zero-risk effort,
+   exactly like M5.7 balance math. This is the **first new PILLAR-2 topic added by engine work**,
+   and the first drill module that isn't cash-game.
+   - NEW pure fn `icmEquity(stacks, payouts)` — Malmuth-Harville (recursively assign 1st place by
+     chip share, remove, repeat). ~15 lines, O(n!/(n-M)!), fine for tournament-sized fields. It's
+     the depth-zero slice of tournaments, like pot-odds/combos/MDF are for cash — NO tree, NO villain.
+   - NEW response kind `icm` (hero's $-share of the pool, 0-1) + grade() branch (distance, 0.02 tol,
+     tags t1.overvalues_chips / t1.undervalues_chips via LEAK_TABLE). NEW State fields `stacks`,
+     `payouts`, `heroSeat` (contract.ts, additive/optional — the tree never reads them).
+   - NEW module **T1 · Tournament ICM** (track P2, unlocks last) with 5 drills: winner-take-all
+     (chips=money, 0.6=chip%), equal stacks (0.333, the average not the top prize), chip-leader
+     (70% chips → only ~44% of $ — the core lesson), short-stack (10% chips → ~26%, same table
+     different seat), bubble (4-handed/3-paid short stack ~14.5%). Exact anchors: equal & WTA.
+   - UI: new `icmAsk` branch renders "Stacks: 7000 (you) · 2000 · 1000 / Prizes: 50%/30%/20%" (no
+     board/hero/villain), a % input, and feedback "True share: 43.5% · off by 26.5 pts". Broadened
+     the preflop-defer guard from `!freqAsk` to `!mathAsk` (icm has an empty board but must not
+     trigger the "Checking…" enumerate-defer). Browser-verified all paths incl. the classic
+     "70% (chips=money)" mistake → red ring + correct 43.5%.
+   - GOTCHA: the grade-all-drills test loop needed an `icm` branch in its response selector, else it
+     falls through to the action path and crashes on an ICM state (empty abstraction → call/fold).
+   - Contract note: like minDefenseFreq/bluffFrequency, `icmEquity` is declared in contract.ts but
+     the depth-zero helpers aren't pinned in contract.conformance.ts (kept that pattern).
 
 ## Machine-specific notes for macOS
 
