@@ -55,7 +55,7 @@ repetition) with a guided-curriculum PWA on top.
 
 ## State as of 2026-07 (commit 6b80618)
 
-- **589 tests passing**, both type-checks clean, deployed bundle in sync.
+- **595 tests passing**, both type-checks clean, deployed bundle in sync.
 - **Review fixes (2026-07-18, post-audit), cache v21:** (1) `m2-combo-draw`
   board was `9s 8h 2c` (an 8-out spot, 36.9%) but its title/EXPLAIN teach the
   15-out flush+open-ender combo — fixed to `9s 8s 2c` (56.3%); a learner who
@@ -129,7 +129,7 @@ repetition) with a guided-curriculum PWA on top.
 
 Single scan of everything still open after 19 shipped items. The numbered "Next up"
 log below is a DONE-history with declines interleaved; this section is the live to-do.
-Baseline right now: **180 drills, 22 modules, 589 tests, cache v54**, live & in sync.
+Baseline right now: **184 drills, 22 modules, 595 tests, cache v55**, live & in sync.
 
 ### A. Addable now — content-only, no engine change (pick any, each ~1 commit)
 - **More depth in any module.** The engine supports far more than is authored; every
@@ -797,6 +797,19 @@ break that or need a fundamentally different solver. Logged so they aren't re-sc
    - This is Pillar 1's capstone: hand-vs-range (M5) → range-vs-range (M5.8). NEXT engine options
      (still on the menu): bluff/semi-bluff break-even constants, SPR, bankroll/risk-of-ruin — all
      small pure-math; or flop range advantage is now proven fast enough for more range content.
+
+34. ~~**M5.8 deeper range advantage: +4 drills (dynamic / even / caller's seat)**~~ — DONE
+   2026-07-24 (cache v55, 595 tests, 184 drills). Deeper content on the M5.8 engine (no new engine),
+   the same RA_RAISER vs RA_CALLER matchup, new CONCEPTS beyond flop textures:
+   - **Dynamic (a turn card shifts the advantage)** — a discrimination pair on the K-Q-3 flop: turn 2
+     (blank) → **0.815** (edge holds/grows, keep barreling) vs turn J (completes the caller's straights)
+     → **0.554** (edge collapses toward even, slow down). Range advantage is temporal, not fixed.
+   - **Even ranges** — Q-J-8 hits both → **0.505**, nobody owns the board ("no advantage" is a read).
+   - **Caller's seat** — J-T-9 with heroRange = RA_CALLER → **0.69**: the elegant flip-side of the
+     existing raiser J-T-9 drill (0.31); a test asserts they're exact complements (sum to 1.0).
+   - Turn drills exercise the 4-card-board sub-case of `rangeadv`; `boardTexture` correctly labels
+     K-Q-3-J "rainbow · connected" (the J makes it connected — reinforces the scare-card lesson).
+     Browser-verified the scare-turn drill end-to-end (55.4%, "you're ahead"). M5.8 now 8 drills.
 
 ## Machine-specific notes for macOS
 

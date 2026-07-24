@@ -261,7 +261,8 @@ export const MODULES: Module[] = [
     ],
     objectives: ["Judge whose range is ahead from the board texture", "C-bet big on boards that favor your range, check on boards that don't", "Spot nut-advantage boards where you can overbet"],
     example: "The same raiser is ~92% on A-K-5 but only ~31% on J-T-9 — the board, not the hand, flips the advantage.",
-    drillIds: ["m58-high-board-advantage", "m58-coordinated-board-disadvantage", "m58-paired-board-nut-advantage", "m58-low-board-thin-advantage"],
+    drillIds: ["m58-high-board-advantage", "m58-coordinated-board-disadvantage", "m58-paired-board-nut-advantage", "m58-low-board-thin-advantage",
+      "m58-turn-blank-holds", "m58-turn-scare-shrinks", "m58-even-ranges", "m58-caller-attacks"],
   },
   // ---- Pillar 2 · decide ----
   {
@@ -543,6 +544,10 @@ export const EXPLAIN: Record<string, string> = {
   "m58-coordinated-board-disadvantage": "Same ranges, but J-T-9 flips everything: the caller now has the sets, two pairs and made straights, while your overpairs are exposed. Your range crashes to about 31% — a range DISADVANTAGE. The lesson is that the BOARD, not your hand, decides who's ahead: on flops that hit the caller, check far more.",
   "m58-paired-board-nut-advantage": "A-A-4 gives you more than an edge — it gives you the nuts advantage. You hold the aces and big pairs; the caller has essentially nothing that beats you, so your range sits near 95%. Boards where only one range can hold the nuts are exactly where overbets and big polarized bets come from.",
   "m58-low-board-thin-advantage": "7-6-5 is the middle ground: your overpairs are still ahead of the caller's range, but only about 67% — their pairs and connectors have caught up a lot. Ahead-but-thin means a smaller c-bet or checking more often, not the barrage you'd fire on A-K-5. Range advantage is a dial you turn, not a switch you flip.",
+  "m58-turn-blank-holds": "The 2 is a blank — it helps neither range — so your flop advantage doesn't just hold, it ticks up to about 82% as the caller's missed hands stay stuck behind. When the turn changes nothing, nothing about your plan changes either: keep barreling.",
+  "m58-turn-scare-shrinks": "The jack is the opposite of a blank: it completes the caller's J-T for a straight and brings sets and two pairs, so your commanding flop edge collapses to about 55% — barely ahead. Range advantage is dynamic. A card that slots into the caller's range hands equity back, so read the turn and slow way down when the scare lands.",
+  "m58-even-ranges": "Q-J-8 hits BOTH ranges — your overpairs and ace-queen against the caller's queen-jack, jack-ten and pairs — so it's about a coin flip, ~50%. When neither range is ahead, nobody gets to bet freely: size down, check more, and don't fire big into a board you don't own. 'No range advantage' is a read too.",
+  "m58-caller-attacks": "This is the flip side of the J-T-9 disadvantage drill, from the other chair. As the CALLER on J-T-9 you have the range advantage (~69%): your sets, two pairs and made straights own this board while the raiser's overpairs are exposed. When you called and the flop smashes your range, don't just call along — lead out or check-raise and put THEM to the test.",
   // P0 — position and realization
   "p0-oop-no-equity": "No equity, and a villain who bets when you check but never folds — betting only loses more. Out of position you can't take a free showdown, so check and fold. In position you could have checked it down; that's what position buys you.",
   "p0-ip-realize-equity": "Acting last, a check ends the round and buys a free river — you realize your full draw (9 outs, about 20%). Betting is a trap: this villain never folds, so a semi-bluff with no fold equity just burns chips. Out of position that same check would face a bet and realize nothing — the free card is what position buys you.",

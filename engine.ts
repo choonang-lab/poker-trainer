@@ -3650,6 +3650,61 @@ export const STARTER_DRILLS: Drill[] = [
     },
   },
   {
+    id: "m58-turn-blank-holds",
+    module: "M5.8",
+    title: "Range advantage: a blank turn keeps it",
+    read: "Same ranges. You bet the K♣ Q♦ 3♥ flop and were called; the turn is the 2♠ — a total blank. What is YOUR (the raiser's) range's equity now?",
+    ask: "rangeadv",
+    // Dynamic range advantage. The 2 helps no one, so your flop edge holds — even grows a touch as the caller's
+    // missed hands stay behind: ~82%. A blank means nothing changed; keep barreling. (Pairs with the J-turn scare.)
+    state: {
+      heroRange: RA_RAISER, board: hand("Kc", "Qd", "3h", "2s"), pot: 1, toAct: "hero",
+      villain: { range: RA_CALLER }, abstraction: { sizes: [], streets: [], players: 2 },
+    },
+  },
+  {
+    id: "m58-turn-scare-shrinks",
+    module: "M5.8",
+    title: "Range advantage: a scare card shrinks it",
+    read: "Same K♣ Q♦ 3♥ flop and the same ranges — but this time the turn is the J♠, which completes straights. What is YOUR (the raiser's) range's equity now?",
+    ask: "rangeadv",
+    // The discrimination partner: a jack completes the caller's J-T and gives sets/two pair, dragging you from a
+    // commanding flop edge down to ~55% — barely ahead. Range advantage is dynamic; a card that hits the caller's
+    // range shrinks yours. Read the turn: keep firing on a blank, slow WAY down when the scare card lands.
+    state: {
+      heroRange: RA_RAISER, board: hand("Kc", "Qd", "3h", "Js"), pot: 1, toAct: "hero",
+      villain: { range: RA_CALLER }, abstraction: { sizes: [], streets: [], players: 2 },
+    },
+  },
+  {
+    id: "m58-even-ranges",
+    module: "M5.8",
+    title: "Range advantage: a board that hits both ranges",
+    read: "Same ranges; the flop is Q♣ J♦ 8♥. What is YOUR (the raiser's) range's equity?",
+    ask: "rangeadv",
+    // Not every board has a winner. Q-J-8 hits BOTH ranges — your overpairs and A-Q against the caller's Q-J, J-T
+    // and pairs — so it's about 50/50. When neither range is ahead, no one gets to bet with impunity: proceed
+    // cautiously, size down, and check more. 'No range advantage' is itself a read.
+    state: {
+      heroRange: RA_RAISER, board: hand("Qc", "Jd", "8h"), pot: 1, toAct: "hero",
+      villain: { range: RA_CALLER }, abstraction: { sizes: [], streets: [], players: 2 },
+    },
+  },
+  {
+    id: "m58-caller-attacks",
+    module: "M5.8",
+    title: "Range advantage: the caller's side of the board",
+    read: "Now you're the CALLER (medium pairs, suited broadways) against the raiser's range (big pairs, ace-broadway). The flop is J♣ T♦ 9♥. What is YOUR (the caller's) range's equity?",
+    ask: "rangeadv",
+    // The flip side of the coordinated-board drill: from the caller's seat on J-T-9, YOU have the range advantage
+    // (~69%) -- your sets, two pairs and straights own it while the raiser's overpairs are exposed. When you called
+    // and the board smashes your range, you're the one who gets to attack: lead out or check-raise, don't just call.
+    state: {
+      heroRange: RA_CALLER, board: hand("Jc", "Td", "9h"), pot: 1, toAct: "hero",
+      villain: { range: RA_RAISER }, abstraction: { sizes: [], streets: [], players: 2 },
+    },
+  },
+  {
     id: "m5-polarized-range",
     module: "M5",
     title: "Equity vs a polarized range: a bluff-catcher vs nuts-or-air",

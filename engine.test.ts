@@ -861,8 +861,8 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
   ok("M4 check regret == 3 bb", approx(m4check.result.regretBb, 3), `got ${m4check.result.regretBb}`);
   ok("M4 check -> m4.misses_street_sequence", m4check.result.leakTag === "m4.misses_street_sequence");
 
-  ok("STARTER_DRILLS now spans 180 drills incl M0/M3.5/M4/M4.5/M5.6/M5.7/M5.8/P0/P1/P2/P2.5/P3/P3.4/P3.5/P4/P5/T1/T2",
-    STARTER_DRILLS.length === 180 &&
+  ok("STARTER_DRILLS now spans 184 drills incl M0/M3.5/M4/M4.5/M5.6/M5.7/M5.8/P0/P1/P2/P2.5/P3/P3.4/P3.5/P4/P5/T1/T2",
+    STARTER_DRILLS.length === 184 &&
     ["M0", "M3.5", "M4", "M4.5", "M5.6", "M5.7", "P0", "P1", "P3", "P4", "P5"].every((m) => STARTER_DRILLS.some((d) => d.module === m)));
 
   // M4.5 combo counting: base counts and blocker removal, all hand-checkable.
@@ -974,6 +974,16 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
     gradeDrill(balSess, "m58-high-board-advantage", { kind: "rangeadv", value: 0.55 }, 0).result.leakTag === "m58.underrates_range");
   ok("m58 overrating on a bad board -> m58.overrates_range",
     gradeDrill(balSess, "m58-coordinated-board-disadvantage", { kind: "rangeadv", value: 0.60 }, 0).result.leakTag === "m58.overrates_range");
+  // Deeper range advantage: dynamic turn shift, even ranges, and the caller's side.
+  const raOf = (id: string): number => rangeVsRange(byId(id).state.heroRange!, byId(id).state.villain.range, byId(id).state.board);
+  ok("m58 blank turn holds the advantage (~0.815)", approx(raOf("m58-turn-blank-holds"), 0.8152, 0.003));
+  ok("m58 scare card (J straight) shrinks it (~0.554)", approx(raOf("m58-turn-scare-shrinks"), 0.5540, 0.003));
+  ok("m58 dynamic: same flop, blank keeps a big edge but the scare nearly evens it",
+    raOf("m58-turn-blank-holds") - raOf("m58-turn-scare-shrinks") > 0.2);
+  ok("m58 even ranges Q-J-8 (~0.505, neither ahead)", approx(raOf("m58-even-ranges"), 0.5049, 0.003));
+  ok("m58 caller attacks J-T-9 (~0.69, the flip side of the raiser's 0.31)", approx(raOf("m58-caller-attacks"), 0.6918, 0.003));
+  ok("m58 caller's edge is the complement of the raiser's on the same board",
+    approx(raOf("m58-caller-attacks") + raOf("m58-coordinated-board-disadvantage"), 1.0, 0.001));
 
   // Check-raise-range drill: villain raises only what beats hero (policy + raise).
   const cr = byId("p5-vs-checkraise-range");
