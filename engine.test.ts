@@ -3,7 +3,7 @@ import {
   score5, score7, score7slow, cmpScore, equity, equityVsRange, outs,
   breakEven, callEV, decisionRegret, regret, estimateError, withinBand, brier, calibration, leakReport,
   hand, parseCard, card, rankOf, suitOf, FULL_DECK, madeHand, drawSuit, nutCategory, comboCount,
-  minDefenseFreq, bluffFrequency, icmEquity, requiredEquity, shoveEV, rangeVsRange, boardTexture, semiBluffBreakeven, spr, riskOfRuin,
+  minDefenseFreq, bluffFrequency, icmEquity, requiredEquity, shoveEV, rangeVsRange, boardTexture, semiBluffBreakeven, spr, riskOfRuin, nutShare,
   equityLeaf, bestResponseEV, bestAction, truth, buildTree, realizationFactor,
   fieldEquity, validateAbstraction, ABSTRACTION_LIMITS,
   actionEVs, grade,
@@ -721,6 +721,8 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
           ? { kind: "spr", value: 4 }                    // M5.9 stack-to-pot ratio
           : d.ask === "ror"
           ? { kind: "ror", value: 0.1 }                  // M5.10 bankroll / risk of ruin
+          : d.ask === "overbet"
+          ? { kind: "overbet", action: "small" }         // M5.8 nut advantage / overbet
           : (d.state.abstraction.sizes.length === 0 || d.state.abstraction.heroFacesBet !== undefined)
             ? { kind: "action", action: { kind: "call" } } // pillar-1 call/fold OR hero-faces-bet root
             : { kind: "action", action: { kind: "check" } }; // pillar-2 (legal at root)
@@ -867,8 +869,8 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
   ok("M4 check regret == 3 bb", approx(m4check.result.regretBb, 3), `got ${m4check.result.regretBb}`);
   ok("M4 check -> m4.misses_street_sequence", m4check.result.leakTag === "m4.misses_street_sequence");
 
-  ok("STARTER_DRILLS now spans 194 drills incl M0/M3.5/M4/M4.5/M5.6/M5.7/M5.8/M5.9/M5.10/P0/P1/P2/P2.5/P3/P3.4/P3.5/P4/P5/T1/T2",
-    STARTER_DRILLS.length === 194 &&
+  ok("STARTER_DRILLS now spans 198 drills incl M0/M3.5/M4/M4.5/M5.6/M5.7/M5.8/M5.9/M5.10/P0/P1/P2/P2.5/P3/P3.4/P3.5/P4/P5/T1/T2",
+    STARTER_DRILLS.length === 198 &&
     ["M0", "M3.5", "M4", "M4.5", "M5.6", "M5.7", "P0", "P1", "P3", "P4", "P5"].every((m) => STARTER_DRILLS.some((d) => d.module === m)));
 
   // M4.5 combo counting: base counts and blocker removal, all hand-checkable.
@@ -990,6 +992,19 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
   ok("m58 caller attacks J-T-9 (~0.69, the flip side of the raiser's 0.31)", approx(raOf("m58-caller-attacks"), 0.6918, 0.003));
   ok("m58 caller's edge is the complement of the raiser's on the same board",
     approx(raOf("m58-caller-attacks") + raOf("m58-coordinated-board-disadvantage"), 1.0, 0.001));
+
+  // M5.8 nut advantage & overbetting: overbet only with a nut advantage vs a capped range.
+  const nutOf = (id: string): number => nutShare(byId(id).state.heroRange!, byId(id).state.villain.range, byId(id).state.board);
+  ok("nutShare: paired ace-high, raiser holds all the near-locks (~1.0)", approx(nutOf("m58-overbet-paired-ace"), 1.0, 0.001));
+  ok("nutShare: capped river, raiser has ~0 near-locks", nutOf("m58-no-overbet-villain-nuts") === 0);
+  ok("overbet: correct on the paired ace-high (nut advantage)",
+    gradeDrill(balSess, "m58-overbet-paired-ace", { kind: "overbet", action: "overbet" }, 0).result.leakTag.endsWith(".ok"));
+  ok("overbet: overbetting a paired ace board vs checking -> m58.misses_the_overbet",
+    gradeDrill(balSess, "m58-overbet-paired-ace", { kind: "overbet", action: "small" }, 0).result.leakTag === "m58.misses_the_overbet");
+  ok("overbet: correct to NOT overbet when villain holds the nuts",
+    gradeDrill(balSess, "m58-no-overbet-villain-nuts", { kind: "overbet", action: "small" }, 0).result.leakTag.endsWith(".ok"));
+  ok("overbet: overbetting into villain's nuts -> m58.overbets_a_capped_range",
+    gradeDrill(balSess, "m58-no-overbet-villain-nuts", { kind: "overbet", action: "overbet" }, 0).result.leakTag === "m58.overbets_a_capped_range");
 
   // M5.7 semi-bluff break-even: a pure bluff needs alpha; more equity needs fewer folds.
   ok("semiBluffBreakeven: pure bluff (e=0) pot bet = alpha 0.5", approx(semiBluffBreakeven(1, 1, 0), 0.5));

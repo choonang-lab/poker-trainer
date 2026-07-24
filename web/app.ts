@@ -7,7 +7,7 @@ import {
   STARTER_DRILLS, loadSession, serializeSession, gradeDrill,
   buildTree, actionEVs, truth, outs, calibration, leakReport,
   rankOf, suitOf, RNAMES, score7, madeHand, drawSuit, nutCategory, comboCount,
-  minDefenseFreq, bluffFrequency, icmEquity, requiredEquity, shoveEV, rangeVsRange, boardTexture, semiBluffBreakeven, spr, riskOfRuin,
+  minDefenseFreq, bluffFrequency, icmEquity, requiredEquity, shoveEV, rangeVsRange, boardTexture, semiBluffBreakeven, spr, riskOfRuin, nutShare,
 } from "../engine.ts";
 import { MODULES, PRIMER, EXPLAIN, moduleStatus, currentStreak } from "../curriculum.ts";
 import type { Drill, Response, Action, State, Module } from "../contract.ts";
@@ -335,7 +335,7 @@ function playDrill(drill: Drill, tagText: string, contLabel: string, onCont: () 
     const bi = Math.round((s.bankroll ?? 0) / 100);
     const scenario = `${s.winRate} bb/100 · std dev ${s.stdDev} bb/100 · bankroll ${bi} buy-ins`;
     sec.append(el("div", "tag", tagText), el("h2", "title", drill.title), el("div", "meta", scenario));
-  } else if (drill.ask === "rangeadv") {
+  } else if (drill.ask === "rangeadv" || drill.ask === "overbet") {
     const tex = boardTexture(s.board);
     const texLabel = `${tex.paired ? "paired · " : ""}${tex.suitedness}${tex.connected ? " · connected" : " · disconnected"}`;
     sec.append(el("div", "tag", tagText), el("h2", "title", drill.title),
@@ -533,6 +533,14 @@ function buildControls(controls: HTMLElement, drill: Drill, onAnswer: (r: Respon
     const label = el("label", "prompt", "Risk of ruin?") as HTMLLabelElement;
     label.htmlFor = "ans-ror";
     controls.append(label, input, go);
+  } else if (drill.ask === "overbet") {
+    controls.append(el("label", "prompt", "Your sizing:"));
+    const opts: [string, "overbet" | "small"][] = [["Overbet", "overbet"], ["Bet small / check", "small"]];
+    for (const [txt, act] of opts) {
+      const b = el("button", "action", txt);
+      b.onclick = () => onAnswer({ kind: "overbet", action: act });
+      controls.append(b);
+    }
   } else if (drill.ask === "shove") {
     controls.append(el("label", "prompt", "Your move:"));
     for (const a of ["shove", "fold"] as const) {
@@ -647,6 +655,16 @@ function renderFeedback(drill: Drill, out: ReturnType<typeof gradeDrill>, contLa
     line = ok
       ? `Correct — your range is ${pct(t)} (${who})`
       : `Your range: ${pct(t)} (${who}) · off by ${parseFloat(((r.estimateError ?? 0) * 100).toFixed(1))} pts`;
+  }
+  else if (drill.ask === "overbet") {
+    const st = drill.state;
+    const heroNut = nutShare(st.heroRange ?? [], st.villain.range, st.board);
+    const villNut = nutShare(st.villain.range, st.heroRange ?? [], st.board);
+    const best = heroNut - villNut >= 0.35 ? "Overbet" : "Bet small / check";
+    const pct = (v: number) => `${Math.round(v * 100)}%`;
+    line = ok
+      ? `Correct — ${best} (your nuts ${pct(heroNut)} vs villain's ${pct(villNut)})`
+      : `Best: ${best} · your near-locks ${pct(heroNut)} vs villain's ${pct(villNut)}`;
   }
   else if (drill.ask === "shove") {
     const st = drill.state;

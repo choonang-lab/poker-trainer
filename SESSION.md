@@ -55,7 +55,7 @@ repetition) with a guided-curriculum PWA on top.
 
 ## State as of 2026-07 (commit 6b80618)
 
-- **614 tests passing**, both type-checks clean, deployed bundle in sync.
+- **620 tests passing**, both type-checks clean, deployed bundle in sync.
 - **Review fixes (2026-07-18, post-audit), cache v21:** (1) `m2-combo-draw`
   board was `9s 8h 2c` (an 8-out spot, 36.9%) but its title/EXPLAIN teach the
   15-out flush+open-ender combo — fixed to `9s 8s 2c` (56.3%); a learner who
@@ -129,7 +129,7 @@ repetition) with a guided-curriculum PWA on top.
 
 Single scan of everything still open after 19 shipped items. The numbered "Next up"
 log below is a DONE-history with declines interleaved; this section is the live to-do.
-Baseline right now: **194 drills, 24 modules, 614 tests, cache v57**, live & in sync.
+Baseline right now: **198 drills, 24 modules, 620 tests, cache v58**, live & in sync.
 
 ### A. Addable now — content-only, no engine change (pick any, each ~1 commit)
 - **More depth in any module.** The engine supports far more than is authored; every
@@ -851,6 +851,23 @@ break that or need a fundamentally different solver. Logged so they aren't re-sc
    - Tournaments + bankroll + SPR + range advantage all now exist. The engine menu ("what other
      engines") is essentially exhausted for the small/on-pattern tier; remaining items are the declined
      big ones (CFR/GTO, true multiway tree, preflop-postflop sampling) or pure volume.
+
+37. ~~**Nut advantage & overbetting: +4 drills in M5.8 (on the range engine)**~~ — DONE 2026-07-24
+   (cache v58, 620 tests, 198 drills). Range EQUITY (rangeVsRange) can't tell overbet spots apart, so
+   this needed a NEW measure: NUT SHARE. `nutShare(range, villRange, board, threshold=0.8)` = the
+   fraction of a range that's a near-lock (equity >= 0.8 vs villain) — the top of the range, which is
+   what enables overbetting. Fast (it's the rangeVsRange loop with a threshold count).
+   - NEW `overbet` response kind (binary: "overbet" | "small"). grade() computes BOTH nut shares and
+     rules overbet-best iff heroNut − villNut >= 0.35 (you hold the near-locks, villain is capped).
+     Regret 0/1 (no EV magnitude — nominal). Tags m58.misses_the_overbet / m58.overbets_a_capped_range.
+   - +4 drills in **M5.8** (retitled "Range & nut advantage"): overbet A-A-4 turn (heroNut 1.0 vs 0)
+     & Q-7-2-2 river (0.67 vs 0); DON'T overbet K-Q-J river (0 vs 0.25, caller has the straights) &
+     J-T-9-8 turn (0.17 vs 0.5). 2 turn + 2 river, as asked. Same RA_RAISER/RA_CALLER story, so the
+     lesson is pure: overbet when the NUTS are on your side, not merely when equity is.
+   - UI: reuses the rangeadv board+texture render; two buttons (Overbet / Bet small · check); feedback
+     shows both nut shares ("your nuts 100% vs villain's 0%"). Browser-verified the A-A-4 overbet path.
+   - This exhausts the range-engine content menu too. M5.8 is now 12 drills (8 range-equity estimates
+     + 4 overbet decisions) — the "how ranges interact on a board" capstone.
 
 ## Machine-specific notes for macOS
 

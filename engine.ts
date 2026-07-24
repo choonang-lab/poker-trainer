@@ -423,6 +423,23 @@ export function rangeVsRange(heroRange: Range, villRange: Range, board: Board): 
   return total / weight;
 }
 
+// Nut share (M5.8): the fraction of `range` (by combos) that is a near-lock — equity >=
+// `threshold` (default 0.80) vs villain's range on the board. This measures NUT advantage
+// (the top of a range), which is what range EQUITY alone misses: you overbet when YOUR nut
+// share is high and villain's is ~0 (their range is capped and can't hold the strong hands).
+export function nutShare(range: Range, villRange: Range, board: Board, threshold = 0.80): number {
+  let strong = 0, weight = 0;
+  for (const h of range) {
+    if (h.combo.some((c) => board.includes(c))) continue;
+    const vr = villRange.filter((v) => !v.combo.some((c) => board.includes(c) || h.combo.includes(c)));
+    const e = equityVsRange(h.combo, board, vr);
+    if (e === null) continue;
+    weight += h.weight;
+    if (e >= threshold) strong += h.weight;
+  }
+  return weight === 0 ? 0 : strong / weight;
+}
+
 // Board texture classification (M5.8) — a pure function of the board that names how
 // ranges interact with it: paired (sets/full houses live), suit spread (flush draws),
 // connectedness (straights live), and the top card (high boards favor a raiser's big cards).
@@ -1112,6 +1129,15 @@ export function grade(state: State, response: Response): Result {
     const tag = estimateLeak(error); // reuse the estimate over/under bands; refined by module in classifyLeak
     return { regretBb: 0, estimateError: Math.abs(error), leakTag: tag };
   }
+  if (response.kind === "overbet") {
+    // Overbet iff hero holds a clear NUT advantage: hero's near-lock share exceeds villain's by >= 0.35.
+    const heroNut = nutShare(state.heroRange ?? [], state.villain.range, state.board);
+    const villNut = nutShare(state.villain.range, state.heroRange ?? [], state.board);
+    const overbetBest = heroNut - villNut >= 0.35;
+    const correct = (response.action === "overbet") === overbetBest;
+    const tag = correct ? "p1.ok" : overbetBest ? "p1.misses_overbet" : "p1.overbets_capped";
+    return { regretBb: correct ? 0 : 1, leakTag: tag };
+  }
   if (response.kind === "semibluff") {
     // Fold frequency a semi-bluff needs to break even (state.pot = pot, state.toCall = the bet,
     // state.eqWhenCalled = equity when called). A 0.02 tolerance, like the other frequency constants.
@@ -1240,6 +1266,8 @@ const LEAK_TABLE: Record<string, string> = {
   "T2:shoves_too_loose": "t2.shoves_too_loose",
   "M5.8:overestimate": "m58.overrates_range",
   "M5.8:underestimate": "m58.underrates_range",
+  "M5.8:misses_overbet": "m58.misses_the_overbet",
+  "M5.8:overbets_capped": "m58.overbets_a_capped_range",
   "M5.7:overestimate": "m57.overrates_fold_equity",
   "M5.7:underestimate": "m57.underrates_fold_equity",
   "M5.9:overestimate": "m59.overrates_spr",
@@ -3763,6 +3791,60 @@ export const STARTER_DRILLS: Drill[] = [
     state: {
       heroRange: RA_CALLER, board: hand("Jc", "Td", "9h"), pot: 1, toAct: "hero",
       villain: { range: RA_RAISER }, abstraction: { sizes: [], streets: [], players: 2 },
+    },
+  },
+  // ---- M5.8 (extra): nut advantage & overbetting — overbet only when you hold the nuts and villain can't ----
+  {
+    id: "m58-overbet-paired-ace",
+    module: "M5.8",
+    title: "Nut advantage: a paired ace-high turn",
+    read: "Your raising range against the caller's range on A♣ A♦ 4♥ 2♠. You hold the aces and big pairs; the caller is capped. Overbet, or bet small / check?",
+    ask: "overbet",
+    // Nut advantage → OVERBET. On a paired ace-high board your near-lock share is ~100% and the caller's is ~0 —
+    // they simply can't have the top of the range. When you hold the nuts and villain can't, bet BIG (overbet).
+    state: {
+      heroRange: RA_RAISER, board: hand("Ac", "Ad", "4h", "2s"), pot: 1, toAct: "hero",
+      villain: { range: RA_CALLER }, abstraction: { sizes: [], streets: [], players: 2 },
+    },
+  },
+  {
+    id: "m58-overbet-river-capped",
+    module: "M5.8",
+    title: "Nut advantage: overbetting a capped river",
+    read: "River Q♣ 7♦ 2♥ 2♠ 5♣. Your overpairs and the top pairs crush the caller's capped range. Overbet, or bet small / check?",
+    ask: "overbet",
+    // OVERBET again: ~two-thirds of your range is a near-lock here while the caller's is ~0 — a polarized nut
+    // advantage. You bet big with the value and can add bluffs, because villain can never hold the top of the range.
+    state: {
+      heroRange: RA_RAISER, board: hand("Qc", "7d", "2h", "2s", "5c"), pot: 1, toAct: "hero",
+      villain: { range: RA_CALLER }, abstraction: { sizes: [], streets: [], players: 2 },
+    },
+  },
+  {
+    id: "m58-no-overbet-villain-nuts",
+    module: "M5.8",
+    title: "Nut advantage: the wrong side of a wet river",
+    read: "River K♣ Q♦ 3♥ J♠ 2♣. The caller has the straights and two pairs; your overpairs are exposed. Overbet, or bet small / check?",
+    ask: "overbet",
+    // DON'T overbet: here the CALLER holds the near-locks (the made straights) and YOUR range is capped — none of it
+    // is a near-lock. Overbetting into the range that has the nuts is a disaster. Check or bet small; the nut
+    // advantage is theirs, so overbetting is a leak.
+    state: {
+      heroRange: RA_RAISER, board: hand("Kc", "Qd", "3h", "Js", "2c"), pot: 1, toAct: "hero",
+      villain: { range: RA_CALLER }, abstraction: { sizes: [], streets: [], players: 2 },
+    },
+  },
+  {
+    id: "m58-no-overbet-coordinated",
+    module: "M5.8",
+    title: "Nut advantage: a board that hit the caller",
+    read: "Turn J♣ T♦ 9♥ 8♠. The caller's straights and two pairs own this board. Overbet, or bet small / check?",
+    ask: "overbet",
+    // DON'T overbet: the caller's near-lock share (~50%) dwarfs yours (~17%) — they have the straights, you have
+    // exposed overpairs. Overbetting requires the nuts to be on YOUR side; when they're on villain's, you slow down.
+    state: {
+      heroRange: RA_RAISER, board: hand("Jc", "Td", "9h", "8s"), pot: 1, toAct: "hero",
+      villain: { range: RA_CALLER }, abstraction: { sizes: [], streets: [], players: 2 },
     },
   },
   // ---- M5.7 (extra): semi-bluff break-even — the fold equity a DRAW needs (pure math) ----

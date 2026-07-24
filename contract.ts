@@ -41,6 +41,7 @@ export declare function boardTexture(board: Board): { paired: boolean; suitednes
 export declare function semiBluffBreakeven(pot: number, bet: number, equity: number): number; // fold frequency a semi-bluff needs to break even (0 = +EV even if never folded)
 export declare function spr(stack: number, pot: number): number; // stack-to-pot ratio: effective stack / pot
 export declare function riskOfRuin(winRate: number, stdDev: number, bankroll: number): number; // probability of busting the bankroll (1 if not a winner)
+export declare function nutShare(range: Range, villRange: Range, board: Board, threshold?: number): number; // fraction of a range that's a near-lock (equity >= threshold) vs villain's range — measures nut advantage
 
 // ===========================================================================
 // L4 — grading primitives (implemented, tested)
@@ -212,7 +213,8 @@ export type Response =
   | { kind: "rangeadv"; value: number }          // hero's whole-range equity (0-1) vs villain's range, M5.8
   | { kind: "semibluff"; value: number }         // fold frequency (0-1) a semi-bluff needs to break even, M5.7
   | { kind: "spr"; value: number }               // stack-to-pot ratio (a plain number), M5.9
-  | { kind: "ror"; value: number };              // risk of ruin (0-1) from win rate, std dev, bankroll, M5.10
+  | { kind: "ror"; value: number }               // risk of ruin (0-1) from win rate, std dev, bankroll, M5.10
+  | { kind: "overbet"; action: "overbet" | "small" }; // whether to overbet, from nut advantage, M5.8
 
 // Per-action EVs at a HERO node — the source bestAction argmaxes and grade()
 // computes regret from.
@@ -253,7 +255,7 @@ export interface Drill {
   id: string;
   module: string;                   // curriculum tag, e.g. "M2", "M3", "P2"
   title: string;                    // human-facing label
-  ask: "estimate" | "action" | "category" | "outs" | "nuts" | "combos" | "mdf" | "bluffs" | "icm" | "callequity" | "shove" | "rangeadv" | "semibluff" | "spr" | "ror";  // the response kind this drill expects
+  ask: "estimate" | "action" | "category" | "outs" | "nuts" | "combos" | "mdf" | "bluffs" | "icm" | "callequity" | "shove" | "rangeadv" | "semibluff" | "spr" | "ror" | "overbet";  // the response kind this drill expects
   read?: string;                    // optional villain read/situational note (the strategy isn't visible from cards alone)
   state: State;
 }
