@@ -241,12 +241,14 @@ export const MODULES: Module[] = [
       { term: "Alpha", def: "the flip side of MDF: the most you can fold, bet / (pot + bet). MDF + alpha = 1." },
       { term: "Bluff-to-value ratio", def: "how many bluffs balance your value bets at a size — bet / (pot + 2·bet) of your betting range is bluffs, so a bluff-catcher is indifferent to calling." },
       { term: "Polarized bet", def: "a betting range of value hands plus balancing bluffs (nothing medium) — the shape these frequencies apply to." },
+      { term: "Semi-bluff break-even", def: "the fold frequency a DRAW's bet needs to profit; more equity when called means it needs fewer folds than a pure bluff — sometimes none at all." },
     ],
-    objectives: ["Compute the minimum defense frequency for any bet size", "Compute the bluff share of a betting range for any size", "See how a bigger bet means defend less but bluff more"],
-    example: "Against a pot-sized bet you must defend half your range (50%); if you're the bettor, a third of a pot-sized bet should be bluffs (33%).",
+    objectives: ["Compute the minimum defense frequency for any bet size", "Compute the bluff share of a betting range for any size", "See how a draw's equity lowers the fold equity it needs"],
+    example: "Against a pot-sized bet you must defend half your range (50%); a pure bluff needs villain to fold 50%, but a flush draw is profitable even if they never fold.",
     drillIds: [
       "m57-mdf-pot-bet", "m57-mdf-small-bet",
       "m57-bluff-pot-bet", "m57-bluff-half-pot",
+      "m57-semibluff-gutshot", "m57-semibluff-flushdraw",
     ],
   },
   {
@@ -263,6 +265,20 @@ export const MODULES: Module[] = [
     example: "The same raiser is ~92% on A-K-5 but only ~31% on J-T-9 — the board, not the hand, flips the advantage.",
     drillIds: ["m58-high-board-advantage", "m58-coordinated-board-disadvantage", "m58-paired-board-nut-advantage", "m58-low-board-thin-advantage",
       "m58-turn-blank-holds", "m58-turn-scare-shrinks", "m58-even-ranges", "m58-caller-attacks"],
+  },
+  {
+    id: "M5.9", track: "P1", title: "Stack-to-pot ratio",
+    preface: "How committed you are to a pot isn't about your hand alone — it's your hand versus how much is left to bet. The stack-to-pot ratio (SPR) — effective stack divided by the pot — is the single number that tells you. A low SPR means even a good one-pair hand is getting all-in; a high SPR means you need a monster to play a big pot.",
+    concepts: [
+      { term: "SPR", def: "stack-to-pot ratio: the effective stack divided by the pot on the flop. It sets how strong a hand you need to commit." },
+      { term: "Effective stack", def: "the smaller of the two stacks — all that can actually go in." },
+      { term: "Committed / pot-committed", def: "so much of your stack is already in (a low SPR) that folding is wrong; you get the rest in with a decent made hand." },
+      { term: "Low vs high SPR", def: "low SPR (~1-3) commits strong one-pair hands; high SPR (~6+) needs two pair, a set, or better to stack off." },
+      { term: "How SPR is set", def: "big preflop pots (3-bets, multiway) make LOW SPRs; limped or small pots leave HIGH SPRs." },
+    ],
+    objectives: ["Compute the SPR from the pot and the effective stack", "Know that a low SPR commits strong one-pair hands", "Know that a high SPR needs a much stronger hand to play a big pot"],
+    example: "Pot 20, stack 40 → SPR 2: top pair is committed. Pot 6, stack 90 → SPR 15: top pair is just one pair, don't stack off.",
+    drillIds: ["m59-spr-committed", "m59-spr-medium", "m59-spr-deep", "m59-spr-shove-commit"],
   },
   // ---- Pillar 2 · decide ----
   {
@@ -548,6 +564,12 @@ export const EXPLAIN: Record<string, string> = {
   "m58-turn-scare-shrinks": "The jack is the opposite of a blank: it completes the caller's J-T for a straight and brings sets and two pairs, so your commanding flop edge collapses to about 55% — barely ahead. Range advantage is dynamic. A card that slots into the caller's range hands equity back, so read the turn and slow way down when the scare lands.",
   "m58-even-ranges": "Q-J-8 hits BOTH ranges — your overpairs and ace-queen against the caller's queen-jack, jack-ten and pairs — so it's about a coin flip, ~50%. When neither range is ahead, nobody gets to bet freely: size down, check more, and don't fire big into a board you don't own. 'No range advantage' is a read too.",
   "m58-caller-attacks": "This is the flip side of the J-T-9 disadvantage drill, from the other chair. As the CALLER on J-T-9 you have the range advantage (~69%): your sets, two pairs and made straights own this board while the raiser's overpairs are exposed. When you called and the flop smashes your range, don't just call along — lead out or check-raise and put THEM to the test.",
+  "m57-semibluff-gutshot": "A gutshot bet needs villain to fold about 34% of the time to break even — less than a pure bluff's 50%, because the 16% equity when called wins some pots for you, but still real fold equity. A weak draw can't just barrel blindly; it needs folds. Compare the flush draw, which needs none.",
+  "m57-semibluff-flushdraw": "0% — a flush draw is already profitable to bet even if villain never folds, because 35% equity in a pot-sized pot beats the price. Fold equity is a bonus on top, not a requirement. The stronger the draw, the less it leans on folds; a flush draw semi-bluffs itself.",
+  "m59-spr-committed": "SPR = 40 / 20 = 2. A low SPR means a strong made hand is committed: with top pair or an overpair here you're getting the rest in, so plan to stack off rather than fold to pressure. Big preflop pots (like this 3-bet) create the low SPRs that commit one-pair hands.",
+  "m59-spr-medium": "SPR = 48 / 12 = 4. This is the interesting middle: top pair is worth a bet or two but not your whole stack, so play carefully and don't auto-commit. Most single-raised pots land around here — neither pot-committed nor deep enough to need a monster.",
+  "m59-spr-deep": "SPR = 90 / 6 = 15. A high SPR means you're NOT committed: top pair is just one pair, not a stack-off, and you need two pair, a set or better to play a big pot. Deep stacks with small pots make every hand play smaller than its raw strength.",
+  "m59-spr-shove-commit": "SPR = 25 / 25 = 1. There's only one pot-sized bet left, so almost any pair or decent draw is committed — the flop is effectively shove-or-fold. The lower the SPR, the wider the range you're happy to get all-in with; at SPR 1 that range is very wide.",
   // P0 — position and realization
   "p0-oop-no-equity": "No equity, and a villain who bets when you check but never folds — betting only loses more. Out of position you can't take a free showdown, so check and fold. In position you could have checked it down; that's what position buys you.",
   "p0-ip-realize-equity": "Acting last, a check ends the round and buys a free river — you realize your full draw (9 outs, about 20%). Betting is a trap: this villain never folds, so a semi-bluff with no fold equity just burns chips. Out of position that same check would face a bet and realize nothing — the free card is what position buys you.",

@@ -440,6 +440,25 @@ export function boardTexture(board: Board): { paired: boolean; suitedness: "rain
   return { paired, suitedness, connected, topRank: Math.max(...ranks) };
 }
 
+// Semi-bluff break-even (M5.7): the fold frequency a bet of `bet` into `pot` needs to
+// show a profit, given the bettor has `equity` when called. A pure bluff (equity 0)
+// needs alpha = bet/(pot+bet); the more equity the bet has, the LESS it needs villain
+// to fold, because it wins some pots at showdown. Solve f from
+//   f*pot + (1-f)*(equity*(pot+2*bet) - bet) = 0.
+// Returns 0 when the bet is already +EV even if villain never folds (a strong draw).
+export function semiBluffBreakeven(pot: number, bet: number, equity: number): number {
+  const whenCalled = equity * (pot + 2 * bet) - bet; // net if called
+  if (whenCalled >= pot) return 0;
+  return Math.max(0, whenCalled / (whenCalled - pot));
+}
+
+// Stack-to-pot ratio (M5.9): effective stack divided by the pot (both in bb). Low SPR
+// (roughly <= 3) means a strong made hand is committed — you'll get the money in; high
+// SPR (>= ~6) leaves room to fold, so you need a much stronger hand to stack off.
+export function spr(stack: number, pot: number): number {
+  return pot === 0 ? Infinity : stack / pot;
+}
+
 // ---- L4: grading primitives ----------------------------------------------
 export const breakEven = (pot: number, call: number): number => call / (pot + call);
 
@@ -1081,6 +1100,22 @@ export function grade(state: State, response: Response): Result {
     const tag = estimateLeak(error); // reuse the estimate over/under bands; refined by module in classifyLeak
     return { regretBb: 0, estimateError: Math.abs(error), leakTag: tag };
   }
+  if (response.kind === "semibluff") {
+    // Fold frequency a semi-bluff needs to break even (state.pot = pot, state.toCall = the bet,
+    // state.eqWhenCalled = equity when called). A 0.02 tolerance, like the other frequency constants.
+    const target = semiBluffBreakeven(state.pot, state.toCall ?? 0, state.eqWhenCalled ?? 0);
+    const error = response.value - target;
+    const tag = Math.abs(error) < 0.02 ? "p1.ok" : error > 0 ? "p1.overestimate" : "p1.underestimate";
+    return { regretBb: 0, estimateError: Math.abs(error), leakTag: tag };
+  }
+  if (response.kind === "spr") {
+    // Stack-to-pot ratio (state.effStack / state.pot), graded by distance. A 0.3 tolerance
+    // for a plain ratio (the answer is exact division; the band just allows rounding).
+    const target = spr(state.effStack ?? 0, state.pot);
+    const error = response.value - target;
+    const tag = Math.abs(error) < 0.3 ? "p1.ok" : error > 0 ? "p1.overestimate" : "p1.underestimate";
+    return { regretBb: 0, estimateError: Math.abs(error), leakTag: tag };
+  }
   const evs = decisionEVs(state);
   const chosen = evs.find((e) => sameAction(e.action, response.action));
   if (!chosen) throw new Error(`grade: illegal action ${JSON.stringify(response.action)} for this spot`);
@@ -1185,6 +1220,10 @@ const LEAK_TABLE: Record<string, string> = {
   "T2:shoves_too_loose": "t2.shoves_too_loose",
   "M5.8:overestimate": "m58.overrates_range",
   "M5.8:underestimate": "m58.underrates_range",
+  "M5.7:overestimate": "m57.overrates_fold_equity",
+  "M5.7:underestimate": "m57.underrates_fold_equity",
+  "M5.9:overestimate": "m59.overrates_spr",
+  "M5.9:underestimate": "m59.underrates_spr",
   "P0:overbet": "p0.bets_without_fold_equity",
   "P0:overfold": "p0.overfolds_in_position",
   "P1:overestimate": "p1.overvalues_holding",
@@ -3702,6 +3741,100 @@ export const STARTER_DRILLS: Drill[] = [
     state: {
       heroRange: RA_CALLER, board: hand("Jc", "Td", "9h"), pot: 1, toAct: "hero",
       villain: { range: RA_RAISER }, abstraction: { sizes: [], streets: [], players: 2 },
+    },
+  },
+  // ---- M5.7 (extra): semi-bluff break-even — the fold equity a DRAW needs (pure math) ----
+  // state.pot = pot before the bet, state.toCall = the bet, state.eqWhenCalled = equity when called.
+  {
+    id: "m57-semibluff-gutshot",
+    module: "M5.7",
+    title: "Semi-bluff: how often must a gutshot get through?",
+    read: "You bet the pot as a semi-bluff with a gutshot — about 16% equity when called. How often must villain fold for the bet to break even?",
+    ask: "semibluff",
+    // A weak draw still needs real fold equity: ~34%. Less than a pure bluff's 50% (the 16% equity when called
+    // helps), but a gutshot can't just fire blindly — it needs folds to profit. Contrast the flush-draw drill.
+    state: {
+      board: [], pot: 1, toCall: 1, toAct: "hero",
+      villain: { range: [{ combo: hand("Ah", "Kh"), weight: 1 }] },
+      abstraction: { sizes: [], streets: [], players: 2 },
+      eqWhenCalled: 0.16,
+    },
+  },
+  {
+    id: "m57-semibluff-flushdraw",
+    module: "M5.7",
+    title: "Semi-bluff: how often must a flush draw get through?",
+    read: "Same pot-sized semi-bluff, but now with a flush draw — about 35% equity when called. How often must villain fold for the bet to break even?",
+    ask: "semibluff",
+    // 0%: a flush draw is already +EV to bet even if villain NEVER folds, because 35% equity beats the price you
+    // lay yourself in a pot-sized pot. Fold equity is a bonus, not a requirement. The stronger the draw, the less
+    // it needs folds — the mirror of the gutshot's ~34%.
+    state: {
+      board: [], pot: 1, toCall: 1, toAct: "hero",
+      villain: { range: [{ combo: hand("Ah", "Kh"), weight: 1 }] },
+      abstraction: { sizes: [], streets: [], players: 2 },
+      eqWhenCalled: 0.35,
+    },
+  },
+  // ---- M5.9 Stack-to-pot ratio: how committed are you? (SPR = effective stack / pot) ----
+  {
+    id: "m59-spr-committed",
+    module: "M5.9",
+    title: "SPR: a bloated pot, a short stack behind",
+    read: "After a big preflop 3-bet, the pot is 20 bb and the effective stack behind is only 40 bb. What is the SPR on the flop?",
+    ask: "spr",
+    // SPR = 40 / 20 = 2. A low SPR (<= ~3) means a strong made hand is committed: with top pair or an overpair
+    // you're getting the rest in, so plan to stack off rather than fold. Big preflop pots create low SPRs.
+    state: {
+      board: [], pot: 20, toAct: "hero",
+      villain: { range: [{ combo: hand("Ah", "Kh"), weight: 1 }] },
+      abstraction: { sizes: [], streets: [], players: 2 },
+      effStack: 40,
+    },
+  },
+  {
+    id: "m59-spr-medium",
+    module: "M5.9",
+    title: "SPR: a single-raised pot",
+    read: "In a normal single-raised pot the flop pot is 12 bb and the effective stack is 48 bb. What is the SPR?",
+    ask: "spr",
+    // SPR = 48 / 12 = 4. Medium SPR (~4-6) is the interesting middle: top pair is worth a street or two but not
+    // your whole stack, so play more carefully and don't auto-commit. Most single-raised pots land here.
+    state: {
+      board: [], pot: 12, toAct: "hero",
+      villain: { range: [{ combo: hand("Ah", "Kh"), weight: 1 }] },
+      abstraction: { sizes: [], streets: [], players: 2 },
+      effStack: 48,
+    },
+  },
+  {
+    id: "m59-spr-deep",
+    module: "M5.9",
+    title: "SPR: a deep, limped pot",
+    read: "A limped pot: the flop pot is just 6 bb but the effective stack is 90 bb deep. What is the SPR?",
+    ask: "spr",
+    // SPR = 90 / 6 = 15. A high SPR means you are NOT committed: top pair is now a one-pair hand, not a stack-off,
+    // and you need two pair, a set, or better to play a big pot. Deep stacks + small pots make hands play smaller.
+    state: {
+      board: [], pot: 6, toAct: "hero",
+      villain: { range: [{ combo: hand("Ah", "Kh"), weight: 1 }] },
+      abstraction: { sizes: [], streets: [], players: 2 },
+      effStack: 90,
+    },
+  },
+  {
+    id: "m59-spr-shove-commit",
+    module: "M5.9",
+    title: "SPR: barely any room left",
+    read: "The pot is 25 bb and you have just 25 bb behind on the flop. What is the SPR?",
+    ask: "spr",
+    // SPR = 25 / 25 = 1. At an SPR of 1 there's one pot-sized bet left, so almost any pair or draw is committed —
+    // it's effectively a shove-or-fold flop. The lower the SPR, the wider the range you can get all-in with.
+    state: {
+      board: [], pot: 25, toAct: "hero",
+      villain: { range: [{ combo: hand("Ah", "Kh"), weight: 1 }] },
+      abstraction: { sizes: [], streets: [], players: 2 },
+      effStack: 25,
     },
   },
   {

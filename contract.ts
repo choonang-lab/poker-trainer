@@ -38,6 +38,8 @@ export declare function requiredEquity(stacks: number[], payouts: number[], hero
 export declare function shoveEV(stack: number, callFreq: number, eqWhenCalled: number): number; // chip-EV (net bb) of shoving the small blind; compare to folding (-0.5)
 export declare function rangeVsRange(heroRange: Range, villRange: Range, board: Board): number; // hero range's average equity vs villain range on a board (card-removal aware)
 export declare function boardTexture(board: Board): { paired: boolean; suitedness: "rainbow" | "two-tone" | "mono"; connected: boolean; topRank: number }; // pure board classification for range-interaction reads
+export declare function semiBluffBreakeven(pot: number, bet: number, equity: number): number; // fold frequency a semi-bluff needs to break even (0 = +EV even if never folded)
+export declare function spr(stack: number, pot: number): number; // stack-to-pot ratio: effective stack / pot
 
 // ===========================================================================
 // L4 — grading primitives (implemented, tested)
@@ -203,7 +205,9 @@ export type Response =
   | { kind: "icm"; value: number }             // hero's tournament $-equity as a share (0-1) of the prize pool, T1
   | { kind: "callequity"; value: number }      // ICM-adjusted equity (0-1) needed to CALL an all-in, T1 risk premium
   | { kind: "shove"; action: "shove" | "fold" }  // a short-stack push/fold decision, T2
-  | { kind: "rangeadv"; value: number };         // hero's whole-range equity (0-1) vs villain's range, M5.8
+  | { kind: "rangeadv"; value: number }          // hero's whole-range equity (0-1) vs villain's range, M5.8
+  | { kind: "semibluff"; value: number }         // fold frequency (0-1) a semi-bluff needs to break even, M5.7
+  | { kind: "spr"; value: number };              // stack-to-pot ratio (a plain number), M5.9
 
 // Per-action EVs at a HERO node — the source bestAction argmaxes and grade()
 // computes regret from.
@@ -244,7 +248,7 @@ export interface Drill {
   id: string;
   module: string;                   // curriculum tag, e.g. "M2", "M3", "P2"
   title: string;                    // human-facing label
-  ask: "estimate" | "action" | "category" | "outs" | "nuts" | "combos" | "mdf" | "bluffs" | "icm" | "callequity" | "shove" | "rangeadv";  // the response kind this drill expects
+  ask: "estimate" | "action" | "category" | "outs" | "nuts" | "combos" | "mdf" | "bluffs" | "icm" | "callequity" | "shove" | "rangeadv" | "semibluff" | "spr";  // the response kind this drill expects
   read?: string;                    // optional villain read/situational note (the strategy isn't visible from cards alone)
   state: State;
 }

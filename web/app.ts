@@ -7,7 +7,7 @@ import {
   STARTER_DRILLS, loadSession, serializeSession, gradeDrill,
   buildTree, actionEVs, truth, outs, calibration, leakReport,
   rankOf, suitOf, RNAMES, score7, madeHand, drawSuit, nutCategory, comboCount,
-  minDefenseFreq, bluffFrequency, icmEquity, requiredEquity, shoveEV, rangeVsRange, boardTexture,
+  minDefenseFreq, bluffFrequency, icmEquity, requiredEquity, shoveEV, rangeVsRange, boardTexture, semiBluffBreakeven, spr,
 } from "../engine.ts";
 import { MODULES, PRIMER, EXPLAIN, moduleStatus, currentStreak } from "../curriculum.ts";
 import type { Drill, Response, Action, State, Module } from "../contract.ts";
@@ -306,7 +306,8 @@ function playDrill(drill: Drill, tagText: string, contLabel: string, onCont: () 
   const freqAsk = drill.ask === "mdf" || drill.ask === "bluffs";
   const icmAsk = drill.ask === "icm" || drill.ask === "callequity";
   const shoveAsk = drill.ask === "shove";
-  const mathAsk = freqAsk || icmAsk || shoveAsk;
+  const otherMathAsk = drill.ask === "semibluff" || drill.ask === "spr";
+  const mathAsk = freqAsk || icmAsk || shoveAsk || otherMathAsk;
   if (freqAsk) {
     const P = s.pot, B = s.toCall ?? 0;
     const scenario = drill.ask === "mdf"
@@ -323,6 +324,12 @@ function playDrill(drill: Drill, tagText: string, contLabel: string, onCont: () 
       el("div", "meta", `Prizes: ${prizesStr} of the pool`));
   } else if (shoveAsk) {
     const scenario = `${s.effStack} bb · big blind calls ${Math.round((s.callFreq ?? 0) * 100)}% · you're ${Math.round((s.eqWhenCalled ?? 0) * 100)}% when called`;
+    sec.append(el("div", "tag", tagText), el("h2", "title", drill.title), el("div", "meta", scenario));
+  } else if (drill.ask === "semibluff") {
+    const scenario = `You bet ${s.toCall} into a pot of ${s.pot} · ~${Math.round((s.eqWhenCalled ?? 0) * 100)}% equity when called`;
+    sec.append(el("div", "tag", tagText), el("h2", "title", drill.title), el("div", "meta", scenario));
+  } else if (drill.ask === "spr") {
+    const scenario = `Pot ${s.pot} bb · effective stack ${s.effStack} bb behind`;
     sec.append(el("div", "tag", tagText), el("h2", "title", drill.title), el("div", "meta", scenario));
   } else if (drill.ask === "rangeadv") {
     const tex = boardTexture(s.board);
@@ -475,6 +482,37 @@ function buildControls(controls: HTMLElement, drill: Drill, onAnswer: (r: Respon
     const label = el("label", "prompt", "Equity needed to call?") as HTMLLabelElement;
     label.htmlFor = "ans-callequity";
     controls.append(label, input, go);
+  } else if (drill.ask === "semibluff") {
+    const input = el("input") as HTMLInputElement;
+    input.type = "number"; input.min = "0"; input.max = "100"; input.step = "0.1"; input.placeholder = "e.g. 34 (%)";
+    input.id = "ans-semibluff"; input.inputMode = "decimal"; input.setAttribute("aria-label", "Fold frequency the semi-bluff needs, as a percentage");
+    const go = el("button", "primary", "Submit");
+    const submit = () => {
+      let v = Number(input.value);
+      if (!Number.isFinite(v) || input.value === "") return;
+      if (v > 1) v = v / 100; // percentage entry (34 -> 0.34)
+      onAnswer({ kind: "semibluff", value: v });
+    };
+    go.onclick = submit;
+    input.onkeydown = (e) => { if ((e as KeyboardEvent).key === "Enter") submit(); };
+    const label = el("label", "prompt", "Fold % needed to break even?") as HTMLLabelElement;
+    label.htmlFor = "ans-semibluff";
+    controls.append(label, input, go);
+  } else if (drill.ask === "spr") {
+    const input = el("input") as HTMLInputElement;
+    input.type = "number"; input.min = "0"; input.step = "0.1"; input.placeholder = "e.g. 4";
+    input.id = "ans-spr"; input.inputMode = "decimal"; input.setAttribute("aria-label", "The stack-to-pot ratio");
+    const go = el("button", "primary", "Submit");
+    const submit = () => {
+      const v = Number(input.value);
+      if (!Number.isFinite(v) || input.value === "") return;
+      onAnswer({ kind: "spr", value: v }); // a plain ratio — no percentage conversion
+    };
+    go.onclick = submit;
+    input.onkeydown = (e) => { if ((e as KeyboardEvent).key === "Enter") submit(); };
+    const label = el("label", "prompt", "The SPR (stack ÷ pot)?") as HTMLLabelElement;
+    label.htmlFor = "ans-spr";
+    controls.append(label, input, go);
   } else if (drill.ask === "shove") {
     controls.append(el("label", "prompt", "Your move:"));
     for (const a of ["shove", "fold"] as const) {
@@ -561,6 +599,18 @@ function renderFeedback(drill: Drill, out: ReturnType<typeof gradeDrill>, contLa
     line = ok
       ? `Correct — you need ${pct(t)} to call`
       : `You need ${pct(t)} to call · off by ${parseFloat(((r.estimateError ?? 0) * 100).toFixed(1))} pts`;
+  }
+  else if (drill.ask === "semibluff") {
+    const st = drill.state;
+    const t = semiBluffBreakeven(st.pot, st.toCall ?? 0, st.eqWhenCalled ?? 0);
+    const shown = t <= 0 ? "0% — +EV even if they never fold" : `${parseFloat((t * 100).toFixed(1))}%`;
+    line = ok
+      ? `Correct — needs ${shown}`
+      : `Break-even fold: ${shown} · off by ${parseFloat(((r.estimateError ?? 0) * 100).toFixed(1))} pts`;
+  }
+  else if (drill.ask === "spr") {
+    const t = spr(drill.state.effStack ?? 0, drill.state.pot);
+    line = ok ? `Correct — SPR ${parseFloat(t.toFixed(2))}` : `True SPR: ${parseFloat(t.toFixed(2))} · off by ${parseFloat((r.estimateError ?? 0).toFixed(2))}`;
   }
   else if (drill.ask === "rangeadv") {
     const t = rangeVsRange(drill.state.heroRange ?? [], drill.state.villain.range, drill.state.board);

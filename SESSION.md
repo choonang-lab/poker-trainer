@@ -55,7 +55,7 @@ repetition) with a guided-curriculum PWA on top.
 
 ## State as of 2026-07 (commit 6b80618)
 
-- **595 tests passing**, both type-checks clean, deployed bundle in sync.
+- **607 tests passing**, both type-checks clean, deployed bundle in sync.
 - **Review fixes (2026-07-18, post-audit), cache v21:** (1) `m2-combo-draw`
   board was `9s 8h 2c` (an 8-out spot, 36.9%) but its title/EXPLAIN teach the
   15-out flush+open-ender combo — fixed to `9s 8s 2c` (56.3%); a learner who
@@ -129,7 +129,7 @@ repetition) with a guided-curriculum PWA on top.
 
 Single scan of everything still open after 19 shipped items. The numbered "Next up"
 log below is a DONE-history with declines interleaved; this section is the live to-do.
-Baseline right now: **184 drills, 22 modules, 595 tests, cache v55**, live & in sync.
+Baseline right now: **190 drills, 23 modules, 607 tests, cache v56**, live & in sync.
 
 ### A. Addable now — content-only, no engine change (pick any, each ~1 commit)
 - **More depth in any module.** The engine supports far more than is authored; every
@@ -810,6 +810,29 @@ break that or need a fundamentally different solver. Logged so they aren't re-sc
    - Turn drills exercise the 4-card-board sub-case of `rangeadv`; `boardTexture` correctly labels
      K-Q-3-J "rainbow · connected" (the J makes it connected — reinforces the scare-card lesson).
      Browser-verified the scare-turn drill end-to-end (55.4%, "you're ahead"). M5.8 now 8 drills.
+
+35. ~~**Small pure-math constants: semi-bluff break-even (M5.7) + SPR (new M5.9)**~~ — DONE
+   2026-07-24 (cache v56, 607 tests, 190 drills, 23 modules). Two of the "small constants" from the
+   engine menu (bankroll/RoR held — it's the meta one with abstract inputs; offered for next).
+   - **Semi-bluff break-even** (added to M5.7, +2 drills): `semiBluffBreakeven(pot, bet, equity)` = the
+     fold frequency a DRAW's bet needs to profit, solving f·pot + (1−f)·(e·(pot+2bet) − bet) = 0. A pure
+     bluff needs alpha (0.5 at pot); more equity needs FEWER folds; a flush draw (35%) needs **0**
+     (+EV even if never folded — returns 0 when it's already +EV). New `semibluff` response kind;
+     reuses pot/toCall/eqWhenCalled fields. Fits M5.7 (frequencies) and is clearly distinct from
+     MDF/alpha (it has the equity term), so no "which formula" confusion.
+   - **SPR** (new module **M5.9 · Stack-to-pot ratio**, track P1 after M5.8, +4 drills): trivial fn
+     `spr(stack, pot) = stack/pot`; new `spr` response kind — the first RAW-NUMBER answer (not a % or
+     0-1), so the UI input skips the >1→% conversion. 4 drills at SPR 1/2/4/15, EXPLAINs teach the
+     commitment bands (low SPR commits one-pair hands, high SPR needs a monster). Reuses effStack/pot.
+   - UI: both are math-asks (no board); added `otherMathAsk` to the render/defer gating, scenario
+     lines, a %-input (semibluff) and a raw-number input (spr), and feedback ("needs 0% — +EV even if
+     they never fold"; "SPR 15"). Browser-verified both new ask kinds end-to-end.
+   - Running: 8 new/extended ask kinds this stretch (icm, callequity, shove, rangeadv, semibluff,
+     spr + earlier). All follow the same recipe: contract type + engine fn + grade() branch +
+     LEAK_TABLE + drills + module/EXPLAIN + UI render/input/feedback + grade-all-loop branch + tests.
+   - REMEMBER: a new module's correct-answer tag is `<module>.ok` via the classifyLeak fallback (e.g.
+     `t2.ok`), NOT `p1.ok`; and any new `ask` kind needs a branch in the grade-all-drills TEST loop or
+     it falls through to the action path and crashes. Both bit me earlier; watch for them.
 
 ## Machine-specific notes for macOS
 

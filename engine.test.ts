@@ -3,7 +3,7 @@ import {
   score5, score7, score7slow, cmpScore, equity, equityVsRange, outs,
   breakEven, callEV, decisionRegret, regret, estimateError, withinBand, brier, calibration, leakReport,
   hand, parseCard, card, rankOf, suitOf, FULL_DECK, madeHand, drawSuit, nutCategory, comboCount,
-  minDefenseFreq, bluffFrequency, icmEquity, requiredEquity, shoveEV, rangeVsRange, boardTexture,
+  minDefenseFreq, bluffFrequency, icmEquity, requiredEquity, shoveEV, rangeVsRange, boardTexture, semiBluffBreakeven, spr,
   equityLeaf, bestResponseEV, bestAction, truth, buildTree, realizationFactor,
   fieldEquity, validateAbstraction, ABSTRACTION_LIMITS,
   actionEVs, grade,
@@ -715,6 +715,10 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
           ? { kind: "shove", action: "fold" }            // T2 push/fold
           : d.ask === "rangeadv"
           ? { kind: "rangeadv", value: 0.5 }             // M5.8 range advantage
+          : d.ask === "semibluff"
+          ? { kind: "semibluff", value: 0.3 }            // M5.7 semi-bluff break-even
+          : d.ask === "spr"
+          ? { kind: "spr", value: 4 }                    // M5.9 stack-to-pot ratio
           : (d.state.abstraction.sizes.length === 0 || d.state.abstraction.heroFacesBet !== undefined)
             ? { kind: "action", action: { kind: "call" } } // pillar-1 call/fold OR hero-faces-bet root
             : { kind: "action", action: { kind: "check" } }; // pillar-2 (legal at root)
@@ -861,8 +865,8 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
   ok("M4 check regret == 3 bb", approx(m4check.result.regretBb, 3), `got ${m4check.result.regretBb}`);
   ok("M4 check -> m4.misses_street_sequence", m4check.result.leakTag === "m4.misses_street_sequence");
 
-  ok("STARTER_DRILLS now spans 184 drills incl M0/M3.5/M4/M4.5/M5.6/M5.7/M5.8/P0/P1/P2/P2.5/P3/P3.4/P3.5/P4/P5/T1/T2",
-    STARTER_DRILLS.length === 184 &&
+  ok("STARTER_DRILLS now spans 190 drills incl M0/M3.5/M4/M4.5/M5.6/M5.7/M5.8/M5.9/P0/P1/P2/P2.5/P3/P3.4/P3.5/P4/P5/T1/T2",
+    STARTER_DRILLS.length === 190 &&
     ["M0", "M3.5", "M4", "M4.5", "M5.6", "M5.7", "P0", "P1", "P3", "P4", "P5"].every((m) => STARTER_DRILLS.some((d) => d.module === m)));
 
   // M4.5 combo counting: base counts and blocker removal, all hand-checkable.
@@ -984,6 +988,26 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
   ok("m58 caller attacks J-T-9 (~0.69, the flip side of the raiser's 0.31)", approx(raOf("m58-caller-attacks"), 0.6918, 0.003));
   ok("m58 caller's edge is the complement of the raiser's on the same board",
     approx(raOf("m58-caller-attacks") + raOf("m58-coordinated-board-disadvantage"), 1.0, 0.001));
+
+  // M5.7 semi-bluff break-even: a pure bluff needs alpha; more equity needs fewer folds.
+  ok("semiBluffBreakeven: pure bluff (e=0) pot bet = alpha 0.5", approx(semiBluffBreakeven(1, 1, 0), 0.5));
+  ok("semiBluffBreakeven: gutshot (e=0.16) pot bet ≈ 0.342", approx(semiBluffBreakeven(1, 1, 0.16), 0.342, 0.002));
+  ok("semiBluffBreakeven: flush draw (e=0.35) pot bet = 0 (+EV even if never folds)", semiBluffBreakeven(1, 1, 0.35) === 0);
+  ok("semiBluffBreakeven: more equity needs fewer folds", semiBluffBreakeven(1, 1, 0.16) > semiBluffBreakeven(1, 1, 0.30));
+  const sbGut = gradeDrill(balSess, "m57-semibluff-gutshot", { kind: "semibluff", value: 0.34 }, 0).result;
+  ok("m57-semibluff-gutshot: 34% within band (ok)", sbGut.leakTag.endsWith(".ok"));
+  ok("m57 semibluff over-demanding folds -> m57.overrates_fold_equity",
+    gradeDrill(balSess, "m57-semibluff-gutshot", { kind: "semibluff", value: 0.50 }, 0).result.leakTag === "m57.overrates_fold_equity");
+  ok("m57-semibluff-flushdraw: 0% is exact",
+    gradeDrill(balSess, "m57-semibluff-flushdraw", { kind: "semibluff", value: 0 }, 0).result.estimateError === 0);
+
+  // M5.9 stack-to-pot ratio: effective stack / pot.
+  ok("spr: 40 / 20 = 2", spr(40, 20) === 2);
+  ok("spr: 90 / 6 = 15", spr(90, 6) === 15);
+  ok("m59-spr-committed truth = 2 (exact)", gradeDrill(balSess, "m59-spr-committed", { kind: "spr", value: 2 }, 0).result.estimateError === 0);
+  ok("m59-spr-deep truth = 15 (exact)", gradeDrill(balSess, "m59-spr-deep", { kind: "spr", value: 15 }, 0).result.estimateError === 0);
+  ok("m59 overestimating the SPR -> m59.overrates_spr",
+    gradeDrill(balSess, "m59-spr-committed", { kind: "spr", value: 6 }, 0).result.leakTag === "m59.overrates_spr");
 
   // Check-raise-range drill: villain raises only what beats hero (policy + raise).
   const cr = byId("p5-vs-checkraise-range");
