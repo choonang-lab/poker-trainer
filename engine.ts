@@ -1071,6 +1071,7 @@ const LEAK_TABLE: Record<string, string> = {
   "P2.5:missed_bet": "p25.checks_instead_of_betting",
   "P2.5:passive": "p25.flats_instead_of_raising",
   "P2.5:overfold": "p25.overfolds",
+  "P2.5:overbet": "p25.cbets_without_equity",
   "P3:missed_bet": "p3.misses_multistreet_value",
   "P3:overbet": "p3.overbets_multistreet",
   "P3:passive": "p3.flats_instead_of_raising",
@@ -1642,6 +1643,72 @@ export const STARTER_DRILLS: Drill[] = [
     },
   },
   {
+    id: "p3-flat-to-trap",
+    module: "P3",
+    title: "Raise lines: flatting the nuts to trap",
+    read: "Villain is barreling a bluffy range; he folds to a raise but keeps betting if you just call.",
+    ask: "action",
+    // The opposite of raising for value: sometimes you FLAT the nuts to keep villain bluffing. Hero AsKs = a
+    // royal flush on Qs Js Ts 4h. If you raise, villain gives up (EV 2); if you just call, he barrels the river
+    // and you collect another bet (EV 5). Flatting a monster to induce more bluffs beats raising them off it.
+    state: {
+      heroHand: hand("As", "Ks"), board: hand("Qs", "Js", "Ts", "4h"),
+      pot: 1, toAct: "hero",
+      villain: {
+        range: [{ combo: hand("9h", "9d"), weight: 1 }],
+        strategy: (_s: NodeState, legal: Action[]) => {
+          const facing = legal.some((a) => a.kind === "fold");
+          if (facing) return legal.map((a) => ({ action: a, weight: a.kind === "fold" ? 1 : 0 }));
+          return legal.map((a) => ({ action: a, weight: a.kind === "bet" ? 1 : 0 }));
+        },
+      },
+      abstraction: { sizes: [1.0], streets: ["turn", "river"], players: 2, heroFacesBet: 1.0, raiseCap: 1, villainLeads: true },
+    },
+  },
+  {
+    id: "p3-three-street-value",
+    module: "P3",
+    title: "Multi-street lines: top two pair for three streets of value",
+    read: "Villain calls any bet down with a worse hand (a calling station).",
+    ask: "action",
+    // Plan the WHOLE hand, not one street. Hero AsQs = top two pair on Ah Qd 4c; a station calls flop, turn AND
+    // river with a worse ace, so bet all three streets to build the biggest pot. Checking any street leaves value
+    // behind. (The Pillar-2 counterpart of M4's sequencing, against a fixed calling range.)
+    state: {
+      heroHand: hand("As", "Qs"), board: hand("Ah", "Qd", "4c"),
+      pot: 1, toAct: "hero",
+      villain: {
+        range: [{ combo: hand("Ad", "Jc"), weight: 1 }],
+        strategy: (_s: NodeState, legal: Action[]) =>
+          legal.map((a) => ({ action: a, weight: a.kind === "call" ? 1 : 0 })),
+      },
+      abstraction: { sizes: [1.0], streets: ["flop", "turn", "river"], players: 2 },
+    },
+  },
+  {
+    id: "p3-delayed-cbet",
+    module: "P3",
+    title: "Multi-street lines: checking a strong hand to induce",
+    read: "Villain folds his air to a flop bet — but if you check, he bets it as a bluff.",
+    ask: "action",
+    // Delayed c-bet / induce: betting now folds out the hands you beat, so CHECK the flop and let villain bluff.
+    // Hero AsAd is an overpair on Kc 7d 2h; villain's air (Qh Jh) folds to a flop bet but bets if checked to.
+    // Checking (EV 4.27, hero collects the bluff and can bet the turn) beats betting (1.00). Check strong to trap.
+    state: {
+      heroHand: hand("As", "Ad"), board: hand("Kc", "7d", "2h"),
+      pot: 1, toAct: "hero",
+      villain: {
+        range: [{ combo: hand("Qh", "Jh"), weight: 1 }],
+        strategy: (_s: NodeState, legal: Action[]) => {
+          const facing = legal.some((a) => a.kind === "fold");
+          if (facing) return legal.map((a) => ({ action: a, weight: a.kind === "fold" ? 1 : 0 }));
+          return legal.map((a) => ({ action: a, weight: a.kind === "bet" ? 1 : 0 }));
+        },
+      },
+      abstraction: { sizes: [1.0], streets: ["flop", "turn"], players: 2, villainLeads: true },
+    },
+  },
+  {
     id: "p3-pot-control",
     module: "P3",
     title: "Multi-street lines: a medium top pair on the turn",
@@ -1861,6 +1928,51 @@ export const STARTER_DRILLS: Drill[] = [
       heroHand: hand("As", "Kh"), board: [],
       pot: 1, toAct: "hero",
       villain: { range: [{ combo: hand("Ad", "Qc"), weight: 1 }] },
+      abstraction: { sizes: [], streets: [], players: 2 },
+    },
+  },
+  {
+    id: "p1-suited-connector-vs-aces",
+    module: "P1",
+    title: "Preflop ranges: a suited connector against aces",
+    ask: "estimate",
+    // A suited connector is crushed by an overpair but not drawing dead: straights, flushes and two pair keep
+    // hero around 23% against pocket aces preflop (a full runout, ~3s). Small pairs and connectors need a cheap
+    // price and deep stacks precisely because they're this far behind a big pair heads-up.
+    state: {
+      heroHand: hand("8h", "7h"), board: [],
+      pot: 1, toAct: "hero",
+      villain: { range: [{ combo: hand("As", "Ad"), weight: 1 }] },
+      abstraction: { sizes: [], streets: [], players: 2 },
+    },
+  },
+  {
+    id: "p1-dominated-ace",
+    module: "P1",
+    title: "Preflop ranges: a weak ace against a bigger one",
+    ask: "estimate",
+    // The wrong side of domination (the mirror of AK vs AQ). Hero's A-5 shares the ace with A-K, so hero is
+    // outkicked and drawing mostly to a five or a runner-runner -> only ~26% preflop. Being dominated is why
+    // weak aces play so poorly against a raising range: you make top pair and are still behind.
+    state: {
+      heroHand: hand("Ah", "5c"), board: [],
+      pot: 1, toAct: "hero",
+      villain: { range: [{ combo: hand("As", "Ks"), weight: 1 }] },
+      abstraction: { sizes: [], streets: [], players: 2 },
+    },
+  },
+  {
+    id: "p1-overcards-vs-pair-race",
+    module: "P1",
+    title: "Preflop ranges: two overcards against the smallest pair",
+    ask: "estimate",
+    // The classic coin flip. Ace-king against a pair of twos is almost exactly even (~47%) -- even the smallest
+    // pair is a slight favorite over two overcards preflop, because it's ahead until an ace or king pairs. 'A
+    // race' means roughly 50/50; here the pair edges it, which is why a pair is never a big underdog preflop.
+    state: {
+      heroHand: hand("Ah", "Kc"), board: [],
+      pot: 1, toAct: "hero",
+      villain: { range: [{ combo: hand("2s", "2d"), weight: 1 }] },
       abstraction: { sizes: [], streets: [], players: 2 },
     },
   },
@@ -2439,6 +2551,36 @@ export const STARTER_DRILLS: Drill[] = [
     },
   },
   {
+    id: "p4-two-pair-diluted",
+    module: "P4",
+    title: "Multiway: top two pair against a two-opponent field",
+    ask: "estimate",
+    // Even a strong made hand is roughly halved. Hero KcQd = top two pair on Kh Qh 5c; heads-up it's ~56%
+    // against this draw-heavy spot, but three-way it drops to ~31% -- you must beat BOTH opponents and one of
+    // them is likely getting there. Strong hands stay bet-worthy multiway, but they're no longer favorites.
+    state: {
+      heroHand: hand("Kc", "Qd"), board: hand("Kh", "Qh", "5c"),
+      pot: 1, toAct: "hero",
+      villain: { range: [{ combo: hand("Ah", "Jh"), weight: 1 }] },
+      abstraction: { sizes: [], streets: [], players: 3 },
+    },
+  },
+  {
+    id: "p4-weak-draw-diluted",
+    module: "P4",
+    title: "Multiway: a gutshot against a two-opponent field",
+    ask: "estimate",
+    // A weak draw is nearly dead in a crowd. Hero Kd Qc has just a gutshot on Js 9h 2c; heads-up it's ~19%,
+    // but three-way it falls to about 3% -- against two hands you must both improve AND still be best. Small
+    // draws that are marginal heads-up are automatic folds multiway.
+    state: {
+      heroHand: hand("Kd", "Qc"), board: hand("Js", "9h", "2c"),
+      pot: 1, toAct: "hero",
+      villain: { range: [{ combo: hand("Ah", "Ad"), weight: 1 }] },
+      abstraction: { sizes: [], streets: [], players: 3 },
+    },
+  },
+  {
     id: "m2-set-vs-overpair",
     module: "M2",
     title: "Equity: a set crushes an overpair",
@@ -2779,6 +2921,68 @@ export const STARTER_DRILLS: Drill[] = [
         },
       },
       abstraction: { sizes: [1.0], streets: ["flop"], players: 2, heroFacesBet: 0.75, raiseCap: 1 },
+    },
+  },
+  {
+    id: "p25-probe-bet",
+    module: "P2.5",
+    title: "Taking the lead: probing the turn after the flop checked through",
+    read: "Villain checked back the flop, so his range is weak — he folds his misses to a turn bet.",
+    ask: "action",
+    // PROBE bet: when the preflop raiser declines to c-bet, his checked-back range is capped/weak, so lead the
+    // turn to take the pot. Hero AhTd paired the ten on the turn (Qc 7h 2d Ts); villain's missed hands (Kh Jh,
+    // 9s 8s) fold to the probe. Betting (1.00) beats checking (0.76): attack the weakness he showed.
+    state: {
+      heroHand: hand("Ah", "Td"), board: hand("Qc", "7h", "2d", "Ts"),
+      pot: 1, toAct: "hero",
+      villain: {
+        range: [{ combo: hand("Kh", "Jh"), weight: 1 }, { combo: hand("9s", "8s"), weight: 1 }],
+        policy: (_combo: Combo) => [{ action: { kind: "fold" }, weight: 1 }, { action: { kind: "call" }, weight: 0 }],
+      },
+      abstraction: { sizes: [0.75], streets: ["turn"], players: 2 },
+    },
+  },
+  {
+    id: "p25-check-raise-thin-value",
+    module: "P2.5",
+    title: "Taking the lead: check-raising for thin value",
+    read: "You checked; villain bets a worse hand he'll call a raise with. He never re-raises.",
+    ask: "action",
+    // Check-raise for THIN value (not a monster, not a draw — a medium made hand). Hero Ac9c = top pair, medium
+    // kicker on Ah 7d 3s. You check, villain bets a worse ace (Ad 5h) and pays off a raise. Raising (2.60) beats
+    // just calling (1.20): check-raise even a middling made hand when a worse one will put more money in.
+    state: {
+      heroHand: hand("Ac", "9c"), board: hand("Ah", "7d", "3s"),
+      pot: 1, toAct: "hero",
+      villain: {
+        range: [{ combo: hand("Ad", "5h"), weight: 1 }],
+        strategy: (_s: NodeState, legal: Action[]) => {
+          const facing = legal.some((a) => a.kind === "fold");
+          if (facing) return legal.map((a) => ({ action: a, weight: a.kind === "call" ? 1 : 0 }));
+          return legal.map((a) => ({ action: a, weight: a.kind === "bet" ? 1 : 0 }));
+        },
+      },
+      abstraction: { sizes: [1.0], streets: ["flop"], players: 2, heroFacesBet: 0.66, raiseCap: 1 },
+    },
+  },
+  {
+    id: "p25-give-up-no-cbet",
+    module: "P2.5",
+    title: "Taking the lead: when NOT to continuation-bet",
+    read: "You raised before the flop and missed; villain is a station who never folds.",
+    ask: "action",
+    // The discipline of NOT c-betting — the negative-space partner to the c-bet drills. Hero KcQc is air on
+    // 8h 5d 2c and villain never folds, so a c-bet only burns chips (EV -0.04) into a hand that always calls;
+    // checking (0.28) keeps the pot small and takes a cheap look. Don't auto-c-bet when you have no equity and no folds.
+    state: {
+      heroHand: hand("Kc", "Qc"), board: hand("8h", "5d", "2c"),
+      pot: 1, toAct: "hero",
+      villain: {
+        range: [{ combo: hand("9s", "9d"), weight: 1 }],
+        strategy: (_s: NodeState, legal: Action[]) =>
+          legal.map((a) => ({ action: a, weight: a.kind === "call" ? 1 : 0 })),
+      },
+      abstraction: { sizes: [0.75], streets: ["flop"], players: 2 },
     },
   },
   // ---- P3.4 Barreling: second barrel for value, as a bluff, or give up ----

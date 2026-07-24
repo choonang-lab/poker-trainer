@@ -55,7 +55,7 @@ repetition) with a guided-curriculum PWA on top.
 
 ## State as of 2026-07 (commit 6b80618)
 
-- **532 tests passing**, both type-checks clean, deployed bundle in sync.
+- **549 tests passing**, both type-checks clean, deployed bundle in sync.
 - **Review fixes (2026-07-18, post-audit), cache v21:** (1) `m2-combo-draw`
   board was `9s 8h 2c` (an 8-out spot, 36.9%) but its title/EXPLAIN teach the
   15-out flush+open-ender combo — fixed to `9s 8s 2c` (56.3%); a learner who
@@ -129,7 +129,7 @@ repetition) with a guided-curriculum PWA on top.
 
 Single scan of everything still open after 19 shipped items. The numbered "Next up"
 log below is a DONE-history with declines interleaved; this section is the live to-do.
-Baseline right now: **152 drills, 19 modules, 532 tests, cache v49**, live & in sync.
+Baseline right now: **163 drills, 19 modules, 549 tests, cache v50**, live & in sync.
 
 ### A. Addable now — content-only, no engine change (pick any, each ~1 commit)
 - **More depth in any module.** The engine supports far more than is authored; every
@@ -668,6 +668,33 @@ break that or need a fundamentally different solver. Logged so they aren't re-sc
    - Updated the P2 module preface/concepts/objectives to cover the fuller curriculum (added "Range /
      small bet" and "Bluff sizing" concepts). P2 is now 10 drills and conceptually complete for a
      beginner module — further P2 adds would be near-duplicates.
+
+29. ~~**Pillar-2 expansion: +11 drills across P1 / P4 / P2.5 / P3**~~ — DONE 2026-07-24 (cache v50,
+   549 tests, 163 drills). Owner clarified "P2 seems thin" meant the whole PILLAR 2 (it was ~51 vs
+   Pillar 1's ~101). Reviewed it (see chat): the advanced modules (P2/P3.4/P3.5/P5) are solid; the
+   gap is (a) real room in P1/P2.5/P3 and (b) STRUCTURAL engine caps on P0 (single-street realization
+   can't do call-IP/fold-OOP), P1 (preflop is enumeration-only, no postflop tree), P4 (field approx,
+   estimates only). Built the growable part. All engine-verified first.
+   - **P1** (+3 estimates): `p1-suited-connector-vs-aces` (8-7s vs AA → 0.230), `p1-dominated-ace`
+     (A-5 vs A-K → 0.260, the wrong side of domination), `p1-overcards-vs-pair-race` (AK vs 22 →
+     0.470, the classic coin flip). Preflop truths captured from the existing grade-all-drills loop
+     (no extra ~1.5s enumerations — fast score7 keeps the whole suite ~4s even with 6 preflop drills).
+   - **P4** (+2 estimates): `p4-two-pair-diluted` (top two 56%→31% three-way), `p4-weak-draw-diluted`
+     (gutshot 19%→3% — near-dead in a crowd).
+   - **P2.5** (+3 actions): `p25-probe-bet` (lead the turn after a checked-back flop), `p25-check-
+     raise-thin-value` (check-raise a MEDIUM made hand), `p25-give-up-no-cbet` (the discipline of NOT
+     c-betting). The last needed a NEW leak mapping `P2.5:overbet → p25.cbets_without_equity`.
+   - **P3** (+3 actions): `p3-flat-to-trap` (FLAT the nuts — call, not raise — when raising folds
+     villain off a bluff; villainLeads two-street tree), `p3-three-street-value` (bet 3 streets vs a
+     station), `p3-delayed-cbet` (check a strong hand to induce a bluff).
+   - DROPPED (logged): a pure check-raise BLUFF (−EV, villain's top pair calls the raise — needs a
+     foldier villain, and the semibluff check-raise already covers check-raise aggression).
+   - GOTCHAs: (1) flat-to-trap first came out raise-is-best because villain CALLED the raise; fixed by
+     making villain FOLD to a raise but BARREL when flatted — that's what makes flatting win. (2) the
+     raise action in heroFacesBet trees has a chain-computed size (e.g. bet3), so test/probe it via
+     `actionEVs(...).find(bet).action`, never a literal `{kind:"bet",size:1.0}` (throws "illegal action").
+   - Pillar 2 now 62 drills. The remaining gap vs Pillar 1 is structural (P0/P1/P4 engine-capped) +
+     the genuinely-advanced skills (GTO/ICM/true-multiway/preflop-postflop) that need new engines.
 
 ## Machine-specific notes for macOS
 

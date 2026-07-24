@@ -691,6 +691,7 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
   // a second enumeration.)
   let s = session0;
   let preflopErr = -1, domErr = -1;
+  const pfErr: Record<string, number> = {};
   for (const d of STARTER_DRILLS) {
     const resp: Response = d.ask === "estimate"
       ? { kind: "estimate", value: 0.5 }
@@ -713,6 +714,7 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
     s = out.session;
     if (d.id === "p1-aa-vs-kk-preflop" && out.result.estimateError !== undefined) preflopErr = out.result.estimateError;
     if (d.id === "p1-ak-vs-aq" && out.result.estimateError !== undefined) domErr = out.result.estimateError;
+    if (d.state.board.length === 0 && d.ask === "estimate" && out.result.estimateError !== undefined) pfErr[d.id] = out.result.estimateError;
   }
   ok("nothing due immediately after grading the whole library", nextDrill(s, 0) === null);
   ok("drills come due again at now=1", nextDrill(s, 1) !== null);
@@ -720,6 +722,10 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
     `err ${preflopErr}`);
   ok("preflop AK vs AQ domination truth ~0.740 (error from a 0.5 estimate)", approx(domErr, 0.7402 - 0.5, 0.005),
     `err ${domErr}`);
+  // New P1 matchups (truths captured from the same loop, no extra enumeration).
+  ok("preflop 8-7s vs AA truth ~0.230", approx(pfErr["p1-suited-connector-vs-aces"], 0.5 - 0.230, 0.006), `err ${pfErr["p1-suited-connector-vs-aces"]}`);
+  ok("preflop A-5 vs A-K (dominated) truth ~0.260", approx(pfErr["p1-dominated-ace"], 0.5 - 0.260, 0.006), `err ${pfErr["p1-dominated-ace"]}`);
+  ok("preflop AK vs 22 (race) truth ~0.470", approx(pfErr["p1-overcards-vs-pair-race"], 0.5 - 0.470, 0.006), `err ${pfErr["p1-overcards-vs-pair-race"]}`);
 
   ok("gradeDrill throws on an unknown drill id",
     throws(() => gradeDrill(session0, "no-such-drill", { kind: "estimate", value: 0.5 }, 0)));
@@ -799,6 +805,8 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
   ok("P4 TPTK four-way ≈ 0.766 (below the three-way 0.838)", approx(truth(byId("p4-tptk-4way").state), 0.766, 0.004));
   ok("P4 overpair three-way ≈ 0.606 (from ~0.778 heads-up)", approx(truth(byId("p4-overpair-diluted").state), 0.606, 0.004));
   ok("P4 bare flush draw three-way ≈ 0.090 (from ~0.299 heads-up)", approx(truth(byId("p4-flushdraw-diluted").state), 0.090, 0.004));
+  ok("P4 top two pair three-way ≈ 0.312 (from ~0.559 heads-up)", approx(truth(byId("p4-two-pair-diluted").state), 0.312, 0.004));
+  ok("P4 gutshot three-way ≈ 0.035 (nearly dead in a crowd)", approx(truth(byId("p4-weak-draw-diluted").state), 0.035, 0.004));
 
   // M3.5 fold equity: betting a semi-bluff is best -> checking is the leak.
   const m35 = byId("m35-semibluff-flushdraw");
@@ -845,8 +853,8 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
   ok("M4 check regret == 3 bb", approx(m4check.result.regretBb, 3), `got ${m4check.result.regretBb}`);
   ok("M4 check -> m4.misses_street_sequence", m4check.result.leakTag === "m4.misses_street_sequence");
 
-  ok("STARTER_DRILLS now spans 152 drills incl M0/M3.5/M4/M4.5/M5.6/M5.7/P0/P1/P2/P2.5/P3/P3.4/P3.5/P4/P5",
-    STARTER_DRILLS.length === 152 &&
+  ok("STARTER_DRILLS now spans 163 drills incl M0/M3.5/M4/M4.5/M5.6/M5.7/P0/P1/P2/P2.5/P3/P3.4/P3.5/P4/P5",
+    STARTER_DRILLS.length === 163 &&
     ["M0", "M3.5", "M4", "M4.5", "M5.6", "M5.7", "P0", "P1", "P3", "P4", "P5"].every((m) => STARTER_DRILLS.some((d) => d.module === m)));
 
   // M4.5 combo counting: base counts and blocker removal, all hand-checkable.
@@ -935,6 +943,17 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
   ok("3-bet semibluff (big draw): raising is best", bestAction(buildTree(byId("p3-3bet-semibluff").state)).kind === "bet");
   ok("3-bet semibluff: flatting the draw -> p3.flats_instead_of_raising",
     gradeDrill(session, "p3-3bet-semibluff", { kind: "action", action: { kind: "call" } }, 0).result.leakTag === "p3.flats_instead_of_raising");
+  // Flat the nuts to trap (call best), three-street value (bet best), delayed c-bet / induce (check best).
+  const raiseOfP3 = (id: string): Action => actionEVs(buildTree(byId(id).state)).find((e) => e.action.kind === "bet")!.action;
+  ok("flat to trap: flatting (call) is best, not raising", bestAction(buildTree(byId("p3-flat-to-trap").state)).kind === "call");
+  ok("flat to trap: raising off the bluffs -> p3.overbets_multistreet",
+    gradeDrill(session, "p3-flat-to-trap", { kind: "action", action: raiseOfP3("p3-flat-to-trap") }, 0).result.leakTag === "p3.overbets_multistreet");
+  ok("three-street value: betting is best", bestAction(buildTree(byId("p3-three-street-value").state)).kind === "bet");
+  ok("three-street value: checking -> p3.misses_multistreet_value",
+    gradeDrill(session, "p3-three-street-value", { kind: "action", action: { kind: "check" } }, 0).result.leakTag === "p3.misses_multistreet_value");
+  ok("delayed c-bet: checking to induce is best", bestAction(buildTree(byId("p3-delayed-cbet").state)).kind === "check");
+  ok("delayed c-bet: betting folds the bluffs -> p3.overbets_multistreet",
+    gradeDrill(session, "p3-delayed-cbet", { kind: "action", action: { kind: "bet", size: 1.0 } }, 0).result.leakTag === "p3.overbets_multistreet");
 
   // P3.5 River decisions: raise / call-thin / call-bluffcatch / fold-multiway, each
   // graded through the heroFacesBet river tree; wrong actions map to p35.* leaks.
@@ -1054,6 +1073,16 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
   ok("check-raise semibluff: raising a draw is best", bestAction(buildTree(byId("p25-check-raise-semibluff").state)).kind === "bet");
   ok("check-raise semibluff: flatting the draw -> p25.flats_instead_of_raising",
     gradeDrill(session, "p25-check-raise-semibluff", { kind: "action", action: { kind: "call" } }, 0).result.leakTag === "p25.flats_instead_of_raising");
+  // Probe bet (lead the turn after a checked-back flop), thin-value check-raise, and the give-up (don't c-bet).
+  ok("probe bet: leading the turn is best", bestSz("p25-probe-bet") === "bet0.75");
+  ok("probe bet: checking -> p25.checks_instead_of_betting",
+    gradeDrill(session, "p25-probe-bet", { kind: "action", action: { kind: "check" } }, 0).result.leakTag === "p25.checks_instead_of_betting");
+  ok("thin-value check-raise: raising a medium hand is best", bestAction(buildTree(byId("p25-check-raise-thin-value").state)).kind === "bet");
+  ok("thin-value check-raise: flatting -> p25.flats_instead_of_raising",
+    gradeDrill(session, "p25-check-raise-thin-value", { kind: "action", action: { kind: "call" } }, 0).result.leakTag === "p25.flats_instead_of_raising");
+  ok("give-up: checking is best (no equity, no folds)", bestAction(buildTree(byId("p25-give-up-no-cbet").state)).kind === "check");
+  ok("give-up: c-betting anyway -> p25.cbets_without_equity",
+    gradeDrill(session, "p25-give-up-no-cbet", { kind: "action", action: { kind: "bet", size: 0.75 } }, 0).result.leakTag === "p25.cbets_without_equity");
 
   // P3.4 Barreling: value barrel (bet), bluff barrel (bet, behind but fold equity), give up (check).
   ok("value barrel: betting is best", bestSz("p34-value-barrel") === "bet0.75");
