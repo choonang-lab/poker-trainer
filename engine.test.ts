@@ -3,7 +3,7 @@ import {
   score5, score7, score7slow, cmpScore, equity, equityVsRange, outs,
   breakEven, callEV, decisionRegret, regret, estimateError, withinBand, brier, calibration, leakReport,
   hand, parseCard, card, rankOf, suitOf, FULL_DECK, madeHand, drawSuit, nutCategory, comboCount,
-  minDefenseFreq, bluffFrequency, icmEquity, requiredEquity, shoveEV,
+  minDefenseFreq, bluffFrequency, icmEquity, requiredEquity, shoveEV, rangeVsRange, boardTexture,
   equityLeaf, bestResponseEV, bestAction, truth, buildTree, realizationFactor,
   fieldEquity, validateAbstraction, ABSTRACTION_LIMITS,
   actionEVs, grade,
@@ -713,6 +713,8 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
           ? { kind: "callequity", value: 0.5 }           // T1 risk premium
           : d.ask === "shove"
           ? { kind: "shove", action: "fold" }            // T2 push/fold
+          : d.ask === "rangeadv"
+          ? { kind: "rangeadv", value: 0.5 }             // M5.8 range advantage
           : (d.state.abstraction.sizes.length === 0 || d.state.abstraction.heroFacesBet !== undefined)
             ? { kind: "action", action: { kind: "call" } } // pillar-1 call/fold OR hero-faces-bet root
             : { kind: "action", action: { kind: "check" } }; // pillar-2 (legal at root)
@@ -859,8 +861,8 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
   ok("M4 check regret == 3 bb", approx(m4check.result.regretBb, 3), `got ${m4check.result.regretBb}`);
   ok("M4 check -> m4.misses_street_sequence", m4check.result.leakTag === "m4.misses_street_sequence");
 
-  ok("STARTER_DRILLS now spans 176 drills incl M0/M3.5/M4/M4.5/M5.6/M5.7/P0/P1/P2/P2.5/P3/P3.4/P3.5/P4/P5/T1/T2",
-    STARTER_DRILLS.length === 176 &&
+  ok("STARTER_DRILLS now spans 180 drills incl M0/M3.5/M4/M4.5/M5.6/M5.7/M5.8/P0/P1/P2/P2.5/P3/P3.4/P3.5/P4/P5/T1/T2",
+    STARTER_DRILLS.length === 180 &&
     ["M0", "M3.5", "M4", "M4.5", "M5.6", "M5.7", "P0", "P1", "P3", "P4", "P5"].every((m) => STARTER_DRILLS.some((d) => d.module === m)));
 
   // M4.5 combo counting: base counts and blocker removal, all hand-checkable.
@@ -949,6 +951,29 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
   ok("t2 shoving into a station -> t2.shoves_too_loose", pfTooLoose.leakTag === "t2.shoves_too_loose");
   ok("t2-fold-deeper: folding is correct (the stack-depth discrimination)",
     gradeDrill(balSess, "t2-fold-deeper", { kind: "shove", action: "fold" }, 0).result.leakTag === "t2.ok");
+
+  // M5.8 range advantage: the same two ranges, texture flips who's ahead.
+  ok("rangeVsRange: raiser crushes a high dry flop A-K-5 (~0.92)", approx(rangeVsRange(byId("m58-high-board-advantage").state.heroRange!, byId("m58-high-board-advantage").state.villain.range, byId("m58-high-board-advantage").state.board), 0.9217, 0.003));
+  ok("rangeVsRange: raiser is BEHIND on a coordinated J-T-9 (~0.31)", approx(rangeVsRange(byId("m58-coordinated-board-disadvantage").state.heroRange!, byId("m58-coordinated-board-disadvantage").state.villain.range, byId("m58-coordinated-board-disadvantage").state.board), 0.3082, 0.003));
+  ok("rangeVsRange: same ranges, texture flips the advantage (0.92 high vs 0.31 coordinated)",
+    rangeVsRange(byId("m58-high-board-advantage").state.heroRange!, byId("m58-high-board-advantage").state.villain.range, byId("m58-high-board-advantage").state.board) > 0.5 &&
+    rangeVsRange(byId("m58-coordinated-board-disadvantage").state.heroRange!, byId("m58-coordinated-board-disadvantage").state.villain.range, byId("m58-coordinated-board-disadvantage").state.board) < 0.5);
+  ok("rangeVsRange: paired ace-high nut advantage (~0.95)", approx(rangeVsRange(byId("m58-paired-board-nut-advantage").state.heroRange!, byId("m58-paired-board-nut-advantage").state.villain.range, byId("m58-paired-board-nut-advantage").state.board), 0.9529, 0.003));
+  ok("rangeVsRange: low connected is ahead but thin (~0.67)", approx(rangeVsRange(byId("m58-low-board-thin-advantage").state.heroRange!, byId("m58-low-board-thin-advantage").state.villain.range, byId("m58-low-board-thin-advantage").state.board), 0.6652, 0.003));
+  // Board texture classifier.
+  ok("boardTexture A-K-5 rainbow: high, disconnected, rainbow, unpaired",
+    (() => { const t = boardTexture(hand("Ac", "Kd", "5h")); return !t.paired && t.suitedness === "rainbow" && !t.connected && t.topRank === 14; })());
+  ok("boardTexture J-T-9: connected", boardTexture(hand("Jc", "Td", "9h")).connected);
+  ok("boardTexture A-A-4: paired", boardTexture(hand("Ac", "Ad", "4h")).paired);
+  ok("boardTexture two hearts + one club: two-tone", boardTexture(hand("Ah", "Kh", "5c")).suitedness === "two-tone");
+  ok("boardTexture three hearts: mono", boardTexture(hand("Ah", "Kh", "5h")).suitedness === "mono");
+  // grade() through the drill: high board over-under and a correct answer.
+  const raGrade = gradeDrill(balSess, "m58-high-board-advantage", { kind: "rangeadv", value: 0.92 }, 0).result;
+  ok("m58 high board: 0.92 is within band (ok)", raGrade.leakTag.endsWith(".ok"));
+  ok("m58 underrating a range advantage -> m58.underrates_range",
+    gradeDrill(balSess, "m58-high-board-advantage", { kind: "rangeadv", value: 0.55 }, 0).result.leakTag === "m58.underrates_range");
+  ok("m58 overrating on a bad board -> m58.overrates_range",
+    gradeDrill(balSess, "m58-coordinated-board-disadvantage", { kind: "rangeadv", value: 0.60 }, 0).result.leakTag === "m58.overrates_range");
 
   // Check-raise-range drill: villain raises only what beats hero (policy + raise).
   const cr = byId("p5-vs-checkraise-range");

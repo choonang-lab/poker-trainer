@@ -55,7 +55,7 @@ repetition) with a guided-curriculum PWA on top.
 
 ## State as of 2026-07 (commit 6b80618)
 
-- **576 tests passing**, both type-checks clean, deployed bundle in sync.
+- **589 tests passing**, both type-checks clean, deployed bundle in sync.
 - **Review fixes (2026-07-18, post-audit), cache v21:** (1) `m2-combo-draw`
   board was `9s 8h 2c` (an 8-out spot, 36.9%) but its title/EXPLAIN teach the
   15-out flush+open-ender combo — fixed to `9s 8s 2c` (56.3%); a learner who
@@ -129,7 +129,7 @@ repetition) with a guided-curriculum PWA on top.
 
 Single scan of everything still open after 19 shipped items. The numbered "Next up"
 log below is a DONE-history with declines interleaved; this section is the live to-do.
-Baseline right now: **176 drills, 21 modules, 576 tests, cache v53**, live & in sync.
+Baseline right now: **180 drills, 22 modules, 589 tests, cache v54**, live & in sync.
 
 ### A. Addable now — content-only, no engine change (pick any, each ~1 commit)
 - **More depth in any module.** The engine supports far more than is authored; every
@@ -770,6 +770,33 @@ break that or need a fundamentally different solver. Logged so they aren't re-sc
      assertions had to change from p1.ok → t2.ok. (Same refinement applies to any new module's .ok.)
    - Tournaments (T1+T2) now 13 drills. Nash push/fold CHARTS remain out (solver + wide-range equity);
      the shove-EV framework is the gradeable, on-design slice, and it's the actually-useful skill.
+
+33. ~~**M5.8 Range advantage: a new range-vs-range engine + a texture classifier**~~ — DONE
+   2026-07-24 (cache v54, 589 tests, 180 drills, 22 modules). Asked "what other engines"; scoped a
+   menu and owner picked RANGE ADVANTAGE. KEY MEASUREMENT that unblocked it: I'd assumed flop
+   range-vs-range was slow, but MEASURED it — river 1ms, turn 10ms, **flop 52ms** for realistic
+   ranges (fast score7 makes even C(45,2)=990 runouts/pair cheap). So flop range advantage (the
+   useful case) is fully tractable; my earlier "river-only" caveat was wrong.
+   - NEW pure fn `rangeVsRange(heroRange, villRange, board)` — average of `equityVsRange` over hero
+     combos, exact card removal (skip board-colliding hero combos; per hero combo drop villain
+     combos sharing its cards). The extension of hand-vs-range to range-vs-range.
+   - NEW pure fn `boardTexture(board)` → {paired, suitedness: rainbow|two-tone|mono, connected,
+     topRank} — a classifier for range-interaction reads (shown as a UI label).
+   - NEW response kind `rangeadv` (estimate hero's whole-range equity; reuses `estimateLeak` bands,
+     refined via LEAK_TABLE M5.8:over/underestimate → m58.overrates/underrates_range). Uses the
+     EXISTING `State.heroRange` field (finally) — NOT truth() (extending truth()/fieldEquity to
+     range-vs-range would touch the "L2 is L3's leaf" seam; a dedicated grade branch keeps it clean).
+   - NEW module **M5.8 · Range advantage** (track P1, inserted after M5.7 / before P0 so Pillar-1-
+     before-Pillar-2 still holds), 4 drills over ONE shared matchup (a strong RAISER range vs a
+     medium CALLER range, consts RA_RAISER/RA_CALLER) across textures: A-K-5 → **0.92** (crush,
+     c-bet), J-T-9 → **0.31** (raiser BEHIND — same ranges, texture flips it), A-A-4 → 0.95 (nut
+     advantage, overbet), 7-6-5 → 0.67 (ahead but thin). The 0.92↔0.31 pair is the headline lesson.
+   - UI: `rangeadv` render = board + a `boardTexture` label ("rainbow · disconnected"), ranges in
+     the read (no single hero hand / villain combo shown); % input; feedback "your range is 92.2%
+     (you're ahead)". Browser-verified the high-board correct path.
+   - This is Pillar 1's capstone: hand-vs-range (M5) → range-vs-range (M5.8). NEXT engine options
+     (still on the menu): bluff/semi-bluff break-even constants, SPR, bankroll/risk-of-ruin — all
+     small pure-math; or flop range advantage is now proven fast enough for more range content.
 
 ## Machine-specific notes for macOS
 

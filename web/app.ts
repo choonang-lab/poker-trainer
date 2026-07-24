@@ -7,7 +7,7 @@ import {
   STARTER_DRILLS, loadSession, serializeSession, gradeDrill,
   buildTree, actionEVs, truth, outs, calibration, leakReport,
   rankOf, suitOf, RNAMES, score7, madeHand, drawSuit, nutCategory, comboCount,
-  minDefenseFreq, bluffFrequency, icmEquity, requiredEquity, shoveEV,
+  minDefenseFreq, bluffFrequency, icmEquity, requiredEquity, shoveEV, rangeVsRange, boardTexture,
 } from "../engine.ts";
 import { MODULES, PRIMER, EXPLAIN, moduleStatus, currentStreak } from "../curriculum.ts";
 import type { Drill, Response, Action, State, Module } from "../contract.ts";
@@ -324,6 +324,12 @@ function playDrill(drill: Drill, tagText: string, contLabel: string, onCont: () 
   } else if (shoveAsk) {
     const scenario = `${s.effStack} bb · big blind calls ${Math.round((s.callFreq ?? 0) * 100)}% · you're ${Math.round((s.eqWhenCalled ?? 0) * 100)}% when called`;
     sec.append(el("div", "tag", tagText), el("h2", "title", drill.title), el("div", "meta", scenario));
+  } else if (drill.ask === "rangeadv") {
+    const tex = boardTexture(s.board);
+    const texLabel = `${tex.paired ? "paired · " : ""}${tex.suitedness}${tex.connected ? " · connected" : " · disconnected"}`;
+    sec.append(el("div", "tag", tagText), el("h2", "title", drill.title),
+      el("div", "board", cards(s.board)),
+      el("div", "meta", `Board texture: ${texLabel}`));
   } else sec.append(
     el("div", "tag", tagText),
     el("h2", "title", drill.title),
@@ -381,6 +387,22 @@ function buildControls(controls: HTMLElement, drill: Drill, onAnswer: (r: Respon
     input.onkeydown = (e) => { if ((e as KeyboardEvent).key === "Enter") submit(); };
     const label = el("label", "prompt", "Your equity estimate:") as HTMLLabelElement;
     label.htmlFor = "ans-estimate";
+    controls.append(label, input, go);
+  } else if (drill.ask === "rangeadv") {
+    const input = el("input") as HTMLInputElement;
+    input.type = "number"; input.min = "0"; input.max = "100"; input.step = "0.1"; input.placeholder = "e.g. 60 (%)";
+    input.id = "ans-rangeadv"; input.inputMode = "decimal"; input.setAttribute("aria-label", "Your range's equity as a percentage");
+    const go = el("button", "primary", "Submit");
+    const submit = () => {
+      let v = Number(input.value);
+      if (!Number.isFinite(v) || input.value === "") return;
+      if (v > 1) v = v / 100; // percentage entry (60 -> 0.60)
+      onAnswer({ kind: "rangeadv", value: v });
+    };
+    go.onclick = submit;
+    input.onkeydown = (e) => { if ((e as KeyboardEvent).key === "Enter") submit(); };
+    const label = el("label", "prompt", "Your range's equity?") as HTMLLabelElement;
+    label.htmlFor = "ans-rangeadv";
     controls.append(label, input, go);
   } else if (drill.ask === "outs") {
     const input = el("input") as HTMLInputElement;
@@ -539,6 +561,14 @@ function renderFeedback(drill: Drill, out: ReturnType<typeof gradeDrill>, contLa
     line = ok
       ? `Correct — you need ${pct(t)} to call`
       : `You need ${pct(t)} to call · off by ${parseFloat(((r.estimateError ?? 0) * 100).toFixed(1))} pts`;
+  }
+  else if (drill.ask === "rangeadv") {
+    const t = rangeVsRange(drill.state.heroRange ?? [], drill.state.villain.range, drill.state.board);
+    const pct = (v: number) => `${parseFloat((v * 100).toFixed(1))}%`;
+    const who = t > 0.5 ? "you're ahead" : "villain's ahead";
+    line = ok
+      ? `Correct — your range is ${pct(t)} (${who})`
+      : `Your range: ${pct(t)} (${who}) · off by ${parseFloat(((r.estimateError ?? 0) * 100).toFixed(1))} pts`;
   }
   else if (drill.ask === "shove") {
     const st = drill.state;

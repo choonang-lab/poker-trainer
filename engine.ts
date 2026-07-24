@@ -402,6 +402,44 @@ export function shoveEV(stack: number, callFreq: number, eqWhenCalled: number): 
   return (1 - callFreq) * 1 + callFreq * (2 * eqWhenCalled - 1) * stack;
 }
 
+// Range advantage (M5.8): the average equity of hero's WHOLE range against villain's
+// whole range on a board — the extension of `equityVsRange` (one hand vs a range) to
+// range-vs-range. Card removal is exact: a hero combo that collides with the board is
+// skipped, and for each hero combo the villain combos sharing its cards or the board
+// are dropped. >0.5 means hero's range is ahead here (can bet/pressure); <0.5 means
+// villain's range is (check more). Fast — the fast score7 makes even a flop (990
+// runouts per combo pair) a few tens of ms for realistic ranges.
+export function rangeVsRange(heroRange: Range, villRange: Range, board: Board): number {
+  let total = 0, weight = 0;
+  for (const h of heroRange) {
+    if (h.combo.some((c) => board.includes(c))) continue;
+    const vr = villRange.filter((v) => !v.combo.some((c) => board.includes(c) || h.combo.includes(c)));
+    const e = equityVsRange(h.combo, board, vr);
+    if (e === null) continue;
+    total += h.weight * e;
+    weight += h.weight;
+  }
+  if (weight === 0) throw new Error("rangeVsRange: no valid hero/villain combo pairing on this board");
+  return total / weight;
+}
+
+// Board texture classification (M5.8) — a pure function of the board that names how
+// ranges interact with it: paired (sets/full houses live), suit spread (flush draws),
+// connectedness (straights live), and the top card (high boards favor a raiser's big cards).
+export function boardTexture(board: Board): { paired: boolean; suitedness: "rainbow" | "two-tone" | "mono"; connected: boolean; topRank: number } {
+  const ranks = board.map(rankOf);
+  const paired = ranks.some((r, i) => ranks.indexOf(r) !== i);
+  const suitCounts = [0, 0, 0, 0];
+  for (const c of board) suitCounts[suitOf(c)]++;
+  const maxSuit = Math.max(...suitCounts);
+  const suitedness = maxSuit >= 3 ? "mono" : maxSuit === 2 ? "two-tone" : "rainbow";
+  // connected: three distinct ranks fit inside a 5-value straight window somewhere.
+  const distinct = [...new Set(ranks)].sort((a, b) => a - b);
+  let connected = false;
+  for (const r of distinct) if (distinct.filter((x) => x >= r && x <= r + 4).length >= 3) connected = true;
+  return { paired, suitedness, connected, topRank: Math.max(...ranks) };
+}
+
 // ---- L4: grading primitives ----------------------------------------------
 export const breakEven = (pot: number, call: number): number => call / (pot + call);
 
@@ -1036,6 +1074,13 @@ export function grade(state: State, response: Response): Result {
     const tag = regretBb === 0 ? "p1.ok" : shoveBest ? "p1.shoves_too_tight" : "p1.shoves_too_loose";
     return { regretBb, leakTag: tag };
   }
+  if (response.kind === "rangeadv") {
+    // Estimate hero's whole-range equity vs villain's range on the board, graded by error.
+    const target = rangeVsRange(state.heroRange ?? [], state.villain.range, state.board);
+    const error = response.value - target;
+    const tag = estimateLeak(error); // reuse the estimate over/under bands; refined by module in classifyLeak
+    return { regretBb: 0, estimateError: Math.abs(error), leakTag: tag };
+  }
   const evs = decisionEVs(state);
   const chosen = evs.find((e) => sameAction(e.action, response.action));
   if (!chosen) throw new Error(`grade: illegal action ${JSON.stringify(response.action)} for this spot`);
@@ -1138,6 +1183,8 @@ const LEAK_TABLE: Record<string, string> = {
   "T1:callstoo_light": "t1.calls_too_light",
   "T2:shoves_too_tight": "t2.shoves_too_tight",
   "T2:shoves_too_loose": "t2.shoves_too_loose",
+  "M5.8:overestimate": "m58.overrates_range",
+  "M5.8:underestimate": "m58.underrates_range",
   "P0:overbet": "p0.bets_without_fold_equity",
   "P0:overfold": "p0.overfolds_in_position",
   "P1:overestimate": "p1.overvalues_holding",
@@ -1253,6 +1300,14 @@ export function hand(...strs: string[]): Card[];
 export function hand(...strs: string[]): Card[] {
   return strs.map(parseCard);
 }
+
+// M5.8 range-advantage drills share one matchup — a strong preflop RAISER range vs a
+// medium CALLER range — across different flops, so the only thing that changes is the
+// board texture (and thus who's ahead). Representative combos keep the equities fast.
+const RA_RAISER: Range = ([["Ah", "Ad"], ["Kh", "Kd"], ["Qh", "Qd"], ["As", "Ks"], ["As", "Qs"], ["As", "Js"]])
+  .map(([a, b]) => ({ combo: hand(a, b), weight: 1 }));
+const RA_CALLER: Range = ([["Jh", "Jc"], ["Th", "Tc"], ["9h", "9c"], ["Ac", "Qd"], ["Kc", "Qh"], ["Js", "Ts"], ["Td", "9d"]])
+  .map(([a, b]) => ({ combo: hand(a, b), weight: 1 }));
 
 // ---- L6 starter content (defined last so the helpers above are initialized) --
 // A small starter set spanning estimate/action and pillar 1/pillar 2. The exact
@@ -3536,6 +3591,62 @@ export const STARTER_DRILLS: Drill[] = [
       villain: { range: [{ combo: hand("Ah", "Kh"), weight: 1 }] },
       abstraction: { sizes: [], streets: [], players: 2 },
       effStack: 15, callFreq: 0.40, eqWhenCalled: 0.65,
+    },
+  },
+  // ---- M5.8 Range advantage: whose WHOLE range is ahead on this flop (same two ranges) ----
+  {
+    id: "m58-high-board-advantage",
+    module: "M5.8",
+    title: "Range advantage: a high, dry flop",
+    read: "Your preflop raising range (big pairs, ace-broadway) against a caller's range (medium pairs, suited broadways). The flop is A♣ K♦ 5♥. What is YOUR range's equity?",
+    ask: "rangeadv",
+    // High, disconnected flop smashes the raiser: aces, kings and A-K all connect while the caller's medium range
+    // mostly misses. ~92% -- a huge range advantage. This is a board you c-bet almost your entire range on.
+    state: {
+      heroRange: RA_RAISER, board: hand("Ac", "Kd", "5h"), pot: 1, toAct: "hero",
+      villain: { range: RA_CALLER }, abstraction: { sizes: [], streets: [], players: 2 },
+    },
+  },
+  {
+    id: "m58-coordinated-board-disadvantage",
+    module: "M5.8",
+    title: "Range advantage: a coordinated flop",
+    read: "The SAME two ranges as the high-board spot, but the flop is J♣ T♦ 9♥. What is YOUR (the raiser's) range's equity now?",
+    ask: "rangeadv",
+    // The discrimination partner: same ranges, a coordinated middle flop. Now the CALLER is ahead -- sets, two
+    // pair and made straights (Q-x, K-Q) hammer this board while the raiser's overpairs are vulnerable. ~31%: a
+    // range DISADVANTAGE. On boards that hit the caller, check far more -- your big cards don't own this flop.
+    state: {
+      heroRange: RA_RAISER, board: hand("Jc", "Td", "9h"), pot: 1, toAct: "hero",
+      villain: { range: RA_CALLER }, abstraction: { sizes: [], streets: [], players: 2 },
+    },
+  },
+  {
+    id: "m58-paired-board-nut-advantage",
+    module: "M5.8",
+    title: "Range advantage: a paired ace-high flop",
+    read: "The same ranges; the flop is A♣ A♦ 4♥. What is YOUR (the raiser's) range's equity?",
+    ask: "rangeadv",
+    // A paired, ace-high flop gives the raiser not just a range edge but a NUT advantage: you hold the aces and
+    // big pairs, the caller has almost nothing that beats you. ~95%. Boards that lock up the nuts for one range are
+    // where overbets and big polar bets come from -- the caller can never have the top of the range.
+    state: {
+      heroRange: RA_RAISER, board: hand("Ac", "Ad", "4h"), pot: 1, toAct: "hero",
+      villain: { range: RA_CALLER }, abstraction: { sizes: [], streets: [], players: 2 },
+    },
+  },
+  {
+    id: "m58-low-board-thin-advantage",
+    module: "M5.8",
+    title: "Range advantage: a low, connected flop",
+    read: "The same ranges; the flop is 7♣ 6♦ 5♥. What is YOUR (the raiser's) range's equity?",
+    ask: "rangeadv",
+    // The middle ground: a low, connected flop. The raiser's overpairs are still ahead of the caller's range, but
+    // only ~67% -- the caller's pairs and connectors have caught up a lot. Ahead but thin means a smaller c-bet or a
+    // higher checking frequency, not the barrage you'd fire on A-K-5. Range advantage is a dial, not a switch.
+    state: {
+      heroRange: RA_RAISER, board: hand("7c", "6d", "5h"), pot: 1, toAct: "hero",
+      villain: { range: RA_CALLER }, abstraction: { sizes: [], streets: [], players: 2 },
     },
   },
   {

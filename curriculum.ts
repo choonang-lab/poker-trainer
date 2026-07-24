@@ -249,6 +249,20 @@ export const MODULES: Module[] = [
       "m57-bluff-pot-bet", "m57-bluff-half-pot",
     ],
   },
+  {
+    id: "M5.8", track: "P1", title: "Range advantage",
+    preface: "You've learned your hand's equity against a range. The last step is bigger: whose WHOLE range is ahead on a board? The player whose range hits harder has the 'range advantage' and gets to apply pressure — and it's the board texture, not any one hand, that decides who that is.",
+    concepts: [
+      { term: "Range advantage", def: "whose entire range has more equity on a given board; the side that's ahead can bet more often." },
+      { term: "Nut advantage", def: "who holds more of the very strongest hands (the nuts) — that side can make the biggest, most polar bets." },
+      { term: "Board texture", def: "the shape of the flop — high or low, paired, connected, one-suited — which decides which range it favors." },
+      { term: "Continuation bet (c-bet)", def: "betting the flop after raising before it; you can c-bet a lot when you have the range advantage, little when you don't." },
+      { term: "Static vs dynamic", def: "static boards (e.g. A-K-5) rarely change who's ahead; dynamic ones (e.g. J-T-9) let the trailing range catch up." },
+    ],
+    objectives: ["Judge whose range is ahead from the board texture", "C-bet big on boards that favor your range, check on boards that don't", "Spot nut-advantage boards where you can overbet"],
+    example: "The same raiser is ~92% on A-K-5 but only ~31% on J-T-9 — the board, not the hand, flips the advantage.",
+    drillIds: ["m58-high-board-advantage", "m58-coordinated-board-disadvantage", "m58-paired-board-nut-advantage", "m58-low-board-thin-advantage"],
+  },
   // ---- Pillar 2 · decide ----
   {
     id: "P0", track: "P2", title: "Position and realization",
@@ -525,6 +539,10 @@ export const EXPLAIN: Record<string, string> = {
   "m57-mdf-small-bet": "MDF = 1 / (1 + 0.25) = 80%. A quarter-pot bet risks little to steal the pot, so it needs to work rarely — you have to defend 80% (fold at most 20%). The smaller the bet, the more you defend.",
   "m57-bluff-pot-bet": "Bluff share = bet / (pot + 2·bet) = 1 / 3 = 33%. Betting pot on the river, one third of your bets should be bluffs — one bluff for every two value bets — so calling your bluff-catcher breaks even.",
   "m57-bluff-half-pot": "Bluff share = 0.5 / (1 + 1) = 25%. A half-pot bet gives villain a better price to call, so you can bluff less — a quarter of this betting range. Bigger bets get to bluff more; smaller bets, fewer.",
+  "m58-high-board-advantage": "A-K-5 is a raiser's dream: your aces, kings and ace-king all smash it, while the caller's medium pairs and broadways mostly miss. Your range is about 92% — a massive range advantage. On boards like this you can continuation-bet almost your whole range, because the caller simply can't keep up.",
+  "m58-coordinated-board-disadvantage": "Same ranges, but J-T-9 flips everything: the caller now has the sets, two pairs and made straights, while your overpairs are exposed. Your range crashes to about 31% — a range DISADVANTAGE. The lesson is that the BOARD, not your hand, decides who's ahead: on flops that hit the caller, check far more.",
+  "m58-paired-board-nut-advantage": "A-A-4 gives you more than an edge — it gives you the nuts advantage. You hold the aces and big pairs; the caller has essentially nothing that beats you, so your range sits near 95%. Boards where only one range can hold the nuts are exactly where overbets and big polarized bets come from.",
+  "m58-low-board-thin-advantage": "7-6-5 is the middle ground: your overpairs are still ahead of the caller's range, but only about 67% — their pairs and connectors have caught up a lot. Ahead-but-thin means a smaller c-bet or checking more often, not the barrage you'd fire on A-K-5. Range advantage is a dial you turn, not a switch you flip.",
   // P0 — position and realization
   "p0-oop-no-equity": "No equity, and a villain who bets when you check but never folds — betting only loses more. Out of position you can't take a free showdown, so check and fold. In position you could have checked it down; that's what position buys you.",
   "p0-ip-realize-equity": "Acting last, a check ends the round and buys a free river — you realize your full draw (9 outs, about 20%). Betting is a trap: this villain never folds, so a semi-bluff with no fold equity just burns chips. Out of position that same check would face a bet and realize nothing — the free card is what position buys you.",
