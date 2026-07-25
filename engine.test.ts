@@ -887,9 +887,9 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
   ok("M4 check regret == 3 bb", approx(m4check.result.regretBb, 3), `got ${m4check.result.regretBb}`);
   ok("M4 check -> m4.misses_street_sequence", m4check.result.leakTag === "m4.misses_street_sequence");
 
-  ok("STARTER_DRILLS now spans 208 drills incl M0/M3.5/M4/M4.5/M5.6/M5.7/M5.8/M5.9/M5.10/P0/P1/P1.5/P1.6/P2/P2.5/P3/P3.4/P3.5/P4/P5/T1/T2",
-    STARTER_DRILLS.length === 208 &&
-    ["M0", "M3.5", "M4", "M4.5", "M5.6", "M5.7", "P0", "P1", "P1.5", "P1.6", "P3", "P4", "P5"].every((m) => STARTER_DRILLS.some((d) => d.module === m)));
+  ok("STARTER_DRILLS now spans 213 drills incl M0/M3.5/M4/M4.5/M5.6/M5.7/M5.8/M5.9/M5.10/P0/P1/P1.5/P1.6/P1.7/P1.8/P2/P2.5/P3/P3.4/P3.5/P4/P5/T1/T2",
+    STARTER_DRILLS.length === 213 &&
+    ["M0", "M3.5", "M4", "M4.5", "M5.6", "M5.7", "P0", "P1", "P1.5", "P1.6", "P1.7", "P1.8", "P3", "P4", "P5"].every((m) => STARTER_DRILLS.some((d) => d.module === m)));
 
   // ---- Preflop -> postflop via representative flops (P1.5) ----------------
   // The representative-flop set is a deterministic, fixed sample (no RNG) of
@@ -968,6 +968,28 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
   try { validateAbstraction({ sizes: [0.75], streets: ["flop"], players: 2, preflopBet: 2, threeBet: 1.5 }); }
   catch { threwTb = true; }
   ok("validateAbstraction rejects a 3-bet not larger than the open", threwTb);
+
+  // ---- P1.7 four-betting (heroIn > 0) + P1.8 squeezing (dead money in pot0) -----
+  // heroIn defaults 0, so P1.6 (above) proves the 3-bet path is unchanged. These use
+  // the SAME preflop3betRoot one level deeper (4-bet) or with extra dead money (squeeze).
+  const v4Value = analyze(byId("p17-4bet-value"));
+  const v4Flat = analyze(byId("p17-4bet-flat"));
+  const v4Bluff = analyze(byId("p17-4bet-bluff"));
+  ok("P1.7 value: 4-bet aces crushes flatting", v4Value.ev.bet > v4Value.ev.call && v4Value.best === "bet");
+  ok("P1.7 flat: queens flat (4-betting gets in behind the 5-bet range)", v4Flat.ev.call > v4Flat.ev.bet && v4Flat.best === "call");
+  ok("P1.7 bluff: A5s 4-bet-bluffs a fold-to-4bet villain", v4Bluff.ev.bet > v4Bluff.ev.call && v4Bluff.best === "bet");
+  // heroIn is a real shift: folding an open forfeits nothing FUTURE (fold stays 0), but
+  // calling costs less than the full 3-bet (hero already has the open in). Sanity: with
+  // heroIn set, the call branch EV exceeds what it would be if hero had to pay it all.
+  const sqBlocker = analyze(byId("p18-squeeze-blocker"));
+  const sqConn = analyze(byId("p18-squeeze-connector"));
+  ok("P1.8 squeeze A5s: the caller's dead money makes a squeeze best", sqBlocker.best === "bet" && sqBlocker.ev.bet > sqBlocker.ev.call);
+  ok("P1.8 squeeze 87s: a poor-flatting hand squeezes (3-bet >> call)", sqConn.best === "bet" && sqConn.ev.bet - sqConn.ev.call > 1);
+  // Grading: flatting queens is optimal; 4-betting them is the taught leak.
+  const flatOk = gradeDrill(session, "p17-4bet-flat", { kind: "action", action: { kind: "call" } }, 0);
+  ok("P1.7 flat: graded flat is correct (regret 0)", approx(flatOk.result.regretBb, 0));
+  const flatBad = gradeDrill(session, "p17-4bet-flat", { kind: "action", action: { kind: "bet", size: 24 / 1.5 } }, 0);
+  ok("P1.7 flat: 4-betting queens into a 5-bettor is a regretful leak", flatBad.result.regretBb > 1);
 
   // M4.5 combo counting: base counts and blocker removal, all hand-checkable.
   ok("comboCount: A-K unpaired, no blockers = 16", comboCount(hand("Ah", "Kh"), []) === 16);

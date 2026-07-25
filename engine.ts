@@ -1010,6 +1010,27 @@ function repFlopChance(
   };
 }
 
+// A PREFLOP all-in showdown vs `range`, approximated over representative flops: a
+// CHANCE whose children each show down on one rep flop (2 cards to come). Averaged,
+// this tracks the true preflop all-in equity to ~2-3% but is ~14x cheaper than the
+// full C(48,5) enumeration — the same labelled approximation used everywhere else,
+// applied to the 5-bet-shove leaf so a 4-bet decision doesn't pay a full runout.
+function repFlopShowdown(ctx: Ctx, pot: number, heroInvested: number, range: Range): TreeNode {
+  const heroBlocked = new Set<Card>([...(ctx.heroHand ?? [])]);
+  const flops = REP_FLOPS.filter((f) =>
+    !f.some((c) => heroBlocked.has(c)) &&
+    range.some(({ combo }) => !combo.some((c) => heroBlocked.has(c) || f.includes(c))));
+  const vill: Villain = { ...ctx.villain, range };
+  return {
+    kind: "CHANCE",
+    state: nodeState({ ...ctx, pot, villain: vill }, { toAct: "chance" }),
+    children: flops.map((f) => ({
+      node: { kind: "TERM", state: nodeState({ ...ctx, board: f, pot, villain: vill }, { toAct: "chance" }),
+        terminal: { type: "showdown", heroInvested } },
+    })),
+  };
+}
+
 // Preflop decision root: hero faces a villain preflop bet of `preBet`*pot (dead
 // money). Fold ends it (EV 0); call sees a representative flop (CHANCE) and plays
 // the postflop streets. The preflop call `B` is baked into each postflop subtree as
@@ -1030,27 +1051,32 @@ function preflopDecisionRoot(ctx: Ctx, preBet: number, streets: ("flop" | "turn"
   };
 }
 
-// Preflop 3-bet decision root: villain opened (`preBet`*pot in the pot as dead
-// money). Hero chooses fold / call / 3-bet-to-`threeBet`*pot. The 3-bet adds the
-// SECOND actor layer — villain's per-combo preflop response (fold / call / 4-bet),
-// which narrows the range by action (the P5 machinery). Without the 4-bet branch a
-// light 3-bet is a free roll (unpunished fold equity ⇒ "3-bet any two cards"); the
-// 4-bet is what disciplines the 3-bet range. All EVs net vs folding (heroInvested
-// baked in), so grading is ordinary regret over {fold, call, bet(3-bet)}.
+// Preflop re-raise decision root: villain bet `preBet`*pot; hero chooses fold /
+// call / re-raise-to-`threeBet`*pot. The re-raise adds the SECOND actor layer —
+// villain's per-combo response (fold / call / re-re-raise), which narrows the range
+// by action (the P5 machinery). Without the re-re-raise branch a light re-raise is a
+// free roll (unpunished fold equity ⇒ "re-raise any two cards"); it is what
+// disciplines the range. `heroIn` is what hero has ALREADY committed (0 when hero
+// faces an open and hasn't acted → a 3-bet decision; hero's open when hero faces a
+// 3-bet → a 4-bet decision). It cancels out of every pot but shifts each branch's
+// hero investment (future-chips convention: fold stays 0, sunk chips excluded), so
+// the SAME root serves 3-bets, 4-bets, and squeezes. All EVs net vs folding.
 //   fold           -> 0
-//   call           -> rep-flop CHANCE vs the FULL open range (like preflopDecisionRoot)
-//   3-bet          -> VILL responds:
-//       villain folds  -> hero wins pot0 + open           (fold equity)
+//   call           -> rep-flop CHANCE vs the FULL villain range
+//   re-raise       -> VILL responds:
+//       villain folds  -> hero wins the dead money + villain's bet   (fold equity)
 //       villain calls  -> rep-flop CHANCE vs the NARROWED calling range, bigger pot
-//       villain 4-bets -> hero faces an all-in shove to `effStack`:
-//           hero folds -> -B1 (forfeits the 3-bet)
-//           hero calls -> preflop all-in equity vs the 4-bet range (a showdown leaf)
+//       villain re-re-raises -> hero faces an all-in shove to `effStack`:
+//           hero folds -> forfeits the re-raise
+//           hero calls -> preflop all-in equity vs the shove range (a showdown leaf)
 function preflop3betRoot(
   ctx: Ctx, preBet: number, threeBet: number, effStack: number, streets: ("flop" | "turn" | "river")[],
+  heroIn = 0,
 ): TreeNode {
   const pot0 = ctx.pot;
-  const B0 = preBet * pot0;                 // villain's open (dead unless it continues)
-  const B1 = threeBet * pot0;               // hero's 3-bet
+  const B0 = preBet * pot0;                 // villain's bet (dead unless it continues)
+  const B1 = threeBet * pot0;               // hero's re-raise (to this total)
+  const hi = heroIn;                        // hero's already-committed (sunk) chips
   const heroNode = nodeState(ctx, { toAct: "hero" });
   const villNode = nodeState({ ...ctx, pot: pot0 + B0 + B1 }, { toAct: "villain" });
 
@@ -1078,25 +1104,25 @@ function preflop3betRoot(
     weight: a.kind === "fold" ? foldW / total : a.kind === "call" ? callW / total : a.kind === "bet" ? fourBetW / total : 0,
   }));
 
-  // villain folds: hero wins the dead money + the open (pot at this node - heroInvested).
+  // villain folds: hero wins the dead money + villain's bet (pot at this node -
+  // heroInvested). heroInvested is FUTURE chips (B1 minus what hero already had in).
   const villFolds: TreeNode = {
     kind: "TERM", state: villNode,
-    terminal: { type: "fold", folder: "villain", heroInvested: B1 },
+    terminal: { type: "fold", folder: "villain", heroInvested: B1 - hi },
   };
   // villain calls: play the postflop over rep flops vs the narrowed calling range.
   const villCalls: TreeNode = callRange.length
-    ? repFlopChance(ctx, pot0 + 2 * B1, B1, callRange, streets)
-    : { kind: "TERM", state: villNode, terminal: { type: "fold", folder: "villain", heroInvested: B1 } };
-  // villain 4-bets (shove to effStack): hero folds (-B1) or calls all-in for equity.
+    ? repFlopChance(ctx, pot0 + 2 * B1, B1 - hi, callRange, streets)
+    : { kind: "TERM", state: villNode, terminal: { type: "fold", folder: "villain", heroInvested: B1 - hi } };
+  // villain re-re-raises (shove to effStack): hero folds (forfeits the re-raise) or
+  // calls all-in for equity. Investments are future chips (minus hero's sunk `hi`).
   const heroFaces4Bet: TreeNode = {
     kind: "HERO", state: nodeState({ ...ctx, pot: pot0 + B0 + B1 }, { toAct: "hero" }),
     children: [
       { action: { kind: "fold" },
-        node: { kind: "TERM", state: villNode, terminal: { type: "fold", folder: "hero", heroInvested: B1 } } },
+        node: { kind: "TERM", state: villNode, terminal: { type: "fold", folder: "hero", heroInvested: B1 - hi } } },
       { action: { kind: "call" },
-        node: { kind: "TERM",
-          state: nodeState({ ...ctx, pot: pot0 + 2 * effStack, villain: { ...ctx.villain, range: fourBetRange } }, { toAct: "chance" }),
-          terminal: { type: "showdown", heroInvested: effStack } } },
+        node: repFlopShowdown(ctx, pot0 + 2 * effStack, effStack - hi, fourBetRange) },
     ],
   };
   const villResponse: TreeNode = {
@@ -1113,7 +1139,7 @@ function preflop3betRoot(
     children: [
       { action: { kind: "fold" },
         node: { kind: "TERM", state: heroNode, terminal: { type: "fold", folder: "hero", heroInvested: 0 } } },
-      { action: { kind: "call" }, node: repFlopChance(ctx, pot0 + 2 * B0, B0, ctx.villain.range, streets) },
+      { action: { kind: "call" }, node: repFlopChance(ctx, pot0 + 2 * B0, B0 - hi, ctx.villain.range, streets) },
       { action: { kind: "bet", size: threeBet }, node: villResponse },
     ],
   };
@@ -1133,7 +1159,7 @@ export function buildTree(state: State): TreeNode {
   };
   if (state.abstraction.preflopBet !== undefined && state.abstraction.threeBet !== undefined)
     return preflop3betRoot(ctx, state.abstraction.preflopBet, state.abstraction.threeBet,
-      state.abstraction.effStack ?? 0, state.abstraction.streets);
+      state.abstraction.effStack ?? 0, state.abstraction.streets, state.abstraction.heroIn ?? 0);
   if (state.abstraction.preflopBet !== undefined)
     return preflopDecisionRoot(ctx, state.abstraction.preflopBet, state.abstraction.streets);
   if (state.abstraction.heroFacesBet !== undefined)
@@ -1661,6 +1687,21 @@ const FOURBETTOR: RangePolicy = threeBetPolicy(
   (r) => (r[0] === r[1] && r[0] >= 12) || (r[0] === 14 && r[1] >= 12) || (r[0] === 14 && r[1] <= 5) || (r[0] === 13 && r[1] === 10),
   (r) => (r[0] === r[1] && r[0] >= 9) || (r[0] >= 12 && r[1] >= 10));
 
+// P1.7 four-bet drills: hero OPENED and now faces villain's 3-BET. `heroIn` = hero's
+// open (the sunk chips a fold forfeits). Villain's range is a polarized 3-bet range
+// (value + bluffs); its per-combo response to hero's 4-BET is fold / call / 5-bet-
+// shove, via the same threeBetPolicy factory (here `fourBet` = "5-bet shoves").
+const THREEBET_RANGE: Range = ([
+  ["Ac", "Ad"], ["Kc", "Kd"], ["Qc", "Qd"], ["Ah", "Ks"], ["Ah", "Kd"],   // value
+  ["Ad", "5d"], ["As", "4s"], ["Kh", "Jh"], ["Qh", "Th"], ["Js", "Ts"], ["Td", "9d"], ["9c", "8c"], // bluffs
+]).map(([a, b]) => ({ combo: hand(a, b), weight: 1 }));
+// SHOVE-happy: 5-bet-shoves QQ+/AK for value, folds the bluffs (punishes a light 4-bet).
+const SHOVE_5BET: RangePolicy = threeBetPolicy(
+  (r) => (r[0] === r[1] && r[0] >= 12) || (r[0] === 14 && r[1] === 13),
+  () => false);
+// FOLD-to-4-bet: 5-bet-shoves only KK+, folds everything else (a light 4-bet prints).
+const FOLD_TO_4BET: RangePolicy = threeBetPolicy((r) => r[0] === r[1] && r[0] >= 13, () => false);
+
 // ---- L6 starter content (defined last so the helpers above are initialized) --
 // A small starter set spanning estimate/action and pillar 1/pillar 2. The exact
 // values are the same ones proven elsewhere (6/44 equity, the chop, the 9/44 tree).
@@ -2070,6 +2111,95 @@ export const STARTER_DRILLS: Drill[] = [
       pot: 1.5, toAct: "hero",
       villain: { range: OPEN_RANGE, policy: FOURBETTOR },
       abstraction: { sizes: [0.75], streets: ["flop"], players: 2, raiseCap: 0, preflopBet: 2.0, threeBet: 6.0, effStack: 25 },
+    },
+  },
+  {
+    id: "p17-4bet-value",
+    module: "P1.7",
+    title: "Four-betting: 4-bet the premium for value",
+    ask: "action",
+    // Hero opened to 3, villain 3-bet to 10; hero holds aces. pot0 = 1.5 blinds,
+    // preflopBet 10/1.5, threeBet (4-bet to 24) 24/1.5, effStack 100, heroIn = the open (3).
+    read: "You opened, villain 3-bet you, and this villain 5-bet-shoves QQ+/AK and folds its bluffs. You hold pocket aces. Fold, call, or 4-bet?",
+    // Aces want it in. 4-betting (~+40) crushes flatting (~+17): you fold out the
+    // bluffs' equity AND get the whole stack in vs the value that shoves, where AA is
+    // a huge favorite. Flatting a 3-bet with aces just lets the field realize equity.
+    state: {
+      heroHand: hand("Ac", "As"), board: [],
+      pot: 1.5, toAct: "hero",
+      villain: { range: THREEBET_RANGE, policy: SHOVE_5BET },
+      abstraction: { sizes: [0.75], streets: ["flop"], players: 2, raiseCap: 0, preflopBet: 10 / 1.5, threeBet: 24 / 1.5, effStack: 100, heroIn: 3 },
+    },
+  },
+  {
+    id: "p17-4bet-flat",
+    module: "P1.7",
+    title: "Four-betting: flat a big pair, don't 4-bet into a 5-bettor",
+    ask: "action",
+    read: "Same spot — you opened and were 3-bet by a villain who 5-bet-shoves QQ+/AK. You hold pocket queens. Fold, call, or 4-bet?",
+    // QQ is ahead of the whole 3-bet range but BEHIND the 5-bet-shove range (KK/AA/AK).
+    // 4-betting folds out the bluffs you beat and gets it in behind → ~+0.3. Flatting
+    // keeps the bluffs in and realizes QQ's edge over the range → ~+7.7. Don't 4-bet a
+    // hand that a 5-bet dominates; flat and play.
+    state: {
+      heroHand: hand("Qc", "Qh"), board: [],
+      pot: 1.5, toAct: "hero",
+      villain: { range: THREEBET_RANGE, policy: SHOVE_5BET },
+      abstraction: { sizes: [0.75], streets: ["flop"], players: 2, raiseCap: 0, preflopBet: 10 / 1.5, threeBet: 24 / 1.5, effStack: 100, heroIn: 3 },
+    },
+  },
+  {
+    id: "p17-4bet-bluff",
+    module: "P1.7",
+    title: "Four-betting: 4-bet-bluff with a blocker against a light 3-bettor",
+    ask: "action",
+    read: "You opened and were 3-bet by a villain who 3-bets light and FOLDS everything but KK+ to a 4-bet. You hold A5 suited. Fold, call, or 4-bet?",
+    // The ace blocks AA/AK, so villain almost never has a 5-bet — it folds its light
+    // 3-bets to your 4-bet. That fold equity makes the 4-bet-bluff ~+11 vs flatting
+    // ~+5.6. A5s is the ideal 4-bet bluff: a blocker to the value, plus a hand that
+    // flops fine on the rare call. Punish light 3-bettors by 4-bet-bluffing.
+    state: {
+      heroHand: hand("Ad", "5d"), board: [],
+      pot: 1.5, toAct: "hero",
+      villain: { range: THREEBET_RANGE, policy: FOLD_TO_4BET },
+      abstraction: { sizes: [0.75], streets: ["flop"], players: 2, raiseCap: 0, preflopBet: 10 / 1.5, threeBet: 24 / 1.5, effStack: 100, heroIn: 3 },
+    },
+  },
+  {
+    id: "p18-squeeze-blocker",
+    module: "P1.8",
+    title: "Squeezing: 3-bet the caller's dead money with a blocker",
+    ask: "action",
+    // Squeeze: an opener raised and a cold-caller called (that call is dead money,
+    // baked into pot0 = 1.5 blinds + 3 caller = 4.5). The opener (the "villain") folds
+    // most of its range to a squeeze; the caller folds too. preflopBet = 3/4.5 (open),
+    // threeBet (squeeze to 12) = 12/4.5, heroIn = 0 (hero acts fresh).
+    read: "An opener raised and a loose player cold-called. Both fold most hands to a re-raise, and the caller's dead chips are already in the pot. You hold A5 suited. Fold, call, or squeeze (3-bet)?",
+    // The extra dead money from the caller makes the squeeze print: ~+4.8, nearly
+    // double what the same 3-bet is worth heads-up. A5s blocks the strong hands and
+    // flops fine when called. Squeeze wider than you'd 3-bet a lone raise.
+    state: {
+      heroHand: hand("Ad", "5d"), board: [],
+      pot: 4.5, toAct: "hero",
+      villain: { range: OPEN_RANGE, policy: OVERFOLDER },
+      abstraction: { sizes: [0.75], streets: ["flop"], players: 2, raiseCap: 0, preflopBet: 3 / 4.5, threeBet: 12 / 4.5, effStack: 100 },
+    },
+  },
+  {
+    id: "p18-squeeze-connector",
+    module: "P1.8",
+    title: "Squeezing: squeeze a hand that flats poorly",
+    ask: "action",
+    read: "Same squeeze spot (an open, a cold-call, both fold a lot). You hold 8-7 suited. Fold, call, or squeeze (3-bet)?",
+    // 8-7s flats poorly out of position (~+0.7), but squeezing collects the big dead
+    // pot when everyone folds (~+3.5). A speculative hand that plays badly as a flat is
+    // a great squeeze: you'd rather win it now than see a bloated multiway flop. The
+    // dead money is what tips fold/flat into a profitable squeeze.
+    state: {
+      heroHand: hand("8c", "7c"), board: [],
+      pot: 4.5, toAct: "hero",
+      villain: { range: OPEN_RANGE, policy: OVERFOLDER },
+      abstraction: { sizes: [0.75], streets: ["flop"], players: 2, raiseCap: 0, preflopBet: 3 / 4.5, threeBet: 12 / 4.5, effStack: 100 },
     },
   },
   {

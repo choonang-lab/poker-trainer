@@ -590,9 +590,12 @@ function buildControls(controls: HTMLElement, drill: Drill, onAnswer: (r: Respon
     controls.append(el("label", "prompt", "Your action:"));
     const row = el("div", "actions");
     const facingBet = drill.state.abstraction.heroFacesBet !== undefined;
-    const isThreeBet = drill.state.abstraction.threeBet !== undefined;
+    // Name the preflop re-raise button: "4-bet" when hero has already opened (heroIn),
+    // otherwise "3-bet" (also covers squeezes, which are a kind of 3-bet).
+    const raiseName = drill.state.abstraction.threeBet !== undefined
+      ? (drill.state.abstraction.heroIn ? "4-bet" : "3-bet") : null;
     for (const a of legalActions(drill)) {
-      const label = isThreeBet && a.kind === "bet" ? "3-bet" : actionLabel(a, facingBet); // name the re-raise
+      const label = raiseName && a.kind === "bet" ? raiseName : actionLabel(a, facingBet);
       const b = el("button", "act", label);
       b.onclick = () => onAnswer({ kind: "action", action: a });
       row.append(b);

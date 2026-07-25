@@ -357,6 +357,35 @@ export const MODULES: Module[] = [
     drillIds: ["p16-3bet-light", "p16-flat-vs-4bettor", "p16-3bet-value", "p16-3bet-fold-trash"],
   },
   {
+    id: "P1.7", track: "P2", title: "Four-betting",
+    preface: "When you open and get 3-bet, you can 4-bet — the fourth bet, usually a near-committing raise that invites an all-in 5-bet. So 4-bet the hands you're happy to get in (aces, kings) for value, and 4-bet-BLUFF hands that block the opponent's value (an ace blocks their aces) so they rarely have a 5-bet. Crucially, a big pair that's ahead of the 3-bet range but behind the 5-bet range (like queens) often plays better as a FLAT than a 4-bet.",
+    concepts: [
+      { term: "4-bet", def: "a re-raise of a 3-bet; at typical stacks it nearly commits you, so it's close to 'all-in or fold'." },
+      { term: "5-bet", def: "a re-raise of a 4-bet, usually all-in — the opponent's answer to your 4-bet." },
+      { term: "4-bet for value", def: "4-betting a hand happy to stack off when 5-bet (aces, kings)." },
+      { term: "4-bet bluff", def: "4-betting a hand that folds to a 5-bet, chosen for its blockers to the value range." },
+      { term: "Flatting a 3-bet", def: "calling instead of 4-betting — right for hands ahead of the range but behind a 5-bet." },
+      { term: "Blocker", def: "a card (like an ace) that removes combos from the opponent's 5-bet-shoving range." },
+    ],
+    objectives: ["4-bet premiums for value and stack off vs the 5-bet", "4-bet-bluff with blockers against a light 3-bettor", "Flat big pairs that a 5-bet would dominate"],
+    example: "Aces 4-bet for value; A5s 4-bet-bluffs a light 3-bettor; queens flat a shove-happy 3-bettor instead of 4-betting.",
+    drillIds: ["p17-4bet-value", "p17-4bet-flat", "p17-4bet-bluff"],
+  },
+  {
+    id: "P1.8", track: "P2", title: "Squeezing",
+    preface: "A squeeze is a 3-bet when someone opened AND someone else already called. The caller's chips are dead money you can win right now, and their flat-call range is usually capped (they'd have 3-bet their best hands), so both players fold often. That extra dead money lets you squeeze a WIDER range than you'd 3-bet a lone raiser — especially hands that flat poorly and would rather just win the pot now.",
+    concepts: [
+      { term: "Squeeze", def: "a 3-bet made after an open and one or more cold-calls." },
+      { term: "Dead money", def: "chips already in the pot from players who will often fold — the caller's call is the classic example." },
+      { term: "Cold-caller", def: "a player who just calls an open; their range is usually capped (no premiums)." },
+      { term: "Capped range", def: "a range missing the strongest hands, so it folds a lot to pressure." },
+      { term: "Squeeze wide", def: "because of the extra dead money and fold equity, you can 3-bet a wider range than heads-up." },
+    ],
+    objectives: ["Recognize the extra dead money a caller adds", "Squeeze wider than you'd 3-bet a lone opener", "Prefer squeezing over flatting with hands that play poorly as a call"],
+    example: "A5s and 8-7s aren't lone 3-bets, but the caller's dead money makes them profitable squeezes.",
+    drillIds: ["p18-squeeze-blocker", "p18-squeeze-connector"],
+  },
+  {
     id: "P2", track: "P2", title: "Bet sizing",
     preface: "How much you bet matters as much as whether you bet. Bet big for value or to deny a draw its equity; bet small on dry boards to keep worse hands in; overbet a range that can't fold; and even size your bluffs — bet the minimum that folds them out.",
     concepts: [
@@ -644,6 +673,13 @@ export const EXPLAIN: Record<string, string> = {
   "p16-flat-vs-4bettor": "Same hand-class, opposite opponent — and the answer flips. This villain defends by 4-betting (premiums plus bluffs) and rarely folds, so K-Q suited has almost no fold equity and gets blown off its hand by 4-bets too often: 3-betting is actually about -1.0. Just call (~+0.7) — KQs flops well and a small pot keeps you out of trouble. The light 3-bet is an exploit of folders, not a default.",
   "p16-3bet-value": "Aces want the money in. Against an aggressive 4-bettor, 3-betting (~+12) crushes flatting (~+5.5): you get value from the entire opening range, and when villain 4-bet-bluffs you stack off as a huge favorite. Flatting would only disguise your hand and let villain realize equity cheaply. Never slowplay aces against someone who will build the pot for you.",
   "p16-3bet-fold-trash": "7-2 offsuit has no equity (calling is a straight -EV proposition) and no fold equity (this villain 4-bets rather than folds), so a bluff-3-bet is the single worst choice — about -4.2. Folding costs nothing. A bluff needs a folding opponent; against a 4-bettor there's nothing to bluff, so let it go.",
+  // P1.7 — four-betting
+  "p17-4bet-value": "You opened, got 3-bet, and hold aces — the top of every range. 4-betting (~+40) crushes flatting (~+17): you deny the bluffs their equity and, when villain 5-bet-shoves QQ+/AK, you get the whole stack in as a massive favorite. Flatting a 3-bet with aces is a leak — it caps your pot and lets the field see flops. Get it in.",
+  "p17-4bet-flat": "Queens are ahead of the whole 3-bet range but behind the hands that 5-bet-shove (KK/AA/AK). 4-betting folds out the bluffs QQ already beats and gets the stack in behind the shoves — about +0.3. Flatting keeps the bluffs in and realizes queens' edge over the full range — about +7.7. Don't 4-bet a hand a 5-bet dominates; flat and outplay them.",
+  "p17-4bet-bluff": "Holding the A♦ blocks A-A and A-K, so this villain almost never has a 5-bet — and it folds its light 3-bets to a 4-bet. That fold equity makes the 4-bet-bluff worth ~+11 versus ~+5.6 for flatting. A5s is the textbook 4-bet bluff: a blocker to the value range plus a hand that flops fine on the rare call. Blockers are what let you 4-bet-bluff profitably.",
+  // P1.8 — squeezing
+  "p18-squeeze-blocker": "An opener raised and a loose player cold-called, and both fold most hands to a re-raise. Their dead chips are already in the pot, so squeezing collects a bigger pot when everyone folds — about +4.8, nearly double what this 3-bet is worth heads-up. A5s blocks the strong hands and flops fine when called. The caller's dead money is exactly why you squeeze wider than you'd 3-bet a lone raise.",
+  "p18-squeeze-connector": "8-7 suited flats poorly here — out of position, it makes a bloated multiway pot it can't realize well (~+0.7). But squeezing collects the fat dead pot whenever the open and the cold-call both give up (~+3.5). A speculative hand that plays badly as a flat is a prime squeeze candidate: you'd rather take it down now than see a flop. Dead money turns a fold/flat into a profitable squeeze.",
   // P2 — bet sizing
   "p2-bet-or-check": "Two ways to win: villain folds about half the time, and when called your open-ender still gets there. Betting beats checking.",
   "p2-size-up-nuts": "With the nuts and a villain who always calls, the bigger bet simply wins more — size up. The small bet leaves value behind.",

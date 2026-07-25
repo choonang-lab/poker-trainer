@@ -92,6 +92,9 @@ export interface Abstraction {
                                     // villain's per-combo preflop response (fold / call / 4-bet) via villain.policy —
                                     // the second actor layer. The 4-bet is a shove to `effStack` (equity leaf).
   effStack?: number;                // 3-bet drills: the effective stack a 4-bet shoves for (all-in equity leaf).
+  heroIn?: number;                  // chips hero has ALREADY committed (sunk) before this re-raise decision:
+                                    // 0 facing an open (3-bet), hero's open facing a 3-bet (4-bet). Cancels out
+                                    // of pots; shifts each branch's hero investment so folding stays EV 0.
   villainRaises?: boolean;          // sugar for raiseCap = 1 (villain may raise hero's bet once).
   raiseCap?: number;                // max raises in a betting sequence (pot-sized, alternating actors).
                                     // 0 = fold/call only; 1 = one raise; 2 = re-raise (3-bet); etc.
