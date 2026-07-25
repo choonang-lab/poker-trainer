@@ -399,16 +399,18 @@ export const MODULES: Module[] = [
   },
   {
     id: "P4", track: "P2", title: "Multiway pots",
-    preface: "Pots with three or more players are different: to win you must beat everyone, so hands need to be stronger. (The field is modeled as an approximation.)",
+    preface: "Pots with three or more players are different: to win you must beat everyone, so hands need to be stronger. Against unknown ranges we estimate the field with an approximation; against KNOWN hands in an all-in, the equity is computed exactly — and it can be surprising.",
     concepts: [
       { term: "Heads-up", def: "a pot with just two players." },
       { term: "Multiway", def: "a pot with three or more players; to win you must beat everyone." },
-      { term: "The field", def: "your opponents as a group." },
+      { term: "The field", def: "your opponents as a group; when their hands are unknown, equity is estimated with an approximation." },
       { term: "Equity dilution", def: "each extra opponent lowers everyone's equity, since someone is likelier to have hit — so hands need to be stronger." },
+      { term: "Exact multiway equity", def: "when the opponents' hands are known (an all-in), your equity is computed exactly — no approximation." },
     ],
-    objectives: ["Adjust equity down against multiple opponents", "Value strong hands vs a field", "Avoid overrating marginal hands multiway"],
-    example: "A hand that's 50% heads-up is only about 25% against two opponents.",
-    drillIds: ["p4-multiway-field", "p4-strong-multiway", "p4-tptk-4way", "p4-overpair-diluted", "p4-flushdraw-diluted", "p4-two-pair-diluted", "p4-weak-draw-diluted"],
+    objectives: ["Adjust equity down against multiple opponents", "Value strong hands vs a field", "Compute exact equity in an all-in against known hands (and expect surprises like a set that's an underdog)"],
+    example: "A hand that's 50% heads-up is only about 25% against two opponents — and a set that crushes one flush draw is an underdog to two.",
+    drillIds: ["p4-multiway-field", "p4-strong-multiway", "p4-tptk-4way", "p4-overpair-diluted", "p4-flushdraw-diluted", "p4-two-pair-diluted", "p4-weak-draw-diluted",
+      "p4-exact-cooler", "p4-exact-set-vs-draws", "p4-exact-overpair-diluted"],
   },
   {
     id: "P5", track: "P2", title: "Exploit vs balance",
@@ -654,6 +656,9 @@ export const EXPLAIN: Record<string, string> = {
   "p4-flushdraw-diluted": "A bare flush draw is ~30% heads-up here, but three-way it collapses to about 9%: you must fade two made hands AND out-draw both, and one of them may share your outs. A draw that's a fine call heads-up is often a fold multiway.",
   "p4-two-pair-diluted": "Top two pair is ~56% heads-up here but only ~31% three-way — you have to beat BOTH opponents, and on this wet board one of them is often getting there. Strong hands stay worth betting multiway, but they're no longer favorites; play them faster and for protection, not for a slowplay.",
   "p4-weak-draw-diluted": "A gutshot is worth about 19% heads-up, but three-way it falls to roughly 3%: against two hands you must both hit AND still be best, and the extra opponent makes it far likelier someone already has you beaten. Small draws that are marginal heads-up are automatic folds in a crowd.",
+  "p4-exact-cooler": "Exactly 67.7%. Aces are 82.6% heads-up against kings, but a third player (queens) doesn't just take a slice — the two of them combine to outdraw you more often than one could. This is the exact number, not an approximation: even the best starting hand bleeds equity to every extra opponent.",
+  "p4-exact-set-vs-draws": "About 36% — your set is an UNDERDOG. Against one flush draw a set is a big favorite, but on a monotone board two flush draws give roughly twice the chance that SOMEONE completes a flush and beats you. It's the classic multiway trap: a hand that's great heads-up is a dog three-way. Sets want the pot small and heads-up.",
+  "p4-exact-overpair-diluted": "About 38%. Your kings are ~51% against the single big draw heads-up, but adding a second drawing hand drops you to an underdog — the two draws rarely share outs, so together they get there far more often than either alone. Every opponent you add shaves your equity; a coin flip heads-up becomes a loser three-way.",
   // P5 — exploit vs balance
   "p5-exploit-overfolder": "A hand with no showdown value only wins by making villain fold — and this villain folds often. Bet as a bluff; checking just gives up.",
   "p5-exploit-maniac": "Third pair is a hand you'd normally muck on the river. But this villain is a maniac who bets far more busted hands than real ones — so your weak pair actually beats most of what he's betting. Against a wild over-bluffer, don't fold: call and let him bluff off his chips. The read beats the strength of your hand.",

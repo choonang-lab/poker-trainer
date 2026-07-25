@@ -55,7 +55,7 @@ repetition) with a guided-curriculum PWA on top.
 
 ## State as of 2026-07 (commit 6b80618)
 
-- **620 tests passing**, both type-checks clean, deployed bundle in sync.
+- **626 tests passing**, both type-checks clean, deployed bundle in sync.
 - **Review fixes (2026-07-18, post-audit), cache v21:** (1) `m2-combo-draw`
   board was `9s 8h 2c` (an 8-out spot, 36.9%) but its title/EXPLAIN teach the
   15-out flush+open-ender combo — fixed to `9s 8s 2c` (56.3%); a learner who
@@ -129,7 +129,7 @@ repetition) with a guided-curriculum PWA on top.
 
 Single scan of everything still open after 19 shipped items. The numbered "Next up"
 log below is a DONE-history with declines interleaved; this section is the live to-do.
-Baseline right now: **198 drills, 24 modules, 620 tests, cache v58**, live & in sync.
+Baseline right now: **201 drills, 24 modules, 626 tests, cache v59**, live & in sync.
 
 ### A. Addable now — content-only, no engine change (pick any, each ~1 commit)
 - **More depth in any module.** The engine supports far more than is authored; every
@@ -868,6 +868,32 @@ break that or need a fundamentally different solver. Logged so they aren't re-sc
      shows both nut shares ("your nuts 100% vs villain's 0%"). Browser-verified the A-A-4 overbet path.
    - This exhausts the range-engine content menu too. M5.8 is now 12 drills (8 range-equity estimates
      + 4 overbet decisions) — the "how ranges interact on a board" capstone.
+
+38. ~~**Exact multiway equity: a "big engine" that turned out tractable + 3 exact 3-way drills**~~ —
+   DONE 2026-07-24 (cache v59, 626 tests, 201 drills). Owner: "look at the big engines again, is any
+   tractable." MEASURED instead of re-quoting old declines — and one moved: exact N-way equity is
+   **3ms on a flop, 0ms on a turn, ~0.6s preflop** (the fast score7 makes it trivial). I'd kept P4 as
+   a "labelled approximation" partly assuming multiway was hard — it isn't for SHOWDOWN spots.
+   - NEW pure fn `multiwayEquity(hero, opponents: Combo[], board)` — exact: enumerate every runout,
+     compare all hands, split ties (hero's runout share = 0 if beaten, else 1/(#tied)). NOT the
+     independence approximation. New `multiway` response kind; new State field `opponents: Combo[]`.
+   - +3 EXACT drills in **P4** (kept the field-approx ones for "vs unknown ranges"; these are "vs KNOWN
+     hands in an all-in"): AA vs KK vs QQ preflop → **0.677** (iconic cooler, exact), top set vs TWO
+     flush draws on a monotone flop → **0.356** (a set is an UNDERDOG three-way — the surprise), KK
+     overpair vs two draws → **0.378** (dilution, vs ~0.51 heads-up). Retitled P4's preface/concepts
+     to distinguish exact (known hands) from the field approximation (unknown ranges).
+   - Also MEASURED preflop-postflop: one postflop tree is 3.3ms (flop+turn) / 21ms (3-street), so
+     ~100-150 representative flops × 3.3ms ≈ sub-second — the declined preflop-3bet module is actually
+     tractable via a representative-flop set (deterministic, exact-test-safe). Logged as the NEXT big
+     option if wanted. TRUE N-player betting tree (side pots, sequential) + CFR solver stay declined.
+   - GOTCHA: `Combo` is a 2-tuple, so `state.heroHand ?? []` doesn't type-check for multiwayEquity
+     (empty array ≠ tuple) — use `state.heroHand!` (the drill invariant guarantees it). Bit both the
+     grade branch and the web feedback.
+   - Tests pin exact anchors: hero-vs-one == heads-up equity; a guaranteed 3-way chop == 1/3; the
+     cooler == 0.677; set-vs-2-draws == 0.356; 3-way < heads-up. Live browser verify was blocked (the
+     Chrome-tool safety classifier was down); engine is fully green + conformance clean, and the UI
+     reuses the estimate-input + preflop-defer patterns already screenshotted. Retry the screenshot
+     when the classifier recovers if a visual check is wanted.
 
 ## Machine-specific notes for macOS
 

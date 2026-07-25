@@ -114,6 +114,7 @@ export interface State {
   winRate?: number;                 // M5.10 bankroll: win rate in bb / 100 hands
   stdDev?: number;                  // M5.10 bankroll: standard deviation in bb / 100 hands
   bankroll?: number;                // M5.10 bankroll: bankroll in big blinds
+  opponents?: Combo[];              // P4 exact multiway: the specific opponent hands in an all-in
 }
 
 // The leaner state carried INSIDE the tree. A node only needs the board/pot/
@@ -168,6 +169,7 @@ export interface TreeNode {
 // the exact 2-player equity when players <= 2.
 export declare function equityLeaf(state: NodeState): number | null;
 export declare function fieldEquity(state: NodeState): number | null;
+export declare function multiwayEquity(hero: Combo, opponents: Combo[], board: Board): number; // EXACT N-way equity vs specific hands by enumeration (splits ties); no independence approximation
 
 // Best-response EV via expectimax (villain fixed). The leaf evaluator IS L2 equity.
 //   HERO   node: max over children
@@ -214,7 +216,8 @@ export type Response =
   | { kind: "semibluff"; value: number }         // fold frequency (0-1) a semi-bluff needs to break even, M5.7
   | { kind: "spr"; value: number }               // stack-to-pot ratio (a plain number), M5.9
   | { kind: "ror"; value: number }               // risk of ruin (0-1) from win rate, std dev, bankroll, M5.10
-  | { kind: "overbet"; action: "overbet" | "small" }; // whether to overbet, from nut advantage, M5.8
+  | { kind: "overbet"; action: "overbet" | "small" } // whether to overbet, from nut advantage, M5.8
+  | { kind: "multiway"; value: number };         // hero's EXACT equity (0-1) vs specific opponents in an all-in, P4
 
 // Per-action EVs at a HERO node — the source bestAction argmaxes and grade()
 // computes regret from.
@@ -255,7 +258,7 @@ export interface Drill {
   id: string;
   module: string;                   // curriculum tag, e.g. "M2", "M3", "P2"
   title: string;                    // human-facing label
-  ask: "estimate" | "action" | "category" | "outs" | "nuts" | "combos" | "mdf" | "bluffs" | "icm" | "callequity" | "shove" | "rangeadv" | "semibluff" | "spr" | "ror" | "overbet";  // the response kind this drill expects
+  ask: "estimate" | "action" | "category" | "outs" | "nuts" | "combos" | "mdf" | "bluffs" | "icm" | "callequity" | "shove" | "rangeadv" | "semibluff" | "spr" | "ror" | "overbet" | "multiway";  // the response kind this drill expects
   read?: string;                    // optional villain read/situational note (the strategy isn't visible from cards alone)
   state: State;
 }

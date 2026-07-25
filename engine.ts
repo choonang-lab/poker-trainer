@@ -600,6 +600,37 @@ export function fieldEquity(state: NodeState): number | null {
   return n <= 2 ? base : Math.pow(base, n - 1);
 }
 
+// EXACT N-way equity vs SPECIFIC opponent hands (P4) — unlike fieldEquity's independence
+// approximation, this enumerates every remaining board and compares all hands directly,
+// splitting ties. Hero's share of a runout is 0 if any opponent beats them, else 1/(number
+// of players tied for best). Fast: even a flop (two cards to come) is a few ms; a full
+// preflop runout is ~0.6s. Use this for a real all-in against known hands; use fieldEquity
+// for the aggregated 'vs a field/range' model where opponents' holdings are unknown.
+export function multiwayEquity(hero: Combo, opponents: Combo[], board: Board): number {
+  const dead = new Set<Card>([...hero, ...opponents.flat(), ...board]);
+  const deck = FULL_DECK.filter((c) => !dead.has(c));
+  const need = 5 - board.length;
+  let winShare = 0, total = 0;
+  const rec = (start: number, chosen: Card[]): void => {
+    if (chosen.length === need) {
+      const full = [...board, ...chosen];
+      const hs = score7([...hero, ...full]);
+      let ties = 1, beaten = false;
+      for (const o of opponents) {
+        const c = cmpScore(score7([...o, ...full]), hs);
+        if (c > 0) { beaten = true; break; }
+        if (c === 0) ties++;
+      }
+      total++;
+      if (!beaten) winShare += 1 / ties;
+      return;
+    }
+    for (let i = start; i < deck.length; i++) rec(i + 1, [...chosen, deck[i]]);
+  };
+  rec(0, []);
+  return total === 0 ? 0 : winShare / total;
+}
+
 // Two Actions are the same legal option (bet sizes must match).
 function sameAction(a: Action | undefined, b: Action | undefined): boolean {
   if (!a || !b) return a === b;
@@ -1128,6 +1159,12 @@ export function grade(state: State, response: Response): Result {
     const error = response.value - target;
     const tag = estimateLeak(error); // reuse the estimate over/under bands; refined by module in classifyLeak
     return { regretBb: 0, estimateError: Math.abs(error), leakTag: tag };
+  }
+  if (response.kind === "multiway") {
+    // Estimate hero's EXACT equity in an all-in vs the named opponents, graded by error.
+    const target = multiwayEquity(state.heroHand!, state.opponents ?? [], state.board);
+    const error = response.value - target;
+    return { regretBb: 0, estimateError: Math.abs(error), leakTag: estimateLeak(error) };
   }
   if (response.kind === "overbet") {
     // Overbet iff hero holds a clear NUT advantage: hero's near-lock share exceeds villain's by >= 0.35.
@@ -2807,6 +2844,54 @@ export const STARTER_DRILLS: Drill[] = [
       heroHand: hand("Kd", "Qc"), board: hand("Js", "9h", "2c"),
       pot: 1, toAct: "hero",
       villain: { range: [{ combo: hand("Ah", "Ad"), weight: 1 }] },
+      abstraction: { sizes: [], streets: [], players: 3 },
+    },
+  },
+  // ---- P4 EXACT multiway equity: your true equity vs SPECIFIC hands in an all-in (no approximation) ----
+  {
+    id: "p4-exact-cooler",
+    module: "P4",
+    title: "Multiway all-in: aces against kings and queens",
+    read: "A three-way all-in preflop. You have A♠ A♥; the others have K♠ K♥ and Q♠ Q♥. What is your EXACT equity?",
+    ask: "multiway",
+    // The iconic three-way cooler, computed exactly. Aces are 82.6% heads-up against kings, but only ~67.7%
+    // three-way — two opponents combine to catch you more often. Even a monster loses equity to every extra player.
+    state: {
+      heroHand: hand("As", "Ah"), board: [], pot: 1, toAct: "hero",
+      opponents: [hand("Ks", "Kh"), hand("Qs", "Qh")],
+      villain: { range: [{ combo: hand("Ks", "Kh"), weight: 1 }] }, // (informational; grading uses `opponents`)
+      abstraction: { sizes: [], streets: [], players: 3 },
+    },
+  },
+  {
+    id: "p4-exact-set-vs-draws",
+    module: "P4",
+    title: "Multiway all-in: a set against two flush draws",
+    read: "All-in three-way on 8♥ 5♥ 2♥ (monotone). You have 8♣ 8♦ (top set); the others have A♥ K♥ and Q♥ J♥ (two flush draws). Your EXACT equity?",
+    ask: "multiway",
+    // The surprise: your set is a big favorite over ONE flush draw, but against TWO it's an UNDERDOG — about 36%.
+    // Either of them completing a flush beats you, and on a monotone board that happens more often than not. Sets
+    // love heads-up pots and hate monotone multiway ones.
+    state: {
+      heroHand: hand("8c", "8d"), board: hand("8h", "5h", "2h"), pot: 1, toAct: "hero",
+      opponents: [hand("Ah", "Kh"), hand("Qh", "Jh")],
+      villain: { range: [{ combo: hand("Ah", "Kh"), weight: 1 }] },
+      abstraction: { sizes: [], streets: [], players: 3 },
+    },
+  },
+  {
+    id: "p4-exact-overpair-diluted",
+    module: "P4",
+    title: "Multiway all-in: an overpair against two draws",
+    read: "All-in three-way on Q♥ J♥ 5♣. You have K♠ K♦ (an overpair); the others have A♥ T♥ (flush + straight draw) and 9♣ 8♣ (an open-ender). Your EXACT equity?",
+    ask: "multiway",
+    // Dilution, exactly. Your kings are ~51% against the one big draw heads-up, but drop to ~38% once a second
+    // drawing hand is in — the two draws rarely share outs, so together they get there far more. Each extra
+    // opponent shaves your equity; a hand that's a coin flip heads-up is an underdog three-way.
+    state: {
+      heroHand: hand("Ks", "Kd"), board: hand("Qh", "Jh", "5c"), pot: 1, toAct: "hero",
+      opponents: [hand("Ah", "Th"), hand("9c", "8c")],
+      villain: { range: [{ combo: hand("Ah", "Th"), weight: 1 }] },
       abstraction: { sizes: [], streets: [], players: 3 },
     },
   },

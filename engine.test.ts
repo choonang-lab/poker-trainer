@@ -5,7 +5,7 @@ import {
   hand, parseCard, card, rankOf, suitOf, FULL_DECK, madeHand, drawSuit, nutCategory, comboCount,
   minDefenseFreq, bluffFrequency, icmEquity, requiredEquity, shoveEV, rangeVsRange, boardTexture, semiBluffBreakeven, spr, riskOfRuin, nutShare,
   equityLeaf, bestResponseEV, bestAction, truth, buildTree, realizationFactor,
-  fieldEquity, validateAbstraction, ABSTRACTION_LIMITS,
+  fieldEquity, multiwayEquity, validateAbstraction, ABSTRACTION_LIMITS,
   actionEVs, grade,
   resultQuality, newReview, scheduleReview, dueReviews, nextReview,
   STARTER_DRILLS, newSession, nextDrill, gradeDrill, classifyLeak,
@@ -467,6 +467,22 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
   const eq3 = fieldEquity({ heroHand: hero, board, pot: 0, players: 3, villain: { range: [{ combo: villC, weight: 1 }] } });
   ok("fieldEquity players=3 == 0.5^2 = 0.25 (field approx)", approx(eq3, 0.25), `got ${eq3}`);
 
+  // EXACT multiway equity (P4) — real N-way by enumeration, splitting ties, no independence.
+  ok("multiwayEquity: hero vs one hand == heads-up equity", approx(
+    multiwayEquity(hand("As", "Ks"), [hand("Qh", "Qd")], hand("Ah", "8d", "3s")),
+    equity(hand("As", "Ks"), hand("Ah", "8d", "3s"), hand("Qh", "Qd"))));
+  ok("multiwayEquity: three-way all-in that's a guaranteed 3-way chop = 1/3", approx(
+    multiwayEquity(hand("Ah", "Kh"), [hand("Ad", "Kd"), hand("Ac", "Kc")], hand("As", "Ks", "Qs", "Jc", "2d")), 1 / 3));
+  ok("multiwayEquity: AA vs KK vs QQ preflop ≈ 0.677 (aces bleed equity to the 3rd hand)", approx(
+    multiwayEquity(hand("As", "Ah"), [hand("Ks", "Kh"), hand("Qs", "Qh")], []), 0.6767, 0.002));
+  ok("multiwayEquity: a set is an UNDERDOG to two flush draws on a monotone flop (~0.356)", approx(
+    multiwayEquity(hand("8c", "8d"), [hand("Ah", "Kh"), hand("Qh", "Jh")], hand("8h", "5h", "2h")), 0.3555, 0.003));
+  ok("multiwayEquity: three-way is diluted vs the heads-up version",
+    multiwayEquity(hand("Ks", "Kd"), [hand("Ah", "Th"), hand("9c", "8c")], hand("Qh", "Jh", "5c")) <
+    equity(hand("Ks", "Kd"), hand("Qh", "Jh", "5c"), hand("Ah", "Th")));
+  ok("p4-exact-cooler grades against the exact ~0.677",
+    approx(gradeDrill(newSession(STARTER_DRILLS), "p4-exact-cooler", { kind: "multiway", value: 0.677 }, 0).result.estimateError!, 0, 0.003));
+
   // multiway showdown terminal: EV = fieldEquity * pot = 0.25 * 4 = 1.
   const node = {
     kind: "TERM", terminal: { type: "showdown", heroInvested: 0 },
@@ -723,6 +739,8 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
           ? { kind: "ror", value: 0.1 }                  // M5.10 bankroll / risk of ruin
           : d.ask === "overbet"
           ? { kind: "overbet", action: "small" }         // M5.8 nut advantage / overbet
+          : d.ask === "multiway"
+          ? { kind: "multiway", value: 0.5 }             // P4 exact multiway equity
           : (d.state.abstraction.sizes.length === 0 || d.state.abstraction.heroFacesBet !== undefined)
             ? { kind: "action", action: { kind: "call" } } // pillar-1 call/fold OR hero-faces-bet root
             : { kind: "action", action: { kind: "check" } }; // pillar-2 (legal at root)
@@ -869,8 +887,8 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
   ok("M4 check regret == 3 bb", approx(m4check.result.regretBb, 3), `got ${m4check.result.regretBb}`);
   ok("M4 check -> m4.misses_street_sequence", m4check.result.leakTag === "m4.misses_street_sequence");
 
-  ok("STARTER_DRILLS now spans 198 drills incl M0/M3.5/M4/M4.5/M5.6/M5.7/M5.8/M5.9/M5.10/P0/P1/P2/P2.5/P3/P3.4/P3.5/P4/P5/T1/T2",
-    STARTER_DRILLS.length === 198 &&
+  ok("STARTER_DRILLS now spans 201 drills incl M0/M3.5/M4/M4.5/M5.6/M5.7/M5.8/M5.9/M5.10/P0/P1/P2/P2.5/P3/P3.4/P3.5/P4/P5/T1/T2",
+    STARTER_DRILLS.length === 201 &&
     ["M0", "M3.5", "M4", "M4.5", "M5.6", "M5.7", "P0", "P1", "P3", "P4", "P5"].every((m) => STARTER_DRILLS.some((d) => d.module === m)));
 
   // M4.5 combo counting: base counts and blocker removal, all hand-checkable.

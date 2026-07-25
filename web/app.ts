@@ -7,7 +7,7 @@ import {
   STARTER_DRILLS, loadSession, serializeSession, gradeDrill,
   buildTree, actionEVs, truth, outs, calibration, leakReport,
   rankOf, suitOf, RNAMES, score7, madeHand, drawSuit, nutCategory, comboCount,
-  minDefenseFreq, bluffFrequency, icmEquity, requiredEquity, shoveEV, rangeVsRange, boardTexture, semiBluffBreakeven, spr, riskOfRuin, nutShare,
+  minDefenseFreq, bluffFrequency, icmEquity, requiredEquity, shoveEV, rangeVsRange, boardTexture, semiBluffBreakeven, spr, riskOfRuin, nutShare, multiwayEquity,
 } from "../engine.ts";
 import { MODULES, PRIMER, EXPLAIN, moduleStatus, currentStreak } from "../curriculum.ts";
 import type { Drill, Response, Action, State, Module } from "../contract.ts";
@@ -341,6 +341,13 @@ function playDrill(drill: Drill, tagText: string, contLabel: string, onCont: () 
     sec.append(el("div", "tag", tagText), el("h2", "title", drill.title),
       el("div", "board", cards(s.board)),
       el("div", "meta", `Board texture: ${texLabel}`));
+  } else if (drill.ask === "multiway") {
+    const opps = (s.opponents ?? []).map((o) => cards(o)).join("&nbsp; · &nbsp;");
+    sec.append(el("div", "tag", tagText), el("h2", "title", drill.title),
+      el("div", "board", s.board.length ? cards(s.board) : "<em>(preflop)</em>"),
+      el("div", "meta", `${s.abstraction.players}-way all-in`),
+      s.heroHand ? el("div", "hero", `You: ${cards(s.heroHand)}`) : el("div"),
+      el("div", "vill", `vs ${opps}`));
   } else sec.append(
     el("div", "tag", tagText),
     el("h2", "title", drill.title),
@@ -398,6 +405,22 @@ function buildControls(controls: HTMLElement, drill: Drill, onAnswer: (r: Respon
     input.onkeydown = (e) => { if ((e as KeyboardEvent).key === "Enter") submit(); };
     const label = el("label", "prompt", "Your equity estimate:") as HTMLLabelElement;
     label.htmlFor = "ans-estimate";
+    controls.append(label, input, go);
+  } else if (drill.ask === "multiway") {
+    const input = el("input") as HTMLInputElement;
+    input.type = "number"; input.min = "0"; input.max = "100"; input.step = "0.1"; input.placeholder = "0.68 or 68 (%)";
+    input.id = "ans-multiway"; input.inputMode = "decimal"; input.setAttribute("aria-label", "Your exact multiway equity");
+    const go = el("button", "primary", "Submit");
+    const submit = () => {
+      let v = Number(input.value);
+      if (!Number.isFinite(v) || input.value === "") return;
+      if (v > 1) v = v / 100; // percentage entry (68 -> 0.68)
+      onAnswer({ kind: "multiway", value: v });
+    };
+    go.onclick = submit;
+    input.onkeydown = (e) => { if ((e as KeyboardEvent).key === "Enter") submit(); };
+    const label = el("label", "prompt", "Your exact equity?") as HTMLLabelElement;
+    label.htmlFor = "ans-multiway";
     controls.append(label, input, go);
   } else if (drill.ask === "rangeadv") {
     const input = el("input") as HTMLInputElement;
@@ -647,6 +670,11 @@ function renderFeedback(drill: Drill, out: ReturnType<typeof gradeDrill>, contLa
     line = ok
       ? `Correct — risk of ruin ${pct(t)}`
       : `Risk of ruin: ${pct(t)} · off by ${parseFloat(((r.estimateError ?? 0) * 100).toFixed(1))} pts`;
+  }
+  else if (drill.ask === "multiway") {
+    const st = drill.state;
+    const t = multiwayEquity(st.heroHand!, st.opponents ?? [], st.board);
+    line = ok ? `Correct — exact equity ${t.toFixed(3)}` : `Exact equity: ${t.toFixed(3)} · error ${(r.estimateError ?? 0).toFixed(3)}`;
   }
   else if (drill.ask === "rangeadv") {
     const t = rangeVsRange(drill.state.heroRange ?? [], drill.state.villain.range, drill.state.board);
