@@ -895,6 +895,41 @@ break that or need a fundamentally different solver. Logged so they aren't re-sc
      reuses the estimate-input + preflop-defer patterns already screenshotted. Retry the screenshot
      when the classifier recovers if a visual check is wanted.
 
+39. ~~**Preflop→postflop engine via representative flops: new module P1.5 "Playing a flop"**~~ —
+    DONE 2026-07-25 (cache v60, 641 tests, 204 drills, 25 modules). Owner: "build the preflop-postflop
+    engine via representative flops" — the medium engine measured tractable in #38. It grades a PREFLOP
+    call/fold by the equity hero will actually REALIZE (not raw equity).
+    - MEASURED the flop-set first (didn't guess): texture BUCKETING is a poor estimator (one rep can't
+      capture within-bucket rank variation relative to hero — up to 15% error). A deterministic STRIDE
+      subsample of C(52,3) is far better: striding the `rank*4+suit` ordering is low-discrepancy across
+      ranks, so ~120 flops track true full-enumeration equity to **~1-2%** (a random/hash sample of the
+      same size is 4-5%). `representativeFlops()` = fixed 120-flop stride, no RNG → exact-test-safe.
+      It's a LABELLED APPROXIMATION (like the P4 field model); keep drills to clear decisions.
+    - DESIGN (zero core surgery): new `preflopDecisionRoot(ctx, preBet, streets)` builds {fold→TERM(0),
+      call→CHANCE(rep flops)→buildStreet per flop}. The preflop call `B` is baked into each subtree as
+      its starting `heroInvested`, which offsets every leaf by −B, so the call-branch EV is exactly the
+      net vs folding. ⇒ `truth`/`actionEVs`/`bestAction`/`grade` all work UNCHANGED; the decision is
+      graded like any call/fold by regret. New flag `Abstraction.preflopBet` routes it; the 626 old
+      tests never touch the new path.
+    - VILLAIN model: `FLOAT_RANGE` (broadway/pair opener) + `floatPolicy` (continues with a made pair+,
+      folds air, never raises). The fold-out is hero's realization edge in position.
+    - 3 drills: `p15-float-call` 87s vs pot → CALL (raw pot-odds +0.2 marginal, realized +2.1 —
+      realization makes it clear), `p15-float-fold` 72o vs 1.5×pot → FOLD (realized −2.6; realization
+      can't rescue trash), `p15-float-barrel` 87s two-street → CALL (realized +4.4; a second barrel
+      folds out more air). One-street grade ~0.4s, two-street ~1.5s — cheaper than the ~3s preflop
+      equity drills. EV gaps (2+) dwarf the ~2% sampling error, so verdicts are robust.
+    - WEB: `legalActions` short-circuits a preflopBet drill to fold/call so the ~1s tree eval doesn't
+      run at RENDER time (it belongs in grading, which the existing empty-board "Checking…" defer
+      already covers). These are the FIRST empty-board *action* drills; the defer wraps any response
+      kind, so it just worked. Board renders `(preflop)`.
+    - VERIFIED live: seeded localStorage (all-drills-reviewed) to unlock P1.5, then both drills graded
+      "Optimal" through the defer path (call for 87s, fold for 72o) — screenshotted. NOTE the recurring
+      cache trap: after esbuild + SW bump, the HTTP cache (not just SW Cache Storage) still serves the
+      old `app.js`; `caches.delete`+unregister isn't enough — must `fetch('app.js',{cache:'reload'})`
+      the exact no-query URL to overwrite the HTTP entry, THEN reload. Live byte-synced (208531).
+    - STILL DECLINED: a preflop 3-bet decision (villain's response to a 3-bet adds another actor layer);
+      the true N-player betting tree + CFR solver. This module is the call/fold slice, which is clean.
+
 ## Machine-specific notes for macOS
 
 - Requires: git, Node ≥ 23 (or 22.7+ with `--experimental-strip-types`) for

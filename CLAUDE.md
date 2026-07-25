@@ -25,7 +25,7 @@ game tree (L3). Build once, configure twice.
 
 ## Working discipline
 - The test suite is the guardrail. `node engine.test.ts` must stay green
-  (currently **254 passing, 0 failing**). Run it before changing anything and after every change.
+  (currently **641 passing, 0 failing**). Run it before changing anything and after every change.
 - Types are also enforced: `npx -p typescript tsc --noEmit` must stay clean (exit 0). This uses
   npx's cache — it adds NO dependency to the repo, keeping the engine a dependency-free ES module.
   `contract.conformance.ts` proves engine.ts matches every signature in contract.ts at compile time.
@@ -94,6 +94,13 @@ test red, stop and fix the leak — do NOT edit the test to make it pass.
   Build: `npx -p esbuild esbuild web/app.ts --bundle --format=esm --minify --outfile=docs/app.js`.
   Type-check: `npx -p typescript tsc -p web/tsconfig.json`. Preview: serve `docs/` over http.
   NOTE: SW is cache-first; bump `CACHE` in `docs/sw.js` (AND rebuild `docs/app.js`) to ship a UI update.
+- DONE: preflop→postflop engine (`Abstraction.preflopBet`) — a PREFLOP call/fold graded by the equity
+  hero will REALIZE. `representativeFlops()` is a deterministic 120-flop stride subsample of C(52,3)
+  (low-discrepancy across ranks ⇒ tracks true equity to ~1-2%; a labelled approximation, like P4).
+  `preflopDecisionRoot` builds {fold→0, call→CHANCE(rep flops)→buildStreet}; the preflop call is baked
+  in as starting `heroInvested`, so the call-branch EV nets vs folding and `truth`/`actionEVs`/`grade`
+  work unchanged (zero core surgery). Module **P1.5** "Playing a flop": +3 float drills (call 87s /
+  fold 72o / two-street barrel). One-street grade ~0.4s, two-street ~1.5s.
 - NOTE: tags are module+suffix keyed. Each preflop drill costs ~3s. Raises are pot-sized (raiseCap ≤ 4).
 - NEXT options: more drills; deploy (static host); push notifications (iOS-limited). Feature-complete.
 
