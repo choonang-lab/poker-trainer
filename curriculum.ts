@@ -342,6 +342,21 @@ export const MODULES: Module[] = [
     drillIds: ["p15-float-call", "p15-float-fold", "p15-float-barrel"],
   },
   {
+    id: "P1.6", track: "P2", title: "Three-betting",
+    preface: "A 3-bet (a re-raise of an open) wins two ways: opponents fold now, or you build a big pot with a big hand. But re-raising invites a 4-bet — so whether to 3-bet LIGHT depends entirely on the opener. Against someone who folds too much, 3-bet a wide, blocker-heavy range to steal. Against someone who fights back by 4-betting, drop the bluffs and 3-bet only for value — flat your marginal hands instead.",
+    concepts: [
+      { term: "3-bet", def: "the third bet preflop — a re-raise of an opener's raise." },
+      { term: "4-bet", def: "a re-raise of a 3-bet; how an opener fights back, often as a shove." },
+      { term: "3-bet for value", def: "re-raising a hand that wants a big pot and beats the range that continues." },
+      { term: "Light / bluff 3-bet", def: "re-raising a weak hand to make better hands fold — pure fold equity." },
+      { term: "Blocker", def: "holding a card (like an ace) that removes combos from the opener's strong continuing range." },
+      { term: "Flat (cold-call)", def: "just calling the open instead of 3-betting — keeps dominated hands in and the pot small." },
+    ],
+    objectives: ["3-bet light to punish an opener who over-folds", "Stop bluff-3-betting when villain 4-bets back", "Always 3-bet premiums for value against an aggressor"],
+    example: "A5s is a 3-bet against an over-folder but a fold/flat against a 4-bettor. Aces 3-bet for value against anyone.",
+    drillIds: ["p16-3bet-light", "p16-flat-vs-4bettor", "p16-3bet-value", "p16-3bet-fold-trash"],
+  },
+  {
     id: "P2", track: "P2", title: "Bet sizing",
     preface: "How much you bet matters as much as whether you bet. Bet big for value or to deny a draw its equity; bet small on dry boards to keep worse hands in; overbet a range that can't fold; and even size your bluffs — bet the minimum that folds them out.",
     concepts: [
@@ -624,6 +639,11 @@ export const EXPLAIN: Record<string, string> = {
   "p15-float-call": "8-7 suited is only ~34% against this opening range, so a pot-sized call looks barely break-even on raw pot odds. But you're in position: on the roughly two-thirds of flops villain misses, a 3/4-pot c-bet takes the pot. Averaged over the representative flops, calling is worth about +2 (folding is 0) — realization is what turns a marginal price into a clear call.",
   "p15-float-fold": "Same idea, worse hand and worse price. 7-2 offsuit is ~26% and villain raised 1.5x pot. Your c-bet still folds out air, so realization helps — but not enough: the call comes out around -2.6 against a fold's 0. Realization is an edge you earn with a hand that can make something, not a reason to call any two cards into a big raise.",
   "p15-float-barrel": "The same 8-7 suited call, but now you can barrel the flop AND the turn. A second bet folds out even more of villain's air, so realized value climbs from about +2 (one street) to about +4.4 (two streets). More streets to apply pressure means more equity realized — position plus initiative compounds.",
+  // P1.6 — three-betting
+  "p16-3bet-light": "This villain opens wide and folds most of it to a 3-bet (it 4-bets only KK+/AK and calls only QQ/JJ). A5 suited is the ideal light 3-bet: the ace is a blocker to the strong hands that could continue, so villain folds even more, and on the rare call your suited wheel ace flops fine. 3-betting (~+2.7) beats flatting (~+1.0). Punish over-folders by re-raising a wide, blocker-heavy range.",
+  "p16-flat-vs-4bettor": "Same hand-class, opposite opponent — and the answer flips. This villain defends by 4-betting (premiums plus bluffs) and rarely folds, so K-Q suited has almost no fold equity and gets blown off its hand by 4-bets too often: 3-betting is actually about -1.0. Just call (~+0.7) — KQs flops well and a small pot keeps you out of trouble. The light 3-bet is an exploit of folders, not a default.",
+  "p16-3bet-value": "Aces want the money in. Against an aggressive 4-bettor, 3-betting (~+12) crushes flatting (~+5.5): you get value from the entire opening range, and when villain 4-bet-bluffs you stack off as a huge favorite. Flatting would only disguise your hand and let villain realize equity cheaply. Never slowplay aces against someone who will build the pot for you.",
+  "p16-3bet-fold-trash": "7-2 offsuit has no equity (calling is a straight -EV proposition) and no fold equity (this villain 4-bets rather than folds), so a bluff-3-bet is the single worst choice — about -4.2. Folding costs nothing. A bluff needs a folding opponent; against a 4-bettor there's nothing to bluff, so let it go.",
   // P2 — bet sizing
   "p2-bet-or-check": "Two ways to win: villain folds about half the time, and when called your open-ender still gets there. Betting beats checking.",
   "p2-size-up-nuts": "With the nuts and a villain who always calls, the bigger bet simply wins more — size up. The small bet leaves value behind.",

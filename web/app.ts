@@ -88,8 +88,12 @@ const actionLabel = (a: Action, facingBet = false): string => {
 
 function legalActions(d: Drill): Action[] {
   if (d.state.abstraction.sizes.length === 0) return [{ kind: "fold" }, { kind: "call" }]; // pillar-1 call/fold
-  if (d.state.abstraction.preflopBet !== undefined) return [{ kind: "fold" }, { kind: "call" }]; // preflop decision root (fold/call) — avoid the ~1s tree eval at render time
-  return actionEVs(buildTree(d.state)).map((e) => e.action);                                // tree root actions
+  // Preflop decision roots have fixed root actions — return them directly rather than
+  // evaluating the (seconds-long) tree just to draw the buttons.
+  if (d.state.abstraction.threeBet !== undefined)
+    return [{ kind: "fold" }, { kind: "call" }, { kind: "bet", size: d.state.abstraction.threeBet }]; // 3-bet decision
+  if (d.state.abstraction.preflopBet !== undefined) return [{ kind: "fold" }, { kind: "call" }];        // call/fold decision
+  return actionEVs(buildTree(d.state)).map((e) => e.action);                                            // tree root actions
 }
 function villainText(s: State): string {
   const r = s.villain.range;
@@ -586,8 +590,10 @@ function buildControls(controls: HTMLElement, drill: Drill, onAnswer: (r: Respon
     controls.append(el("label", "prompt", "Your action:"));
     const row = el("div", "actions");
     const facingBet = drill.state.abstraction.heroFacesBet !== undefined;
+    const isThreeBet = drill.state.abstraction.threeBet !== undefined;
     for (const a of legalActions(drill)) {
-      const b = el("button", "act", actionLabel(a, facingBet));
+      const label = isThreeBet && a.kind === "bet" ? "3-bet" : actionLabel(a, facingBet); // name the re-raise
+      const b = el("button", "act", label);
       b.onclick = () => onAnswer({ kind: "action", action: a });
       row.append(b);
     }

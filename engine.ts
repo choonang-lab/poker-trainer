@@ -747,6 +747,14 @@ export function validateAbstraction(abstraction: Abstraction, board: Board = [])
     if (streets[0] !== "flop")
       throw new Error(`preflopBet plays out from the flop; streets must start at "flop" (got ${streets[0]})`);
   }
+  if (abstraction.threeBet !== undefined) {
+    if (abstraction.preflopBet === undefined)
+      throw new Error(`threeBet (a 3-bet decision) requires preflopBet (the villain open it faces)`);
+    if (!(abstraction.threeBet > abstraction.preflopBet))
+      throw new Error(`threeBet must exceed preflopBet (a 3-bet is bigger than the open): ${abstraction.threeBet} vs ${abstraction.preflopBet}`);
+    if (abstraction.effStack !== undefined && !(abstraction.effStack > 0))
+      throw new Error(`effStack (the 4-bet shove size) must be > 0 (got ${abstraction.effStack})`);
+  }
   if (abstraction.raiseCap !== undefined && !(Number.isInteger(abstraction.raiseCap) && abstraction.raiseCap >= 0 && abstraction.raiseCap <= 4))
     throw new Error(`raiseCap must be an integer in 0..4 (got ${abstraction.raiseCap})`);
   return true;
@@ -976,36 +984,137 @@ export function representativeFlops(): Board[] {
 }
 const REP_FLOPS: Board[] = representativeFlops(); // built once
 
+// A CHANCE over representative flops: deal a flop (labelled approximation), then
+// play the postflop streets vs `range` via the SAME tree machinery. `heroInvested`
+// is baked into each subtree so every leaf is offset by it — the branch EV is thus
+// exactly the net vs not investing. Skips flops that (a) use hero's cards or a
+// single fixed villain combo's cards (physically impossible), or (b) block the
+// ENTIRE villain range — which would leave a downstream villain node with no combos
+// (the narrowed ranges behind a 3-bet make this real, not hypothetical).
+function repFlopChance(
+  ctx: Ctx, flopPot: number, heroInvested: number, range: Range, streets: ("flop" | "turn" | "river")[],
+): TreeNode {
+  const heroBlocked = new Set<Card>([...(ctx.heroHand ?? [])]);
+  const flopBlocked = new Set<Card>(heroBlocked);
+  if (range.length === 1) for (const c of range[0].combo) flopBlocked.add(c);
+  const flops = REP_FLOPS.filter((f) =>
+    !f.some((c) => flopBlocked.has(c)) &&                                   // flop physically possible
+    range.some(({ combo }) => !combo.some((c) => heroBlocked.has(c) || f.includes(c)))); // >=1 villain combo survives
+  const vill: Villain = { ...ctx.villain, range };
+  return {
+    kind: "CHANCE",
+    state: nodeState({ ...ctx, pot: flopPot, villain: vill }, { toAct: "chance" }),
+    children: flops.map((f) => ({
+      node: buildStreet({ ...ctx, board: f, pot: flopPot, heroInvested, villain: vill }, streets),
+    })),
+  };
+}
+
 // Preflop decision root: hero faces a villain preflop bet of `preBet`*pot (dead
 // money). Fold ends it (EV 0); call sees a representative flop (CHANCE) and plays
-// the postflop streets via the SAME tree machinery. The preflop call `B` is baked
-// into each postflop subtree as its starting heroInvested, so every leaf is offset
-// by -B — the call-branch EV is thus (mean postflop share) - B, exactly the net
-// vs folding. This makes truth()/actionEVs/bestAction/grade work unchanged: the
-// decision is graded like any other call/fold, by regret.
+// the postflop streets. The preflop call `B` is baked into each postflop subtree as
+// its starting heroInvested, so the call-branch EV is (mean postflop share) - B,
+// exactly the net vs folding. truth()/actionEVs/bestAction/grade work unchanged.
 function preflopDecisionRoot(ctx: Ctx, preBet: number, streets: ("flop" | "turn" | "river")[]): TreeNode {
   const pot0 = ctx.pot;
   const B = preBet * pot0;
-  const flopPot = pot0 + 2 * B;
   const state = nodeState(ctx, { toAct: "hero" });
-  // Exclude flops that use hero's cards (impossible); for a single fixed villain
-  // combo, exclude its cards too (a range narrows per-combo at the leaf instead).
-  const blocked = new Set<Card>([...(ctx.heroHand ?? [])]);
-  if (ctx.villain.range.length === 1) for (const c of ctx.villain.range[0].combo) blocked.add(c);
-  const flops = REP_FLOPS.filter((f) => !f.some((c) => blocked.has(c)));
-  const chance: TreeNode = {
-    kind: "CHANCE",
-    state: nodeState({ ...ctx, pot: flopPot }, { toAct: "chance" }),
-    children: flops.map((f) => ({
-      node: buildStreet({ ...ctx, board: f, pot: flopPot, heroInvested: B }, streets),
-    })),
-  };
+  const chance = repFlopChance(ctx, pot0 + 2 * B, B, ctx.villain.range, streets);
   return {
     kind: "HERO", state,
     children: [
       { action: { kind: "fold" },
         node: { kind: "TERM", state, terminal: { type: "fold", folder: "hero", heroInvested: 0 } } },
       { action: { kind: "call" }, node: chance },
+    ],
+  };
+}
+
+// Preflop 3-bet decision root: villain opened (`preBet`*pot in the pot as dead
+// money). Hero chooses fold / call / 3-bet-to-`threeBet`*pot. The 3-bet adds the
+// SECOND actor layer — villain's per-combo preflop response (fold / call / 4-bet),
+// which narrows the range by action (the P5 machinery). Without the 4-bet branch a
+// light 3-bet is a free roll (unpunished fold equity ⇒ "3-bet any two cards"); the
+// 4-bet is what disciplines the 3-bet range. All EVs net vs folding (heroInvested
+// baked in), so grading is ordinary regret over {fold, call, bet(3-bet)}.
+//   fold           -> 0
+//   call           -> rep-flop CHANCE vs the FULL open range (like preflopDecisionRoot)
+//   3-bet          -> VILL responds:
+//       villain folds  -> hero wins pot0 + open           (fold equity)
+//       villain calls  -> rep-flop CHANCE vs the NARROWED calling range, bigger pot
+//       villain 4-bets -> hero faces an all-in shove to `effStack`:
+//           hero folds -> -B1 (forfeits the 3-bet)
+//           hero calls -> preflop all-in equity vs the 4-bet range (a showdown leaf)
+function preflop3betRoot(
+  ctx: Ctx, preBet: number, threeBet: number, effStack: number, streets: ("flop" | "turn" | "river")[],
+): TreeNode {
+  const pot0 = ctx.pot;
+  const B0 = preBet * pot0;                 // villain's open (dead unless it continues)
+  const B1 = threeBet * pot0;               // hero's 3-bet
+  const heroNode = nodeState(ctx, { toAct: "hero" });
+  const villNode = nodeState({ ...ctx, pot: pot0 + B0 + B1 }, { toAct: "villain" });
+
+  // --- Villain's per-combo preflop response to the 3-bet: fold / call / 4-bet. ---
+  const policy = ctx.villain.policy;
+  if (!policy) throw new Error("preflop3betRoot: villain.policy (preflop fold/call/4-bet) is required");
+  const legal: Action[] = [{ kind: "fold" }, { kind: "call" }, { kind: "bet", size: 1 }]; // bet = 4-bet
+  const blocked = new Set<Card>([...(ctx.heroHand ?? [])]);
+  const prob = (dist: { action: Action; weight: number }[], kind: Action["kind"]): number =>
+    dist.reduce((w, d) => w + (d.action.kind === kind ? d.weight : 0), 0);
+  let foldW = 0, callW = 0, fourBetW = 0;
+  const callRange: Range = [], fourBetRange: Range = [];
+  for (const { combo, weight } of ctx.villain.range) {
+    if (combo.some((c) => blocked.has(c))) continue;
+    const dist = policy(combo, villNode, legal);
+    foldW += weight * prob(dist, "fold");
+    const pc = weight * prob(dist, "call"); callW += pc;
+    if (pc > 0) callRange.push({ combo, weight: pc });
+    const pr = weight * prob(dist, "bet"); fourBetW += pr;
+    if (pr > 0) fourBetRange.push({ combo, weight: pr });
+  }
+  const total = foldW + callW + fourBetW || 1;
+  const strat: NodeStrategy = (_s, lg) => lg.map((a) => ({
+    action: a,
+    weight: a.kind === "fold" ? foldW / total : a.kind === "call" ? callW / total : a.kind === "bet" ? fourBetW / total : 0,
+  }));
+
+  // villain folds: hero wins the dead money + the open (pot at this node - heroInvested).
+  const villFolds: TreeNode = {
+    kind: "TERM", state: villNode,
+    terminal: { type: "fold", folder: "villain", heroInvested: B1 },
+  };
+  // villain calls: play the postflop over rep flops vs the narrowed calling range.
+  const villCalls: TreeNode = callRange.length
+    ? repFlopChance(ctx, pot0 + 2 * B1, B1, callRange, streets)
+    : { kind: "TERM", state: villNode, terminal: { type: "fold", folder: "villain", heroInvested: B1 } };
+  // villain 4-bets (shove to effStack): hero folds (-B1) or calls all-in for equity.
+  const heroFaces4Bet: TreeNode = {
+    kind: "HERO", state: nodeState({ ...ctx, pot: pot0 + B0 + B1 }, { toAct: "hero" }),
+    children: [
+      { action: { kind: "fold" },
+        node: { kind: "TERM", state: villNode, terminal: { type: "fold", folder: "hero", heroInvested: B1 } } },
+      { action: { kind: "call" },
+        node: { kind: "TERM",
+          state: nodeState({ ...ctx, pot: pot0 + 2 * effStack, villain: { ...ctx.villain, range: fourBetRange } }, { toAct: "chance" }),
+          terminal: { type: "showdown", heroInvested: effStack } } },
+    ],
+  };
+  const villResponse: TreeNode = {
+    kind: "VILL", state: { ...villNode, villain: { ...ctx.villain, strategy: strat } },
+    children: [
+      { action: { kind: "fold" }, node: villFolds },
+      { action: { kind: "call" }, node: villCalls },
+      { action: { kind: "bet", size: 1 }, node: fourBetW > 0 ? heroFaces4Bet : villFolds },
+    ],
+  };
+
+  return {
+    kind: "HERO", state: heroNode,
+    children: [
+      { action: { kind: "fold" },
+        node: { kind: "TERM", state: heroNode, terminal: { type: "fold", folder: "hero", heroInvested: 0 } } },
+      { action: { kind: "call" }, node: repFlopChance(ctx, pot0 + 2 * B0, B0, ctx.villain.range, streets) },
+      { action: { kind: "bet", size: threeBet }, node: villResponse },
     ],
   };
 }
@@ -1022,6 +1131,9 @@ export function buildTree(state: State): TreeNode {
     raiseCap: state.abstraction.raiseCap ?? (state.abstraction.villainRaises ? 1 : 0),
     heroInvested: 0,
   };
+  if (state.abstraction.preflopBet !== undefined && state.abstraction.threeBet !== undefined)
+    return preflop3betRoot(ctx, state.abstraction.preflopBet, state.abstraction.threeBet,
+      state.abstraction.effStack ?? 0, state.abstraction.streets);
   if (state.abstraction.preflopBet !== undefined)
     return preflopDecisionRoot(ctx, state.abstraction.preflopBet, state.abstraction.streets);
   if (state.abstraction.heroFacesBet !== undefined)
@@ -1516,6 +1628,39 @@ const floatPolicy: RangePolicy = (combo: Combo, s: NodeState, legal: Action[]) =
   return legal.map((a) => ({ action: a, weight: a.kind === (pairPlus ? "call" : "fold") ? 1 : 0 }));
 };
 
+// P1.6 three-bet drills: villain OPENS this wide range; hero may fold / call / 3-bet.
+// A three-bet policy answers TWO nodes in one function (branch on board): PREFLOP it
+// responds to the 3-bet (fold / call / 4-bet), POSTFLOP (a called 3-bet) it continues
+// with a made pair+. Two exploit archetypes make the lesson: an OVER-FOLDER (folds
+// most of its opens to a 3-bet ⇒ 3-bet light) and a 4-BETTOR (defends by 4-betting
+// premiums + bluffs ⇒ don't 3-bet light, you get blown off it). Fixed & declared, so
+// auto-gradeable (invariant 3). `effStack` makes the 4-bet a shove (an equity leaf).
+const OPEN_RANGE: Range = ([
+  ["Ah", "Kd"], ["Ah", "Qd"], ["Kh", "Qd"], ["Ah", "Jd"], ["Qh", "Jd"], ["Jc", "Tc"],
+  ["Ac", "Ad"], ["Kc", "Ks"], ["Qc", "Qs"], ["Jd", "Js"], ["Td", "Th"], ["9d", "9h"], ["8d", "8h"], ["7d", "7h"],
+  ["Ah", "Th"], ["Kh", "Jh"], ["Qc", "Tc"], ["Js", "9s"], ["Ad", "5d"], ["Kd", "Td"], ["As", "4s"], ["Qd", "9d"],
+]).map(([a, b]) => ({ combo: hand(a, b), weight: 1 }));
+const sortedRanks = (c: Combo): number[] => [rankOf(c[0]), rankOf(c[1])].sort((a, b) => b - a);
+function threeBetPolicy(fourBet: (r: number[]) => boolean, call: (r: number[]) => boolean): RangePolicy {
+  return (combo: Combo, s: NodeState, legal: Action[]) => {
+    if (s.board.length === 0) {                    // preflop: respond to the 3-bet
+      const r = sortedRanks(combo), fb = fourBet(r), ca = !fb && call(r);
+      return legal.map((a) => ({ action: a,
+        weight: a.kind === "bet" ? (fb ? 1 : 0) : a.kind === "call" ? (ca ? 1 : 0) : (!fb && !ca ? 1 : 0) }));
+    }
+    const pairPlus = best([...combo, ...s.board])[0] >= 1; // postflop: a made pair+ continues
+    return legal.map((a) => ({ action: a, weight: a.kind === (pairPlus ? "call" : "fold") ? 1 : 0 }));
+  };
+}
+// OVER-FOLDER: 4-bets only KK+/AK, calls only QQ/JJ, folds everything else to a 3-bet.
+const OVERFOLDER: RangePolicy = threeBetPolicy(
+  (r) => (r[0] === r[1] && r[0] >= 13) || (r[0] === 14 && r[1] === 13),
+  (r) => r[0] === r[1] && r[0] >= 11);
+// 4-BETTOR: 4-bets QQ+/AQ+/wheel-ace bluffs/KT, calls 99+ and the broadways — folds little.
+const FOURBETTOR: RangePolicy = threeBetPolicy(
+  (r) => (r[0] === r[1] && r[0] >= 12) || (r[0] === 14 && r[1] >= 12) || (r[0] === 14 && r[1] <= 5) || (r[0] === 13 && r[1] === 10),
+  (r) => (r[0] === r[1] && r[0] >= 9) || (r[0] >= 12 && r[1] >= 10));
+
 // ---- L6 starter content (defined last so the helpers above are initialized) --
 // A small starter set spanning estimate/action and pillar 1/pillar 2. The exact
 // values are the same ones proven elsewhere (6/44 equity, the chop, the 9/44 tree).
@@ -1859,6 +2004,72 @@ export const STARTER_DRILLS: Drill[] = [
       pot: 10, toAct: "hero",
       villain: { range: FLOAT_RANGE, policy: floatPolicy },
       abstraction: { sizes: [0.75], streets: ["flop", "turn"], players: 2, raiseCap: 0, preflopBet: 1.0 },
+    },
+  },
+  {
+    id: "p16-3bet-light",
+    module: "P1.6",
+    title: "Three-betting: 3-bet light against an over-folder",
+    ask: "action",
+    read: "Villain opens a wide range and folds most of it to a 3-bet (4-bets only KK+/AK, calls only QQ/JJ). You hold A5 suited. Fold, call, or 3-bet?",
+    // A5s vs an over-folder: 3-betting wins the pot outright most of the time (fold
+    // equity), and when called you have a suited wheel ace that realizes fine. 3-bet
+    // EV ~+2.7 vs call ~+1.0. Against someone who folds too much, a light 3-bet with
+    // a blocker + playability is the textbook exploit.
+    state: {
+      heroHand: hand("Ad", "5d"), board: [],
+      pot: 1.5, toAct: "hero",
+      villain: { range: OPEN_RANGE, policy: OVERFOLDER },
+      abstraction: { sizes: [0.75], streets: ["flop"], players: 2, raiseCap: 0, preflopBet: 2.0, threeBet: 6.0, effStack: 25 },
+    },
+  },
+  {
+    id: "p16-flat-vs-4bettor",
+    module: "P1.6",
+    title: "Three-betting: don't 3-bet into a 4-bettor",
+    ask: "action",
+    read: "Villain opens the same range but now DEFENDS by 4-betting (premiums plus bluffs) and folds little. You hold K-Q suited. Fold, call, or 3-bet?",
+    // Same hand-class idea, opposite villain: KQs has no fold equity here (villain
+    // rarely folds) and gets 4-bet off its hand too often, so 3-betting is actually
+    // -EV (~-1.0). Calling keeps the pot small with a hand that flops well (~+0.7).
+    // The exploit flips with the opponent: 3-bet the over-folder, FLAT the 4-bettor.
+    state: {
+      heroHand: hand("Kh", "Qh"), board: [],
+      pot: 1.5, toAct: "hero",
+      villain: { range: OPEN_RANGE, policy: FOURBETTOR },
+      abstraction: { sizes: [0.75], streets: ["flop"], players: 2, raiseCap: 0, preflopBet: 2.0, threeBet: 6.0, effStack: 25 },
+    },
+  },
+  {
+    id: "p16-3bet-value",
+    module: "P1.6",
+    title: "Three-betting: 3-bet the premium for value",
+    ask: "action",
+    read: "Villain opens and 4-bets aggressively (premiums plus bluffs). You hold pocket aces. Fold, call, or 3-bet?",
+    // Aces want the money in. 3-betting (~+12) crushes flatting (~+5.5): you get
+    // value from the whole opening range AND get paid off by the 4-bet bluffs, which
+    // you happily stack off against. Never slowplay aces against an aggressive raiser.
+    state: {
+      heroHand: hand("Ac", "Ah"), board: [],
+      pot: 1.5, toAct: "hero",
+      villain: { range: OPEN_RANGE, policy: FOURBETTOR },
+      abstraction: { sizes: [0.75], streets: ["flop"], players: 2, raiseCap: 0, preflopBet: 2.0, threeBet: 6.0, effStack: 25 },
+    },
+  },
+  {
+    id: "p16-3bet-fold-trash",
+    module: "P1.6",
+    title: "Three-betting: fold trash, don't bluff-3-bet a defender",
+    ask: "action",
+    read: "Villain opens and 4-bets aggressively. You hold 7-2 offsuit. Fold, call, or 3-bet?",
+    // 7-2o has no equity (calling is -EV) and no fold equity (this villain won't fold
+    // to a 3-bet — it 4-bets), so a bluff-3-bet is the worst option (~-4.2). Folding
+    // (0) beats both. Fold equity needs a folding opponent; a 4-bettor isn't one.
+    state: {
+      heroHand: hand("7h", "2d"), board: [],
+      pot: 1.5, toAct: "hero",
+      villain: { range: OPEN_RANGE, policy: FOURBETTOR },
+      abstraction: { sizes: [0.75], streets: ["flop"], players: 2, raiseCap: 0, preflopBet: 2.0, threeBet: 6.0, effStack: 25 },
     },
   },
   {

@@ -88,6 +88,10 @@ export interface Abstraction {
                                     // villain bet of this pot-relative size; calling deals a REPRESENTATIVE
                                     // flop (labelled approximation) and plays the postflop streets. Lets a
                                     // preflop decision be graded by the equity it will actually realize.
+  threeBet?: number;                // with preflopBet: hero may also 3-BET to this pot-relative size. Adds
+                                    // villain's per-combo preflop response (fold / call / 4-bet) via villain.policy —
+                                    // the second actor layer. The 4-bet is a shove to `effStack` (equity leaf).
+  effStack?: number;                // 3-bet drills: the effective stack a 4-bet shoves for (all-in equity leaf).
   villainRaises?: boolean;          // sugar for raiseCap = 1 (villain may raise hero's bet once).
   raiseCap?: number;                // max raises in a betting sequence (pot-sized, alternating actors).
                                     // 0 = fold/call only; 1 = one raise; 2 = re-raise (3-bet); etc.

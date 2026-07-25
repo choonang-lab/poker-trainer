@@ -887,9 +887,9 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
   ok("M4 check regret == 3 bb", approx(m4check.result.regretBb, 3), `got ${m4check.result.regretBb}`);
   ok("M4 check -> m4.misses_street_sequence", m4check.result.leakTag === "m4.misses_street_sequence");
 
-  ok("STARTER_DRILLS now spans 204 drills incl M0/M3.5/M4/M4.5/M5.6/M5.7/M5.8/M5.9/M5.10/P0/P1/P1.5/P2/P2.5/P3/P3.4/P3.5/P4/P5/T1/T2",
-    STARTER_DRILLS.length === 204 &&
-    ["M0", "M3.5", "M4", "M4.5", "M5.6", "M5.7", "P0", "P1", "P1.5", "P3", "P4", "P5"].every((m) => STARTER_DRILLS.some((d) => d.module === m)));
+  ok("STARTER_DRILLS now spans 208 drills incl M0/M3.5/M4/M4.5/M5.6/M5.7/M5.8/M5.9/M5.10/P0/P1/P1.5/P1.6/P2/P2.5/P3/P3.4/P3.5/P4/P5/T1/T2",
+    STARTER_DRILLS.length === 208 &&
+    ["M0", "M3.5", "M4", "M4.5", "M5.6", "M5.7", "P0", "P1", "P1.5", "P1.6", "P3", "P4", "P5"].every((m) => STARTER_DRILLS.some((d) => d.module === m)));
 
   // ---- Preflop -> postflop via representative flops (P1.5) ----------------
   // The representative-flop set is a deterministic, fixed sample (no RNG) of
@@ -931,6 +931,43 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
   try { validateAbstraction({ sizes: [0.75], streets: ["flop"], players: 2, preflopBet: 1 }, hand("As", "Ks", "2d")); }
   catch { threwPreflop = true; }
   ok("validateAbstraction rejects preflopBet with a non-empty board", threwPreflop);
+
+  // ---- Preflop 3-bet decision (P1.6): the second actor layer ---------------
+  // Hero chooses fold / call / 3-bet; the 3-bet adds villain's per-combo response
+  // (fold / call / 4-bet). The 4-bet is what disciplines the range, so the SAME
+  // hand flips between 3-bet and flat by villain type. Verdicts (not the long EV
+  // decimals) are the hand-checkable claim; gaps dwarf the sampling error.
+  const tbLight = byId("p16-3bet-light");     // A5s vs an over-folder
+  const tbFlat = byId("p16-flat-vs-4bettor"); // KQs vs a 4-bettor
+  const tbValue = byId("p16-3bet-value");     // AA  vs a 4-bettor
+  const tbTrash = byId("p16-3bet-fold-trash");// 72o vs a 4-bettor
+  // Build+evaluate each (expensive) tree ONCE; derive branch EVs and best action
+  // from the same pass (fold=0 is a child, so best is argmax over fold/call/bet).
+  const analyze = (d: Drill): { ev: Record<string, number>; best: string } => {
+    const ev: Record<string, number> = {};
+    for (const c of buildTree(d.state).children!) ev[c.action!.kind] = bestResponseEV(c.node);
+    const best = Object.keys(ev).reduce((a, b) => (ev[b] > ev[a] ? b : a));
+    return { ev, best };
+  };
+  const aL = analyze(tbLight), aF = analyze(tbFlat), aV = analyze(tbValue), aT = analyze(tbTrash);
+  ok("P1.6 root offers fold + call + 3-bet (bet)", Object.keys(aL.ev).sort().join(",") === "bet,call,fold");
+  ok("P1.6 light: 3-bet beats call vs an over-folder (fold equity)", aL.ev.bet > aL.ev.call && aL.ev.bet > 0);
+  ok("P1.6 light: best action is the 3-bet", aL.best === "bet");
+  ok("P1.6 flat: 3-betting KQs into a 4-bettor is -EV (punished)", aF.ev.bet < 0);
+  ok("P1.6 flat: calling beats 3-betting → best is call", aF.ev.call > aF.ev.bet && aF.best === "call");
+  ok("P1.6 value: 3-bet aces crushes flatting", aV.ev.bet > aV.ev.call && aV.best === "bet");
+  ok("P1.6 trash: fold beats both call and a bluff-3-bet", aT.ev.call < 0 && aT.ev.bet < 0 && aT.best === "fold");
+  ok("P1.6 trash: the bluff-3-bet is the worst option", aT.ev.bet < aT.ev.call);
+  // Grading: 3-betting the over-folder is optimal; folding it is a regretful leak.
+  const tbOk = gradeDrill(session, tbLight.id, { kind: "action", action: { kind: "bet", size: 6.0 } }, 0);
+  ok("P1.6 light: graded 3-bet is correct (regret 0)", approx(tbOk.result.regretBb, 0));
+  const tbBad = gradeDrill(session, tbLight.id, { kind: "action", action: { kind: "fold" } }, 0);
+  ok("P1.6 light: folding a clear 3-bet is a regretful leak", tbBad.result.regretBb > 1);
+  // Validation guards for the 3-bet abstraction.
+  let threwTb = false;
+  try { validateAbstraction({ sizes: [0.75], streets: ["flop"], players: 2, preflopBet: 2, threeBet: 1.5 }); }
+  catch { threwTb = true; }
+  ok("validateAbstraction rejects a 3-bet not larger than the open", threwTb);
 
   // M4.5 combo counting: base counts and blocker removal, all hand-checkable.
   ok("comboCount: A-K unpaired, no blockers = 16", comboCount(hand("Ah", "Kh"), []) === 16);
