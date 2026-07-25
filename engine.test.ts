@@ -5,7 +5,7 @@ import {
   hand, parseCard, card, rankOf, suitOf, FULL_DECK, madeHand, drawSuit, nutCategory, comboCount,
   minDefenseFreq, bluffFrequency, icmEquity, requiredEquity, shoveEV, rangeVsRange, boardTexture, semiBluffBreakeven, spr, riskOfRuin, nutShare,
   equityLeaf, bestResponseEV, bestAction, truth, buildTree, realizationFactor,
-  fieldEquity, multiwayEquity, validateAbstraction, ABSTRACTION_LIMITS,
+  fieldEquity, multiwayEquity, representativeFlops, validateAbstraction, ABSTRACTION_LIMITS,
   actionEVs, grade,
   resultQuality, newReview, scheduleReview, dueReviews, nextReview,
   STARTER_DRILLS, newSession, nextDrill, gradeDrill, classifyLeak,
@@ -741,8 +741,8 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
           ? { kind: "overbet", action: "small" }         // M5.8 nut advantage / overbet
           : d.ask === "multiway"
           ? { kind: "multiway", value: 0.5 }             // P4 exact multiway equity
-          : (d.state.abstraction.sizes.length === 0 || d.state.abstraction.heroFacesBet !== undefined)
-            ? { kind: "action", action: { kind: "call" } } // pillar-1 call/fold OR hero-faces-bet root
+          : (d.state.abstraction.sizes.length === 0 || d.state.abstraction.heroFacesBet !== undefined || d.state.abstraction.preflopBet !== undefined)
+            ? { kind: "action", action: { kind: "call" } } // pillar-1 call/fold OR hero-faces-bet OR preflop-decision root
             : { kind: "action", action: { kind: "check" } }; // pillar-2 (legal at root)
     const out = gradeDrill(s, d.id, resp, 0);
     s = out.session;
@@ -887,9 +887,50 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
   ok("M4 check regret == 3 bb", approx(m4check.result.regretBb, 3), `got ${m4check.result.regretBb}`);
   ok("M4 check -> m4.misses_street_sequence", m4check.result.leakTag === "m4.misses_street_sequence");
 
-  ok("STARTER_DRILLS now spans 201 drills incl M0/M3.5/M4/M4.5/M5.6/M5.7/M5.8/M5.9/M5.10/P0/P1/P2/P2.5/P3/P3.4/P3.5/P4/P5/T1/T2",
-    STARTER_DRILLS.length === 201 &&
-    ["M0", "M3.5", "M4", "M4.5", "M5.6", "M5.7", "P0", "P1", "P3", "P4", "P5"].every((m) => STARTER_DRILLS.some((d) => d.module === m)));
+  ok("STARTER_DRILLS now spans 204 drills incl M0/M3.5/M4/M4.5/M5.6/M5.7/M5.8/M5.9/M5.10/P0/P1/P1.5/P2/P2.5/P3/P3.4/P3.5/P4/P5/T1/T2",
+    STARTER_DRILLS.length === 204 &&
+    ["M0", "M3.5", "M4", "M4.5", "M5.6", "M5.7", "P0", "P1", "P1.5", "P3", "P4", "P5"].every((m) => STARTER_DRILLS.some((d) => d.module === m)));
+
+  // ---- Preflop -> postflop via representative flops (P1.5) ----------------
+  // The representative-flop set is a deterministic, fixed sample (no RNG) of
+  // distinct valid flops — the whole point is exact-test reproducibility.
+  const repFlops = representativeFlops();
+  ok("representativeFlops: fixed count 120", repFlops.length === 120);
+  ok("representativeFlops: deterministic across calls",
+    JSON.stringify(representativeFlops()) === JSON.stringify(repFlops));
+  ok("representativeFlops: all are 3 distinct in-range cards",
+    repFlops.every((f) => f.length === 3 && new Set(f).size === 3 && f.every((c) => c >= 0 && c < 52)));
+  ok("representativeFlops: no two flops identical",
+    new Set(repFlops.map((f) => [...f].sort((a, b) => a - b).join(","))).size === repFlops.length);
+
+  // The three P1.5 drills are graded like any call/fold — by regret off the built
+  // tree — so bestAction / truth / actionEVs all flow through unchanged. Decisions
+  // (not the long aggregate decimals) are the hand-checkable assertion; the EV
+  // GAP dwarfs the ~2% sampling error, so the call/fold verdict is robust.
+  const floatCall = byId("p15-float-call");
+  const floatFold = byId("p15-float-fold");
+  const floatBarrel = byId("p15-float-barrel");
+  ok("P1.5 preflop root offers fold+call only",
+    buildTree(floatCall.state).children!.map((c) => c.action!.kind).sort().join(",") === "call,fold");
+  ok("P1.5 float-call: calling beats folding (realization)", bestAction(buildTree(floatCall.state)).kind === "call");
+  ok("P1.5 float-call: truth (call EV) is clearly +EV", truth(floatCall.state) > 1);
+  ok("P1.5 float-fold: folding trash to a big raise is best", bestAction(buildTree(floatFold.state)).kind === "fold");
+  ok("P1.5 float-fold: calling would be -EV",
+    actionEVs(buildTree(floatFold.state)).find((a) => a.action.kind === "call")!.ev < 0);
+  ok("P1.5 float-barrel: two streets realize even more -> call", bestAction(buildTree(floatBarrel.state)).kind === "call");
+  ok("P1.5 barreling realizes more than a single c-bet", truth(floatBarrel.state) > truth(floatCall.state));
+  // Grading: the correct action tags *.ok; the wrong one is a regretful leak.
+  const fcOk = gradeDrill(session, floatCall.id, { kind: "action", action: { kind: "call" } }, 0);
+  ok("P1.5 float-call graded call is correct (regret 0)", approx(fcOk.result.regretBb, 0));
+  const fcBad = gradeDrill(session, floatCall.id, { kind: "action", action: { kind: "fold" } }, 0);
+  ok("P1.5 float-call folding is a regretful overfold", fcBad.result.regretBb > 1 && fcBad.result.leakTag.endsWith("overfold"));
+  const ffBad = gradeDrill(session, floatFold.id, { kind: "action", action: { kind: "call" } }, 0);
+  ok("P1.5 float-fold calling is a regretful spew", ffBad.result.regretBb > 1);
+  // Validation guard: preflopBet requires an empty board.
+  let threwPreflop = false;
+  try { validateAbstraction({ sizes: [0.75], streets: ["flop"], players: 2, preflopBet: 1 }, hand("As", "Ks", "2d")); }
+  catch { threwPreflop = true; }
+  ok("validateAbstraction rejects preflopBet with a non-empty board", threwPreflop);
 
   // M4.5 combo counting: base counts and blocker removal, all hand-checkable.
   ok("comboCount: A-K unpaired, no blockers = 16", comboCount(hand("Ah", "Kh"), []) === 16);

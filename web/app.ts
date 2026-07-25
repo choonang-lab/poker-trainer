@@ -88,6 +88,7 @@ const actionLabel = (a: Action, facingBet = false): string => {
 
 function legalActions(d: Drill): Action[] {
   if (d.state.abstraction.sizes.length === 0) return [{ kind: "fold" }, { kind: "call" }]; // pillar-1 call/fold
+  if (d.state.abstraction.preflopBet !== undefined) return [{ kind: "fold" }, { kind: "call" }]; // preflop decision root (fold/call) — avoid the ~1s tree eval at render time
   return actionEVs(buildTree(d.state)).map((e) => e.action);                                // tree root actions
 }
 function villainText(s: State): string {

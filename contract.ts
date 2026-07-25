@@ -84,6 +84,10 @@ export interface Abstraction {
   heroFacesBet?: number;            // if set, the tree ROOTS at hero facing a villain bet of this
                                     // pot-relative size (fold | call -> remaining streets). Models a
                                     // call/fold where calling realizes future winnings (true implied odds).
+  preflopBet?: number;              // if set (board empty), the tree ROOTS at a PREFLOP call/fold facing a
+                                    // villain bet of this pot-relative size; calling deals a REPRESENTATIVE
+                                    // flop (labelled approximation) and plays the postflop streets. Lets a
+                                    // preflop decision be graded by the equity it will actually realize.
   villainRaises?: boolean;          // sugar for raiseCap = 1 (villain may raise hero's bet once).
   raiseCap?: number;                // max raises in a betting sequence (pot-sized, alternating actors).
                                     // 0 = fold/call only; 1 = one raise; 2 = re-raise (3-bet); etc.
@@ -184,6 +188,7 @@ export declare function bestAction(node: TreeNode): Action;      // argmax at a 
 export declare const ABSTRACTION_LIMITS: { maxSizes: number; maxStreets: number; maxSizeStreetProduct: number };
 export declare function validateAbstraction(abstraction: Abstraction, board?: Board): boolean;
 export declare function buildTree(state: State): TreeNode;
+export declare function representativeFlops(): Board[]; // deterministic stride subsample of C(52,3) flops behind a preflop decision (labelled approximation)
 
 // The single ground-truth entry point. UI/grading call ONLY this; it routes:
 //   empty abstraction → fieldEquity()   (pillar 1; heads-up equity or multiway field approx)

@@ -328,6 +328,20 @@ export const MODULES: Module[] = [
     drillIds: ["p1-aa-vs-kk-preflop", "p1-akx-vs-qq-race", "p1-ak-vs-aq", "p1-suited-connector-vs-aces", "p1-dominated-ace", "p1-overcards-vs-pair-race"],
   },
   {
+    id: "P1.5", track: "P2", title: "Playing a flop",
+    preface: "A preflop call isn't paid off by raw equity — it's paid off by the equity you actually REALIZE. In position, calling to see a flop lets you c-bet the boards your opponent misses, so a hand can be worth more than its all-in equity suggests. But realization is an edge, not a licence: against a big raise, trash is still a fold.",
+    concepts: [
+      { term: "Realized equity", def: "the equity you turn into winnings once the hand is played out — more than raw equity when you have position and initiative." },
+      { term: "Continuation bet (c-bet)", def: "a bet on the flop by the preflop aggressor; folds out the hands that missed." },
+      { term: "Float", def: "calling a raise with a marginal hand, planning to take the pot away on a later street when your opponent gives up." },
+      { term: "Fold equity", def: "the value that comes from your opponent folding — what makes realization exceed raw equity." },
+      { term: "Representative flops", def: "a fixed sample of flops the trainer averages a postflop line over, to price a preflop decision (an approximation)." },
+    ],
+    objectives: ["See why a call is priced by realized, not raw, equity", "Call marginal hands that realize well in position", "Fold weak hands when the price is too high to realize"],
+    example: "8♥7♥ is only ~34% vs an opening range — a marginal call by pot odds — but c-betting the flops villain misses lifts it to a clear call. 7♥2♦ vs a bigger raise stays a fold.",
+    drillIds: ["p15-float-call", "p15-float-fold", "p15-float-barrel"],
+  },
+  {
     id: "P2", track: "P2", title: "Bet sizing",
     preface: "How much you bet matters as much as whether you bet. Bet big for value or to deny a draw its equity; bet small on dry boards to keep worse hands in; overbet a range that can't fold; and even size your bluffs — bet the minimum that folds them out.",
     concepts: [
@@ -606,6 +620,10 @@ export const EXPLAIN: Record<string, string> = {
   "p1-suited-connector-vs-aces": "A suited connector is crushed by an overpair but not drawing dead: straights, flushes and two pair keep 8-7 suited around 23% against aces. It's still a big underdog heads-up, which is why connectors want a cheap price and deep stacks, not a big pot preflop.",
   "p1-dominated-ace": "This is the wrong side of domination (the mirror of AK vs AQ). Your A-5 shares the ace with A-K, so you're outkicked and drawing mostly to a five — only about 26%. Weak aces play badly against a raising range because you flop top pair and are still behind.",
   "p1-overcards-vs-pair-race": "The classic coin flip: ace-king against a pair of twos is almost exactly even (~47%). Even the smallest pair is a slight favorite over two overcards, because it's ahead until you pair. 'A race' means roughly 50/50 — a pair is never a big underdog preflop.",
+  // P1.5 — playing a flop (preflop realization)
+  "p15-float-call": "8-7 suited is only ~34% against this opening range, so a pot-sized call looks barely break-even on raw pot odds. But you're in position: on the roughly two-thirds of flops villain misses, a 3/4-pot c-bet takes the pot. Averaged over the representative flops, calling is worth about +2 (folding is 0) — realization is what turns a marginal price into a clear call.",
+  "p15-float-fold": "Same idea, worse hand and worse price. 7-2 offsuit is ~26% and villain raised 1.5x pot. Your c-bet still folds out air, so realization helps — but not enough: the call comes out around -2.6 against a fold's 0. Realization is an edge you earn with a hand that can make something, not a reason to call any two cards into a big raise.",
+  "p15-float-barrel": "The same 8-7 suited call, but now you can barrel the flop AND the turn. A second bet folds out even more of villain's air, so realized value climbs from about +2 (one street) to about +4.4 (two streets). More streets to apply pressure means more equity realized — position plus initiative compounds.",
   // P2 — bet sizing
   "p2-bet-or-check": "Two ways to win: villain folds about half the time, and when called your open-ender still gets there. Betting beats checking.",
   "p2-size-up-nuts": "With the nuts and a villain who always calls, the bigger bet simply wins more — size up. The small bet leaves value behind.",
