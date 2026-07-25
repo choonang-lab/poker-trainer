@@ -930,6 +930,37 @@ break that or need a fundamentally different solver. Logged so they aren't re-sc
     - STILL DECLINED: a preflop 3-bet decision (villain's response to a 3-bet adds another actor layer);
       the true N-player betting tree + CFR solver. This module is the call/fold slice, which is clean.
 
+40. ~~**Preflop 3-bet decision — the villain-response actor layer: new module P1.6 "Three-betting"**~~ —
+    DONE 2026-07-25 (cache v61, 652 tests, 208 drills, 26 modules). Owner: "evaluate [then] build" the
+    3-bet decision I'd declined in #39. EVALUATED first with a scratch probe, which found the KEY thing:
+    the "another actor layer" (villain's 4-bet response) is NOT optional polish — it's REQUIRED for
+    correctness. A fold/call-only villain makes a light 3-bet a free roll (unpunished fold equity ⇒ the
+    engine says "3-bet ANY two cards", 72o included). The 4-bet is what disciplines the 3-bet range.
+    - DESIGN (still zero core surgery): extracted `repFlopChance` (shared by the P1.5 call/fold root and
+      the new 3-bet root) — and it needed a FULLY-BLOCKED-FLOP guard the probe surfaced: the NARROWED
+      calling range behind a 3-bet can be entirely card-blocked on some rep flops (a small range + hero's
+      blockers), which crashed a downstream VILL node ("assigns no weight"). `preflop3betRoot` builds
+      {fold→0, call→repFlopChance(FULL range), 3-bet→VILL responds fold/call/4-bet}. Villain folds → hero
+      wins the open (fold equity, a villain-fold TERM); calls → repFlopChance(NARROWED range, bigger pot);
+      4-bets → hero faces an all-in shove: fold (−3-bet) or call (a PREFLOP ALL-IN EQUITY LEAF vs the
+      4-bet range — a showdown TERM with empty board, pot0+2·effStack, heroInvested effStack). All EVs
+      net vs folding (heroInvested baked in) ⇒ grades as ordinary regret over {fold, call, bet}.
+    - One policy answers BOTH nodes by branching on `board.length`: preflop = fold/call/4-bet by hand
+      strength; postflop = pair+ continues. New flags `Abstraction.threeBet` + `effStack`.
+    - CALIBRATION is the real cost (as predicted): tuned a fixed wide opener + two exploit archetypes so
+      the SAME hand-class flips. `OVERFOLDER` (folds most to a 3-bet): A5s → 3-BET (+2.7 vs call +1.0).
+      `FOURBETTOR` (4-bets premiums+bluffs, folds little): KQs → CALL (3-bet is −1.0, punished), AA →
+      3-BET (+12 vs +5.5, stack off the bluffs), 72o → FOLD (bluff-3-bet worst at −4.2). All 4 gaps
+      dwarf the ~2% sampling error. 4 drills, all `ask:"action"` (fold/call/bet — no new response kind).
+    - COST: each 3-bet grade runs TWO rep-flop aggregations (call + 3-bet-called) + the preflop equity
+      leaf ⇒ ~3-5s. Suite jumped 31s→**93s**. Acceptable but heavy; if it bites, the lever is fewer 3-bet
+      drills or a smaller REP_FLOP_COUNT (global; would shift P1.5 numbers but not its verdicts).
+    - WEB: `legalActions` returns fold/call/3-bet for a 3-bet drill (no render-time eval); the bet button
+      reads "3-bet". Same empty-board "Checking…" defer (now ~5s, note shows). VERIFIED live: 3-bet is
+      Optimal vs the over-folder, call is Optimal vs the 4-bettor — same hand-class, opposite answer.
+    - NOW REACHABLE if wanted: 4-bet/5-bet decisions (same machinery, deeper), squeeze spots (3-bet vs an
+      open + a caller — a 3rd range). STILL DECLINED: true N-player betting tree (side pots) + CFR solver.
+
 ## Machine-specific notes for macOS
 
 - Requires: git, Node ≥ 23 (or 22.7+ with `--experimental-strip-types`) for

@@ -25,7 +25,7 @@ game tree (L3). Build once, configure twice.
 
 ## Working discipline
 - The test suite is the guardrail. `node engine.test.ts` must stay green
-  (currently **641 passing, 0 failing**). Run it before changing anything and after every change.
+  (currently **652 passing, 0 failing**). Run it before changing anything and after every change.
 - Types are also enforced: `npx -p typescript tsc --noEmit` must stay clean (exit 0). This uses
   npx's cache — it adds NO dependency to the repo, keeping the engine a dependency-free ES module.
   `contract.conformance.ts` proves engine.ts matches every signature in contract.ts at compile time.
@@ -101,6 +101,14 @@ test red, stop and fix the leak — do NOT edit the test to make it pass.
   in as starting `heroInvested`, so the call-branch EV nets vs folding and `truth`/`actionEVs`/`grade`
   work unchanged (zero core surgery). Module **P1.5** "Playing a flop": +3 float drills (call 87s /
   fold 72o / two-street barrel). One-street grade ~0.4s, two-street ~1.5s.
+- DONE: preflop 3-bet decision (`Abstraction.threeBet` + `effStack`) — module **P1.6** "Three-betting".
+  Hero picks fold / call / 3-bet; the 3-bet adds villain's per-combo response (fold / call / 4-bet) — the
+  second actor layer. The 4-bet is REQUIRED, not optional: without it a light 3-bet is a free roll
+  (unpunished fold equity ⇒ "3-bet any two cards"). `preflop3betRoot` reuses `repFlopChance` (extracted,
+  now with a fully-blocked-flop guard) for the call/3-bet-called branches, and a preflop all-in equity
+  leaf for the 4-bet shove. Same hand-class flips by villain type: A5s 3-bets an over-folder, KQs flats a
+  4-bettor, AA always value-3-bets, 72o folds. 4 drills. Each grade ~3-5s (two rep-flop aggregations +
+  equity leaf) ⇒ suite ~93s.
 - NOTE: tags are module+suffix keyed. Each preflop drill costs ~3s. Raises are pot-sized (raiseCap ≤ 4).
 - NEXT options: more drills; deploy (static host); push notifications (iOS-limited). Feature-complete.
 
