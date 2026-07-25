@@ -961,6 +961,43 @@ break that or need a fundamentally different solver. Logged so they aren't re-sc
     - NOW REACHABLE if wanted: 4-bet/5-bet decisions (same machinery, deeper), squeeze spots (3-bet vs an
       open + a caller — a 3rd range). STILL DECLINED: true N-player betting tree (side pots) + CFR solver.
 
+41. ~~**4-bet/5-bet decisions (P1.7) + squeeze spots (P1.8)**~~ — DONE 2026-07-25 (cache v62, 659 tests,
+    213 drills, 28 modules). Owner: "4-bet/5-bet decisions and squeeze spots (3-bet vs an open + a
+    caller)" — the two things logged reachable in #40. Both reuse `preflop3betRoot` (same tree shape,
+    one level deeper / more dead money), so the engine change was small.
+    - **4-bets (P1.7):** generalized `preflop3betRoot` with `heroIn` = chips hero ALREADY committed (the
+      open). KEY insight (verified in scratch): heroIn CANCELS out of every pot but shifts each branch's
+      hero investment. Using the future-chips convention (folding an open stays EV 0, sunk chips excluded)
+      means subtracting `heroIn` from each branch's `heroInvested` — nothing else changes. heroIn defaults
+      0 ⇒ the 3-bet path (P1.6) is byte-identical (proven: P1.6 verdicts unchanged). So the SAME root
+      grades a 4-bet decision (hero opened → faces a 3-bet → fold/call/4-bet; villain can 5-bet-shove).
+      3 drills: AA value-4-bets (~+40 vs flat +17); QQ FLATS — 4-betting gets it in BEHIND the 5-bet range
+      (+7.7 vs +0.3), the distinct "don't 4-bet a hand a 5-bet dominates" lesson; A5s 4-bet-BLUFFS a
+      fold-to-4bet villain using its ace blocker to the shove range (~+11 vs +5.6).
+    - **Squeezes (P1.8):** PURE CONTENT, zero engine change — the cold-caller's call is dead money baked
+      into a bigger `pot0`, and (modeled as) both opener and caller fold a lot, so the squeeze wins a
+      bigger pot. When the opener folds, hero automatically wins pot0+open = all the dead money incl. the
+      caller's. 2 drills: A5s and 8-7s aren't lone 3-bets but the dead money makes them profitable
+      squeezes (~+4.8 / +3.5). A caller is a labelled simplification (capped range ⇒ folds); stated in the
+      read. Reuses P1.6's OPEN_RANGE + OVERFOLDER.
+    - **PERF WIN (important):** the 5-bet-shove leaf was a full C(48,5) preflop enumeration — ~4s for a
+      wide shove range (the FOURBETTOR drills hit 5.7s!). Approximated it over the SAME representative
+      flops (`repFlopShowdown`: a CHANCE of per-flop showdowns, 2 cards to come), ~14x cheaper. Net: the
+      suite went 652→659 tests but DROPPED from ~158s to **~65s** — FASTER than the 93s it was at P1.6,
+      despite +5 deep drills. The leaf enumeration, not the flop count, was the real cost. REP_FLOP_COUNT
+      stayed 120 (accuracy preserved); the leaf fix alone did it.
+    - CALIBRATION (the recurring real cost): hunted crisp verdicts empirically. Found QQ-flats and the
+      A5s-4-bet-bluff-vs-fold-to-4bet for P1.7; for P1.8, 8-7s (flats poorly ⇒ squeezes clearly, +3.5 vs
+      call +0.7). A 76s "fold-lone → squeeze-with-caller" flip existed but resolved to CALL (0.78) barely
+      over squeeze (0.59) — too tight to be test-safe, so dropped it for 8-7s.
+    - WEB: the re-raise button reads "4-bet" when heroIn>0, else "3-bet" (covers squeezes). VERIFIED live:
+      4-bet-value drill grades "Optimal"; both modules render with the right buttons. (Headless caveat:
+      the "Checking…" defer's setTimeout is throttled when the pane is backgrounded — the squeeze grade
+      stalled at "Checking…" in automation only; the identical 4-bet path graded fine when fronted, and
+      tests confirm the squeeze verdict. Not an app bug.)
+    - STILL DECLINED: true N-player betting tree (real multiway side pots — the squeeze approximates the
+      caller as dead money instead) + CFR/GTO solver.
+
 ## Machine-specific notes for macOS
 
 - Requires: git, Node ≥ 23 (or 22.7+ with `--experimental-strip-types`) for

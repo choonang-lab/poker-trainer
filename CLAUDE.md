@@ -25,7 +25,7 @@ game tree (L3). Build once, configure twice.
 
 ## Working discipline
 - The test suite is the guardrail. `node engine.test.ts` must stay green
-  (currently **652 passing, 0 failing**). Run it before changing anything and after every change.
+  (currently **659 passing, 0 failing**). Run it before changing anything and after every change.
 - Types are also enforced: `npx -p typescript tsc --noEmit` must stay clean (exit 0). This uses
   npx's cache — it adds NO dependency to the repo, keeping the engine a dependency-free ES module.
   `contract.conformance.ts` proves engine.ts matches every signature in contract.ts at compile time.
@@ -109,6 +109,13 @@ test red, stop and fix the leak — do NOT edit the test to make it pass.
   leaf for the 4-bet shove. Same hand-class flips by villain type: A5s 3-bets an over-folder, KQs flats a
   4-bettor, AA always value-3-bets, 72o folds. 4 drills. Each grade ~3-5s (two rep-flop aggregations +
   equity leaf) ⇒ suite ~93s.
+- DONE: 4-bet/5-bet decisions (**P1.7** "Four-betting") + squeeze spots (**P1.8** "Squeezing"). Both reuse
+  `preflop3betRoot`: 4-bets generalize it with `Abstraction.heroIn` (hero's already-committed open — it
+  cancels out of pots but shifts each branch's hero investment, so folding stays EV 0; heroIn=0 keeps the
+  3-bet path byte-identical). Squeezes are pure content — the caller's call is dead money in a bigger
+  `pot0`. 5 drills (AA value-4-bet, QQ flat, A5s 4-bet-bluff; A5s + 8-7s squeezes). The 5-bet-shove leaf,
+  once a full C(48,5) preflop enumeration (~4s), is now approximated over rep flops (`repFlopShowdown`,
+  ~14x cheaper) — so the suite runs 659 tests in ~65s, faster than at P1.6.
 - NOTE: tags are module+suffix keyed. Each preflop drill costs ~3s. Raises are pot-sized (raiseCap ≤ 4).
 - NEXT options: more drills; deploy (static host); push notifications (iOS-limited). Feature-complete.
 
