@@ -1067,6 +1067,20 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
   ok("gradeHand: folding the defend is the worst decision of the hand",
     recapBad.worst !== null && recapBad.worst.index === 0 && recapBad.totalRegretBb > recapOpt.totalRegretBb);
   ok("gradeHand: rejects a response-count mismatch", (() => { try { gradeHand(hand1, [optimal[0]]); return false; } catch { return true; } })());
+  // v3: a hand that STARTS with an opening decision (ask:"open") then plays as the
+  // aggressor. The open step grades against the chart, the rest off the tree.
+  const hand2 = STARTER_HANDS.find((h) => h.id === "h2-btn-open-a5s")!;
+  const h2opt: Response[] = hand2.steps.map((s) => s.ask === "open"
+    ? { kind: "open", action: openAction(s.state.position!, s.state.heroHand!) }
+    : { kind: "action", action: bestAction(buildTree(s.state)) });
+  ok("H2 optimal line is open, bet, bet, bet (open in position, value three streets)",
+    h2opt.map((r) => r.kind === "open" ? r.action : r.kind === "action" ? r.action.kind : "?").join(",") === "open,bet,bet,bet");
+  const recap2 = gradeHand(hand2, h2opt);
+  ok("gradeHand: H2 optimal line leaks ~0 (mixed open + action steps)",
+    approx(recap2.totalRegretBb, 0) && recap2.worst === null && recap2.outcomes.length === 4);
+  const h2wrong = h2opt.slice(); h2wrong[0] = { kind: "open", action: "fold" };
+  ok("gradeHand: folding the button open is a leak (worst decision)",
+    gradeHand(hand2, h2wrong).worst?.index === 0);
 
   // M4.5 combo counting: base counts and blocker removal, all hand-checkable.
   ok("comboCount: A-K unpaired, no blockers = 16", comboCount(hand("Ah", "Kh"), []) === 16);

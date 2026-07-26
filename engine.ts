@@ -5490,6 +5490,12 @@ const H1_BARREL: Range = ([["9c", "9d"], ["6c", "6h"], ["2d", "2h"], ["9s", "8s"
   ["Ac", "Ad"], ["Kc", "Ks"], ["Qh", "Qd"], ["Ah", "Kh"], ["Ah", "Qh"]]).map(([a, b]) => ({ combo: hand(a, b), weight: 1 }));
 const H1_RIVER: Range = ([["9c", "9d"], ["6c", "6h"], ["9s", "8s"], ["Ah", "9d"], ["Kd", "9h"], ["Qh", "Qd"],
   ["Th", "Tc"], ["Ah", "Kh"], ["Ac", "Jc"], ["Kh", "Qh"]]).map(([a, b]) => ({ combo: hand(a, b), weight: 1 }));
+// Hand 2 (v3): the button opener's line — a big-blind defending range that continues
+// (floatPolicy) with a made pair or better, so hero's two pair gets three streets of value.
+const H2_BB_DEFEND: Range = ([["Kh", "Qd"], ["Kh", "Jd"], ["Qh", "Jd"], ["Jh", "Td"], ["Th", "9d"], ["Kc", "Kd"],
+  ["Qc", "Qs"], ["Jd", "Js"], ["Td", "Th"], ["9d", "9h"], ["8d", "8h"], ["7c", "7d"], ["5c", "5h"], ["3d", "3s"],
+  ["Kh", "Th"], ["Qh", "Th"], ["Jc", "9c"], ["Th", "8h"], ["6h", "5h"], ["Kd", "9d"], ["Ac", "Td"], ["Qd", "Jc"]])
+  .map(([a, b]) => ({ combo: hand(a, b), weight: 1 }));
 
 export const STARTER_HANDS: Hand[] = [
   {
@@ -5534,6 +5540,52 @@ export const STARTER_HANDS: Hand[] = [
         state: {
           heroHand: hand("8h", "7h"), board: hand("9s", "6d", "2c", "5h", "Jd"), pot: 30, toAct: "hero",
           villain: { range: H1_RIVER, policy: floatPolicy },
+          abstraction: { sizes: [0.75], streets: ["river"], players: 2, raiseCap: 0 },
+        },
+      },
+    ],
+  },
+  {
+    id: "h2-btn-open-a5s",
+    title: "Button: open a suited ace, then get paid",
+    setup: "6-max · 100bb · you're on the button with A♠ 5♠",
+    steps: [
+      {
+        id: "h2-open", module: "P1.4", ask: "open",
+        title: "Preflop: it's folded to you on the button",
+        read: "It folds to you on the button with A♠5♠, and only the blinds are left to act. Open (raise), or fold?",
+        state: {
+          heroHand: hand("As", "5s"), board: [], pot: 1.5, toAct: "hero", position: "BTN",
+          villain: { range: [{ combo: hand("Kh", "Kd"), weight: 1 }] }, abstraction: { sizes: [], streets: [], players: 2 },
+        },
+      },
+      {
+        id: "h2-flop", module: "P2", ask: "action",
+        title: "Flop: you flop two pair",
+        read: "You open, the big blind calls. Flop: A♥ 5♦ 2♣ — you flop two pair, aces and fives. The big blind checks to you. Check, or bet?",
+        state: {
+          heroHand: hand("As", "5s"), board: hand("Ah", "5d", "2c"), pot: 6, toAct: "hero",
+          villain: { range: H2_BB_DEFEND, policy: floatPolicy },
+          abstraction: { sizes: [0.75], streets: ["flop", "turn", "river"], players: 2, raiseCap: 0 },
+        },
+      },
+      {
+        id: "h2-turn", module: "P3.4", ask: "action",
+        title: "Turn: keep betting for value",
+        read: "You bet, the big blind calls. Turn: 9♥ — a blank; you still have two pair. The big blind checks again. Check, or bet?",
+        state: {
+          heroHand: hand("As", "5s"), board: hand("Ah", "5d", "2c", "9h"), pot: 12, toAct: "hero",
+          villain: { range: H2_BB_DEFEND, policy: floatPolicy },
+          abstraction: { sizes: [0.75], streets: ["turn", "river"], players: 2, raiseCap: 0 },
+        },
+      },
+      {
+        id: "h2-river", module: "P3.5", ask: "action",
+        title: "River: get the last bet in",
+        read: "You bet, the big blind calls. River: K♦ — another blank; you still have two pair. The big blind checks. Check back, or bet for value?",
+        state: {
+          heroHand: hand("As", "5s"), board: hand("Ah", "5d", "2c", "9h", "Kd"), pot: 24, toAct: "hero",
+          villain: { range: H2_BB_DEFEND, policy: floatPolicy },
           abstraction: { sizes: [0.75], streets: ["river"], players: 2, raiseCap: 0 },
         },
       },
