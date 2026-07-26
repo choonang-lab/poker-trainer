@@ -1143,6 +1143,31 @@ break that or need a fundamentally different solver. Logged so they aren't re-sc
       pending at ship time (the classifier was temporarily down again — same as v1); shipped on the strength
       of the tests + tsc + the already-live-verified renderBranch. **RETRY the visual check when it recovers.**
     - The play-by-play arc is COMPLETE: v1 runner, v2 opening charts, v3 open-hand, branching, seeded dealer.
+    - (Retro: the dealer UI WAS live-verified in #48's session, along with the deeper hands.)
+
+48. ~~**Deeper branch hands (villain bets/raises INTO hero) + 2 more live hands**~~ — DONE 2026-07-25
+    (cache v69, 707 tests). Owner: "more authored live hands, and deeper branch hands (letting the villain
+    bet into you, or re-raise lines)." KEY realization: the branching walker ALREADY pauses at any HERO
+    node, so when the villain's modal action is a bet/raise, the child is a "hero faces a bet" HERO node —
+    the walker stops there for the user. So `heroFacesBet` and `raiseCap` hands "just worked" mechanically;
+    only the NARRATIVE needed catching up.
+    - CORE fix (found via a villainLeads probe): `villainPolicyNode`'s call/raise branches reconstructed the
+      villain as `{range, policy}`, DROPPING `strategy`. So a later street's `villainAfterCheck` (which needs
+      villain.strategy) had none ⇒ "VILL node requires villain.strategy". Fix: preserve `strategy` through the
+      narrowing (undefined for hero-aggressor hands ⇒ a no-op there; 702 tests unchanged).
+    - NARRATIVE generalized: `BranchHand.villainLabel` (default "the big blind" — b2 uses "the button"); the
+      flop line reads "…bets" when the first hero node is bet-facing (has a fold child) else "…checks"; hero's
+      move narrates as check/bet/call/fold/RAISE (a bet while facing a bet is a raise). Web labels the bet
+      button "Raise" when facing a bet.
+    - 2 new live hands + a `raiseStrong` policy (two-pair+ raises, pair calls): `b2-bb-defend-draw`
+      (heroFacesBet — the BUTTON c-bets into you; you have an open-ender OOP, fold/call/RAISE; raising is the
+      semi-bluff, and the turn 7♣ completes the straight so you take the lead) and `b3-cbet-into-raise`
+      (raiseCap — YOU c-bet top pair, the BB check-RAISES a set/two-pair-heavy range; fold is right, calling
+      is a spew). NOTE: I dropped multi-street `villainLeads` branch hands (finicky "no weight" strategy edge
+      cases) — heroFacesBet covers "villain bets into you" cleanly; villainLeads is a future option.
+    - VERIFIED LIVE (classifier recovered): b2 shows "The button bets" with Fold/Call/**Raise**, and raising
+      continues to the turn ("You raise. The button calls. Turn: 7♣"); b3 shows "You bet. The big blind
+      raises." with Fold/Call. Both deeper mechanics work end-to-end.
 
 ## Machine-specific notes for macOS
 

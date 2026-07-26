@@ -25,7 +25,7 @@ game tree (L3). Build once, configure twice.
 
 ## Working discipline
 - The test suite is the guardrail. `node engine.test.ts` must stay green
-  (currently **702 passing, 0 failing**). Run it before changing anything and after every change.
+  (currently **707 passing, 0 failing**). Run it before changing anything and after every change.
 - Types are also enforced: `npx -p typescript tsc --noEmit` must stay clean (exit 0). This uses
   npx's cache — it adds NO dependency to the repo, keeping the engine a dependency-free ES module.
   `contract.conformance.ts` proves engine.ts matches every signature in contract.ts at compile time.
@@ -155,6 +155,12 @@ test red, stop and fix the leak — do NOT edit the test to make it pass.
   fixed class-expanded BB-defending range (~30 live combos, ~400ms/walk). Every hand is valid + playable by
   branchHand. Web: a "🎲 Deal a random hand" entry in the Play tab; its recap offers "Deal another." The UI
   supplies the seed (a Date.now-seeded counter — its own IO concern). The play-by-play arc is complete.
+- DONE: deeper branch hands — the walker drives lines where the villain acts INTO hero. `heroFacesBet`
+  (villain c-bets into you → fold/call/raise) and `raiseCap` (you bet → villain raises → fold/call) "just
+  worked" once the narrative was generalized (`BranchHand.villainLabel`; flop reads "bets" vs "checks";
+  hero move = check/bet/call/fold/raise). Core: villainPolicyNode now PRESERVES villain.strategy through
+  narrowing (no-op for hero-aggressor hands) so later-street villainAfterCheck can lead. 2 new live hands
+  (b2 defend-face-cbet, b3 cbet-into-raise) + `raiseStrong` policy. Web labels a bet as "Raise" when facing one.
 - NOTE: tags are module+suffix keyed. Each preflop drill costs ~3s. Raises are pot-sized (raiseCap ≤ 4).
 - NEXT options: more drills; deploy (static host); push notifications (iOS-limited). Feature-complete.
 
