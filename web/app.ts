@@ -7,7 +7,7 @@ import {
   STARTER_DRILLS, loadSession, serializeSession, gradeDrill, gradeStep, STARTER_HANDS,
   buildTree, actionEVs, truth, outs, calibration, leakReport,
   rankOf, suitOf, RNAMES, score7, madeHand, drawSuit, nutCategory, comboCount,
-  minDefenseFreq, bluffFrequency, icmEquity, requiredEquity, shoveEV, rangeVsRange, boardTexture, semiBluffBreakeven, spr, riskOfRuin, nutShare, multiwayEquity,
+  minDefenseFreq, bluffFrequency, icmEquity, requiredEquity, shoveEV, rangeVsRange, boardTexture, semiBluffBreakeven, spr, riskOfRuin, nutShare, multiwayEquity, openAction,
 } from "../engine.ts";
 import { MODULES, PRIMER, EXPLAIN, moduleStatus, currentStreak } from "../curriculum.ts";
 import type { Drill, Response, Action, State, Module, Result, Review, Hand } from "../contract.ts";
@@ -376,8 +376,9 @@ function playDrill(drill: Drill, tagText: string, contLabel: string, onCont: () 
   const freqAsk = drill.ask === "mdf" || drill.ask === "bluffs";
   const icmAsk = drill.ask === "icm" || drill.ask === "callequity";
   const shoveAsk = drill.ask === "shove";
+  const openAsk = drill.ask === "open";
   const otherMathAsk = drill.ask === "semibluff" || drill.ask === "spr" || drill.ask === "ror";
-  const mathAsk = freqAsk || icmAsk || shoveAsk || otherMathAsk;
+  const mathAsk = freqAsk || icmAsk || shoveAsk || otherMathAsk || openAsk; // openAsk grades instantly (chart lookup) — no "Checking…" defer
   if (freqAsk) {
     const P = s.pot, B = s.toCall ?? 0;
     const scenario = drill.ask === "mdf"
@@ -405,6 +406,12 @@ function playDrill(drill: Drill, tagText: string, contLabel: string, onCont: () 
     const bi = Math.round((s.bankroll ?? 0) / 100);
     const scenario = `${s.winRate} bb/100 · std dev ${s.stdDev} bb/100 · bankroll ${bi} buy-ins`;
     sec.append(el("div", "tag", tagText), el("h2", "title", drill.title), el("div", "meta", scenario));
+  } else if (openAsk) {
+    const POS: Record<string, string> = { UTG: "Under the gun (UTG)", MP: "Middle position (MP)", CO: "Cutoff (CO)", BTN: "Button (BTN)", SB: "Small blind (SB)" };
+    sec.append(el("div", "tag", tagText), el("h2", "title", drill.title),
+      el("div", "board", "<em>(preflop · folded to you)</em>"),
+      el("div", "meta", `Your seat: ${POS[s.position ?? ""] ?? s.position}`),
+      s.heroHand ? el("div", "hero", `You: ${cards(s.heroHand)}`) : el("div"));
   } else if (drill.ask === "rangeadv" || drill.ask === "overbet") {
     const tex = boardTexture(s.board);
     const texLabel = `${tex.paired ? "paired · " : ""}${tex.suitedness}${tex.connected ? " · connected" : " · disconnected"}`;
@@ -648,6 +655,13 @@ function buildControls(controls: HTMLElement, drill: Drill, onAnswer: (r: Respon
       b.onclick = () => onAnswer({ kind: "shove", action: a });
       controls.append(b);
     }
+  } else if (drill.ask === "open") {
+    controls.append(el("label", "prompt", "Your action:"));
+    for (const a of ["open", "fold"] as const) {
+      const b = el("button", "action", a === "open" ? "Open (raise)" : "Fold");
+      b.onclick = () => onAnswer({ kind: "open", action: a });
+      controls.append(b);
+    }
   } else if (drill.ask === "category" || drill.ask === "nuts") {
     const nuts = drill.ask === "nuts";
     controls.append(el("label", "prompt", nuts ? "Best possible hand here (the nuts)?" : "Name your made hand:"));
@@ -783,6 +797,10 @@ function renderFeedback(drill: Drill, out: StepGrade, contLabel: string, onCont:
     line = ok
       ? `Correct — ${best} (shove EV ${sev.toFixed(2)} bb vs fold −0.5)`
       : `Best: ${best} · shove EV ${sev.toFixed(2)} bb vs fold −0.5 (cost ${r.regretBb.toFixed(2)} bb)`;
+  }
+  else if (drill.ask === "open") {
+    const best = openAction(drill.state.position!, drill.state.heroHand!) === "open" ? "Open (raise)" : "Fold";
+    line = ok ? `Correct — ${best} from this seat` : `The chart says: ${best} from this seat`;
   }
   else line = r.regretBb <= 1e-9 ? "Optimal." : `Regret ${r.regretBb.toFixed(2)} bb`;
   // The raw leak tag (e.g. "p2.bets_into_strong_range") is internal taxonomy; the

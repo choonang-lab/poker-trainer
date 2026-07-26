@@ -5,7 +5,7 @@ import {
   hand, parseCard, card, rankOf, suitOf, FULL_DECK, madeHand, drawSuit, nutCategory, comboCount,
   minDefenseFreq, bluffFrequency, icmEquity, requiredEquity, shoveEV, rangeVsRange, boardTexture, semiBluffBreakeven, spr, riskOfRuin, nutShare,
   equityLeaf, bestResponseEV, bestAction, truth, buildTree, realizationFactor,
-  fieldEquity, multiwayEquity, sidePots, allInEV, sidePotCallEV, representativeFlops, validateAbstraction, ABSTRACTION_LIMITS,
+  fieldEquity, multiwayEquity, sidePots, allInEV, sidePotCallEV, handClass, openAction, OPENING_RANGES, representativeFlops, validateAbstraction, ABSTRACTION_LIMITS,
   actionEVs, grade,
   resultQuality, newReview, scheduleReview, dueReviews, nextReview,
   STARTER_DRILLS, newSession, nextDrill, gradeStep, gradeDrill, gradeHand, STARTER_HANDS, classifyLeak,
@@ -741,6 +741,8 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
           ? { kind: "overbet", action: "small" }         // M5.8 nut advantage / overbet
           : d.ask === "multiway"
           ? { kind: "multiway", value: 0.5 }             // P4 exact multiway equity
+          : d.ask === "open"
+          ? { kind: "open", action: "fold" }             // P1.4 opening ranges
           : (d.state.abstraction.sizes.length === 0 || d.state.abstraction.heroFacesBet !== undefined || d.state.abstraction.preflopBet !== undefined)
             ? { kind: "action", action: { kind: "call" } } // pillar-1 call/fold OR hero-faces-bet OR preflop-decision root
             : { kind: "action", action: { kind: "check" } }; // pillar-2 (legal at root)
@@ -887,9 +889,9 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
   ok("M4 check regret == 3 bb", approx(m4check.result.regretBb, 3), `got ${m4check.result.regretBb}`);
   ok("M4 check -> m4.misses_street_sequence", m4check.result.leakTag === "m4.misses_street_sequence");
 
-  ok("STARTER_DRILLS now spans 216 drills incl M0/M3.5/M4/M4.5/M5.6/M5.7/M5.8/M5.9/M5.10/P0/P1/P1.5/P1.6/P1.7/P1.8/P2/P2.5/P3/P3.4/P3.5/P4/P4.5/P5/T1/T2",
-    STARTER_DRILLS.length === 216 &&
-    ["M0", "M3.5", "M4", "M4.5", "M5.6", "M5.7", "P0", "P1", "P1.5", "P1.6", "P1.7", "P1.8", "P4", "P4.5", "P5"].every((m) => STARTER_DRILLS.some((d) => d.module === m)));
+  ok("STARTER_DRILLS now spans 222 drills incl M0/M3.5/M4/M4.5/M5.6/M5.7/M5.8/M5.9/M5.10/P0/P1/P1.4/P1.5/P1.6/P1.7/P1.8/P2/P2.5/P3/P3.4/P3.5/P4/P4.5/P5/T1/T2",
+    STARTER_DRILLS.length === 222 &&
+    ["M0", "M3.5", "M4", "M4.5", "M5.6", "M5.7", "P0", "P1", "P1.4", "P1.5", "P1.6", "P1.7", "P1.8", "P4", "P4.5", "P5"].every((m) => STARTER_DRILLS.some((d) => d.module === m)));
 
   // ---- Preflop -> postflop via representative flops (P1.5) ----------------
   // The representative-flop set is a deterministic, fixed sample (no RNG) of
@@ -1018,6 +1020,28 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
   ok("P4.5 fold: calling off into the cover is a big regretful leak", spFoldBad.result.regretBb > 20);
   const spCallOk = gradeDrill(session, spCall.id, { kind: "action", action: { kind: "call" } }, 0);
   ok("P4.5 call: graded call is correct (regret 0)", approx(spCallOk.result.regretBb, 0));
+
+  // ---- P1.4 opening ranges (chart lookup) ----------------------------------
+  ok("handClass: AKo / AKs / 77 / T9s", handClass(hand("Ah", "Kd")) === "AKo" && handClass(hand("As", "Ks")) === "AKs"
+    && handClass(hand("7c", "7d")) === "77" && handClass(hand("Ts", "9s")) === "T9s");
+  // The seat drives the answer — ranges widen strictly UTG -> BTN.
+  ok("opening ranges widen from UTG to BTN",
+    OPENING_RANGES.UTG.size < OPENING_RANGES.CO.size && OPENING_RANGES.CO.size < OPENING_RANGES.BTN.size);
+  ok("A5s: fold UTG but open on the button (same hand, position flips)",
+    openAction("UTG", hand("Ad", "5d")) === "fold" && openAction("BTN", hand("Ad", "5d")) === "open");
+  ok("premiums open everywhere, trash folds everywhere",
+    openAction("UTG", hand("Ac", "Ah")) === "open" && openAction("BTN", hand("7h", "2c")) === "fold");
+  ok("AJo opens UTG; K9s folds UTG",
+    openAction("UTG", hand("Ah", "Jc")) === "open" && openAction("UTG", hand("Kd", "9d")) === "fold");
+  // Grading: matching the chart is optimal; deviating tags the right leak.
+  const openDrill = byId("p14-utg-fold-weak-ace");
+  const openOk = gradeDrill(session, openDrill.id, { kind: "open", action: "fold" }, 0);
+  ok("P1.4: folding A5s UTG matches the chart (regret 0, ok)", approx(openOk.result.regretBb, 0) && openOk.result.leakTag.endsWith(".ok"));
+  const openBad = gradeDrill(session, openDrill.id, { kind: "open", action: "open" }, 0);
+  ok("P1.4: opening A5s UTG is graded 'opens too wide'", openBad.result.leakTag === "p14.opens_too_wide");
+  const btnDrill = byId("p14-btn-open-weak-ace");
+  const btnBad = gradeDrill(session, btnDrill.id, { kind: "open", action: "fold" }, 0);
+  ok("P1.4: folding A5s on the button is graded 'folds too tight'", btnBad.result.leakTag === "p14.folds_too_tight");
 
   // ---- L6.5 play-by-play hands ---------------------------------------------
   // gradeStep is the shared grader — it must match gradeDrill's Result exactly.

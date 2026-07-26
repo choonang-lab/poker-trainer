@@ -10,7 +10,7 @@ import type {
   Card, Score, Board, Combo, Range, Villain, Abstraction, State,
   Action, NodeState, NodeStrategy, Terminal, TreeNode, Response, Result, Review,
   Drill, Session, GradeOutcome, CalibrationBucket, CalibrationReport, LeakStat, LeakReport,
-  RangePolicy, Hand, HandStepOutcome, HandRecap,
+  RangePolicy, Hand, HandStepOutcome, HandRecap, Position,
 } from "./contract.ts";
 
 export const RANKS = [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14];
@@ -700,6 +700,56 @@ export function sidePotCallEV(state: State): number {
 function isSidePotSpot(state: State): boolean {
   return state.abstraction.sizes.length === 0 && !!state.stacks && !!state.opponents && state.opponents.length >= 1
     && state.heroHand !== undefined;
+}
+
+// ---- Opening ranges (P1.4: raise-first-in charts) -------------------------
+// A hand's canonical class: "AKs" / "AKo" (suited/offsuit, higher rank first) or
+// "77" (pocket pair). This is what a range chart is written in.
+const RANK_CHARS = "23456789TJQKA";
+const rankChar = (r: number): string => RANK_CHARS[r - 2];
+export function handClass(combo: Combo): string {
+  const a = rankOf(combo[0]), b = rankOf(combo[1]);
+  const hi = Math.max(a, b), lo = Math.min(a, b);
+  if (hi === lo) return rankChar(hi) + rankChar(lo);                 // pocket pair
+  return rankChar(hi) + rankChar(lo) + (suitOf(combo[0]) === suitOf(combo[1]) ? "s" : "o");
+}
+// Expand chart notation into the set of hand classes it covers. "22+" = all pairs
+// 22..AA; "ATs+" = ATs,AJs,AQs,AKs (fix the high card, run the kicker up to K); a
+// bare "T9s" or "76s" is just itself. This is how opening charts are written.
+function expandRange(tokens: string[]): Set<string> {
+  const out = new Set<string>();
+  for (const tok of tokens) {
+    const plus = tok.endsWith("+");
+    const t = plus ? tok.slice(0, -1) : tok;
+    if (t.length === 2 && t[0] === t[1]) {                           // pair: "22" / "22+"
+      const start = RANK_CHARS.indexOf(t[0]);
+      const end = plus ? RANK_CHARS.length - 1 : start;
+      for (let i = start; i <= end; i++) out.add(RANK_CHARS[i] + RANK_CHARS[i]);
+    } else {                                                         // suited/offsuit: "ATs" / "K7o+"
+      const hi = RANK_CHARS.indexOf(t[0]), suit = t[2];
+      const loStart = RANK_CHARS.indexOf(t[1]);
+      const loEnd = plus ? hi - 1 : loStart;                         // run the kicker up to just below the high card
+      for (let lo = loStart; lo <= loEnd; lo++) out.add(RANK_CHARS[hi] + RANK_CHARS[lo] + suit);
+    }
+  }
+  return out;
+}
+// Standard-ish 6-max ~100bb raise-first-in ranges, tightest (UTG) to widest (BTN).
+// The exact frontier is an app-declared reference (like any villain strategy) — the
+// point is the SHAPE: open tight up front, widen as position improves; the same hand
+// flips from fold to open as you move toward the button.
+export const OPENING_RANGES: Record<Position, ReadonlySet<string>> = {
+  UTG: expandRange(["22+", "ATs+", "KTs+", "QTs+", "JTs", "T9s", "98s", "AJo+", "KQo"]),
+  MP: expandRange(["22+", "A9s+", "A5s", "KTs+", "QTs+", "J9s+", "T9s", "98s", "87s", "ATo+", "KJo+", "QJo"]),
+  CO: expandRange(["22+", "A2s+", "K9s+", "Q9s+", "J9s+", "T8s+", "97s+", "86s+", "76s", "65s", "54s", "A9o+", "KTo+", "QTo+", "JTo"]),
+  BTN: expandRange(["22+", "A2s+", "K2s+", "Q6s+", "J7s+", "T7s+", "96s+", "85s+", "75s+", "64s+", "54s", "A2o+", "K8o+", "Q9o+", "J9o+", "T9o"]),
+  SB: expandRange(["22+", "A2s+", "K5s+", "Q8s+", "J8s+", "T8s+", "97s+", "86s+", "76s", "65s", "A7o+", "A5o", "KTo+", "QTo+", "JTo"]),
+};
+export function openAction(position: Position, combo: Combo): "open" | "fold" {
+  return OPENING_RANGES[position].has(handClass(combo)) ? "open" : "fold";
+}
+function isOpenSpot(state: State): boolean {
+  return state.position !== undefined && state.heroHand !== undefined && state.abstraction.sizes.length === 0;
 }
 
 // Two Actions are the same legal option (bet sizes must match).
@@ -1456,6 +1506,13 @@ export function grade(state: State, response: Response): Result {
     const tag = correct ? "p1.ok" : overbetBest ? "p1.misses_overbet" : "p1.overbets_capped";
     return { regretBb: correct ? 0 : 1, leakTag: tag };
   }
+  if (response.kind === "open") {
+    // Raise-first-in graded against the positional opening chart (app-declared reference).
+    const best = openAction(state.position!, state.heroHand!);
+    const correct = response.action === best;
+    const tag = correct ? "p1.ok" : response.action === "open" ? "p1.opens_too_wide" : "p1.folds_too_tight";
+    return { regretBb: correct ? 0 : 1, leakTag: tag };
+  }
   if (response.kind === "semibluff") {
     // Fold frequency a semi-bluff needs to break even (state.pot = pot, state.toCall = the bet,
     // state.eqWhenCalled = equity when called). A 0.02 tolerance, like the other frequency constants.
@@ -1596,6 +1653,8 @@ const LEAK_TABLE: Record<string, string> = {
   "P0:overfold": "p0.overfolds_in_position",
   "P1:overestimate": "p1.overvalues_holding",
   "P1:underestimate": "p1.undervalues_holding",
+  "P1.4:opens_too_wide": "p14.opens_too_wide",
+  "P1.4:folds_too_tight": "p14.folds_too_tight",
   "M3:overfold": "m3.folds_when_priced_in",
   "M3:spew": "m3.calls_when_overpriced",
   "M3.5:missed_bet": "m35.gives_up_fold_equity",
@@ -2301,6 +2360,72 @@ export const STARTER_DRILLS: Drill[] = [
       villain: { range: OPEN_RANGE, policy: OVERFOLDER },
       abstraction: { sizes: [0.75], streets: ["flop"], players: 2, raiseCap: 0, preflopBet: 3 / 4.5, threeBet: 12 / 4.5, effStack: 100 },
     },
+  },
+  {
+    id: "p14-utg-fold-weak-ace",
+    module: "P1.4", ask: "open",
+    title: "Opening: a weak suited ace under the gun",
+    read: "It's folded to you first to act (UTG) at a 6-max table. You have A♦5♦. Open (raise), or fold?",
+    // A5s is a fine hand LATER, but under the gun — with five players still to act —
+    // it's below a tight opening range. Open too many weak aces up front and you're
+    // constantly dominated. Fold and wait for position.
+    state: { heroHand: hand("Ad", "5d"), board: [], pot: 1.5, toAct: "hero", position: "UTG",
+      villain: { range: [{ combo: hand("Kh", "Kd"), weight: 1 }] }, abstraction: { sizes: [], streets: [], players: 2 } },
+  },
+  {
+    id: "p14-btn-open-weak-ace",
+    module: "P1.4", ask: "open",
+    title: "Opening: the same ace on the button",
+    read: "Same hand — A♦5♦ — but now it's folded to you on the button, with only the blinds behind. Open, or fold?",
+    // Identical cards, opposite answer. On the button you have position on everyone
+    // and only two players left to get through, so you open a wide range — every
+    // suited ace included. Position, not the cards, flips this from a fold to a raise.
+    state: { heroHand: hand("Ad", "5d"), board: [], pot: 1.5, toAct: "hero", position: "BTN",
+      villain: { range: [{ combo: hand("Kh", "Kd"), weight: 1 }] }, abstraction: { sizes: [], streets: [], players: 2 } },
+  },
+  {
+    id: "p14-utg-open-broadway",
+    module: "P1.4", ask: "open",
+    title: "Opening: a broadway offsuit under the gun",
+    read: "Folded to you UTG at 6-max. You have A♥J♣. Open, or fold?",
+    // A-J offsuit is a solid, dominating broadway that plays well from any seat — it's
+    // in even the tight UTG opening range. Not everything folds up front; premiums and
+    // strong broadways still open.
+    state: { heroHand: hand("Ah", "Jc"), board: [], pot: 1.5, toAct: "hero", position: "UTG",
+      villain: { range: [{ combo: hand("Kh", "Kd"), weight: 1 }] }, abstraction: { sizes: [], streets: [], players: 2 } },
+  },
+  {
+    id: "p14-btn-open-wide",
+    module: "P1.4", ask: "open",
+    title: "Opening: an offsuit king on the button",
+    read: "Folded to you on the button. You have K♥8♣. Open, or fold?",
+    // On the button, K-8 offsuit is a clear open — a wide button range includes
+    // offsuit kings down to about K-8. It would be a fold from any earlier seat, but
+    // the button's position and fold equity make it profitable.
+    state: { heroHand: hand("Kh", "8c"), board: [], pot: 1.5, toAct: "hero", position: "BTN",
+      villain: { range: [{ combo: hand("Kh", "Kd"), weight: 1 }] }, abstraction: { sizes: [], streets: [], players: 2 } },
+  },
+  {
+    id: "p14-utg-fold-suited-king",
+    module: "P1.4", ask: "open",
+    title: "Opening: a suited king under the gun",
+    read: "Folded to you UTG. You have K♦9♦. Open, or fold?",
+    // K-9 suited looks pretty, but under the gun it's dominated by every better king
+    // and opens you to trouble against five players. It opens later (CO/BTN), but up
+    // front it's a fold — suitedness isn't enough this early.
+    state: { heroHand: hand("Kd", "9d"), board: [], pot: 1.5, toAct: "hero", position: "UTG",
+      villain: { range: [{ combo: hand("Kh", "Kd"), weight: 1 }] }, abstraction: { sizes: [], streets: [], players: 2 } },
+  },
+  {
+    id: "p14-co-fold-trash",
+    module: "P1.4", ask: "open",
+    title: "Opening: trash in the cutoff",
+    read: "Folded to you in the cutoff. You have 7♥2♣ — the worst hand in poker. Open, or fold?",
+    // No seat opens 7-2 offsuit. Even a wide cutoff range has a floor; the worst
+    // starting hand is a fold from everywhere. Position widens your range, but not
+    // infinitely — some hands are just folds.
+    state: { heroHand: hand("7h", "2c"), board: [], pot: 1.5, toAct: "hero", position: "CO",
+      villain: { range: [{ combo: hand("Kh", "Kd"), weight: 1 }] }, abstraction: { sizes: [], streets: [], players: 2 } },
   },
   {
     id: "p1-aa-vs-kk-preflop",

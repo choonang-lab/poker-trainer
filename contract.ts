@@ -126,7 +126,9 @@ export interface State {
   stdDev?: number;                  // M5.10 bankroll: standard deviation in bb / 100 hands
   bankroll?: number;                // M5.10 bankroll: bankroll in big blinds
   opponents?: Combo[];              // P4 exact multiway: the specific opponent hands in an all-in
+  position?: Position;              // P1.4 opening ranges: hero's seat, for the raise-first-in chart lookup
 }
+export type Position = "UTG" | "MP" | "CO" | "BTN" | "SB"; // 6-max seats, tightest to widest opening range
 
 // The leaner state carried INSIDE the tree. A node only needs the board/pot/
 // villain to evaluate; toAct/abstraction/players are informational and optional.
@@ -184,6 +186,9 @@ export declare function multiwayEquity(hero: Combo, opponents: Combo[], board: B
 export declare function sidePots(commits: number[]): { amount: number; eligible: number[] }[]; // split per-player commitments into main + side pots (P4.5); exact
 export declare function allInEV(hands: Combo[], commits: number[], deadPot: number, board: Board): number; // hero's chip EV in an all-in showdown with side pots (hands[0] = hero)
 export declare function sidePotCallEV(state: State): number; // hero's call EV for a 3-way all-in decision (stacks + opponents on an empty abstraction)
+export declare function handClass(combo: Combo): string;     // canonical hand class, e.g. "AKs" / "AKo" / "77" (P1.4)
+export declare const OPENING_RANGES: Record<Position, ReadonlySet<string>>; // raise-first-in ranges by seat (hand classes)
+export declare function openAction(position: Position, combo: Combo): "open" | "fold"; // the chart's verdict for this hand at this seat
 
 // Best-response EV via expectimax (villain fixed). The leaf evaluator IS L2 equity.
 //   HERO   node: max over children
@@ -232,7 +237,8 @@ export type Response =
   | { kind: "spr"; value: number }               // stack-to-pot ratio (a plain number), M5.9
   | { kind: "ror"; value: number }               // risk of ruin (0-1) from win rate, std dev, bankroll, M5.10
   | { kind: "overbet"; action: "overbet" | "small" } // whether to overbet, from nut advantage, M5.8
-  | { kind: "multiway"; value: number };         // hero's EXACT equity (0-1) vs specific opponents in an all-in, P4
+  | { kind: "multiway"; value: number }          // hero's EXACT equity (0-1) vs specific opponents in an all-in, P4
+  | { kind: "open"; action: "open" | "fold" };   // raise-first-in decision vs a positional opening chart, P1.4
 
 // Per-action EVs at a HERO node — the source bestAction argmaxes and grade()
 // computes regret from.
@@ -273,7 +279,7 @@ export interface Drill {
   id: string;
   module: string;                   // curriculum tag, e.g. "M2", "M3", "P2"
   title: string;                    // human-facing label
-  ask: "estimate" | "action" | "category" | "outs" | "nuts" | "combos" | "mdf" | "bluffs" | "icm" | "callequity" | "shove" | "rangeadv" | "semibluff" | "spr" | "ror" | "overbet" | "multiway";  // the response kind this drill expects
+  ask: "estimate" | "action" | "category" | "outs" | "nuts" | "combos" | "mdf" | "bluffs" | "icm" | "callequity" | "shove" | "rangeadv" | "semibluff" | "spr" | "ror" | "overbet" | "multiway" | "open";  // the response kind this drill expects
   read?: string;                    // optional villain read/situational note (the strategy isn't visible from cards alone)
   state: State;
 }

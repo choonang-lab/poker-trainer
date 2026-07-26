@@ -328,6 +328,21 @@ export const MODULES: Module[] = [
     drillIds: ["p1-aa-vs-kk-preflop", "p1-akx-vs-qq-race", "p1-ak-vs-aq", "p1-suited-connector-vs-aces", "p1-dominated-ace", "p1-overcards-vs-pair-race"],
   },
   {
+    id: "P1.4", track: "P2", title: "Opening ranges",
+    preface: "Most hands begin with one question: it's folded to you — do you raise or fold? The answer depends almost entirely on your SEAT. Under the gun, five players still act behind you, so you open only strong hands. On the button, only the blinds are left and you have position on everyone, so you open a wide range. The same hand is a clear fold up front and a clear raise on the button — position, not the cards, is what changes.",
+    concepts: [
+      { term: "Raise-first-in (RFI)", def: "opening with a raise when everyone before you has folded — the most common preflop decision." },
+      { term: "Position", def: "how late you act; later seats act with more information and open wider." },
+      { term: "Under the gun (UTG)", def: "first to act preflop — the tightest opening range, since the most players are still to come." },
+      { term: "The button (BTN)", def: "the last seat to act postflop — the widest opening range." },
+      { term: "Opening range / chart", def: "the set of hands you raise from a given seat; tight up front, wide in late position." },
+      { term: "Domination", def: "why weak hands fold up front — an early raise runs into better versions of the same hand." },
+    ],
+    objectives: ["Open only strong hands from early position", "Widen your opening range as position improves", "Recognize that the same hand can be a fold UTG and a raise on the button"],
+    example: "A5 suited is a fold under the gun but a standard open on the button. 7-2 offsuit is a fold from everywhere.",
+    drillIds: ["p14-utg-fold-weak-ace", "p14-btn-open-weak-ace", "p14-utg-open-broadway", "p14-btn-open-wide", "p14-utg-fold-suited-king", "p14-co-fold-trash"],
+  },
+  {
     id: "P1.5", track: "P2", title: "Playing a flop",
     preface: "A preflop call isn't paid off by raw equity — it's paid off by the equity you actually REALIZE. In position, calling to see a flop lets you c-bet the boards your opponent misses, so a hand can be worth more than its all-in equity suggests. But realization is an edge, not a licence: against a big raise, trash is still a fold.",
     concepts: [
@@ -678,6 +693,13 @@ export const EXPLAIN: Record<string, string> = {
   "p1-suited-connector-vs-aces": "A suited connector is crushed by an overpair but not drawing dead: straights, flushes and two pair keep 8-7 suited around 23% against aces. It's still a big underdog heads-up, which is why connectors want a cheap price and deep stacks, not a big pot preflop.",
   "p1-dominated-ace": "This is the wrong side of domination (the mirror of AK vs AQ). Your A-5 shares the ace with A-K, so you're outkicked and drawing mostly to a five — only about 26%. Weak aces play badly against a raising range because you flop top pair and are still behind.",
   "p1-overcards-vs-pair-race": "The classic coin flip: ace-king against a pair of twos is almost exactly even (~47%). Even the smallest pair is a slight favorite over two overcards, because it's ahead until you pair. 'A race' means roughly 50/50 — a pair is never a big underdog preflop.",
+  // P1.4 — opening ranges
+  "p14-utg-fold-weak-ace": "Fold. A5 suited plays fine later, but under the gun — with five players still to act — it's below a solid opening range. Weak aces get dominated by all the better aces those players wake up with, and you have no position to make up for it. Open tight up front and this hand becomes a raise once you reach late position.",
+  "p14-btn-open-weak-ace": "Open. Same two cards, opposite answer — because now you're on the button. Only the two blinds are left to act, you'll have position for the whole hand, and your raise often just takes the blinds. A wide button range includes every suited ace. Position, not the cards, is what flipped this from a fold to a raise.",
+  "p14-utg-open-broadway": "Open. A-J offsuit is a strong, dominating broadway that plays well from any seat — it clears even a tight under-the-gun range. Opening tight up front doesn't mean folding everything; premiums and strong broadways still raise. The discipline is about the marginal hands, not the good ones.",
+  "p14-btn-open-wide": "Open. On the button, K-8 offsuit is a standard raise — a wide button range runs offsuit kings down to about K-8. From any earlier seat it's a fold, but the button's position and the fold equity against just two blinds make it clearly profitable. Late position is where these marginal offsuit hands become opens.",
+  "p14-utg-fold-suited-king": "Fold. K-9 suited looks nice, but under the gun it's dominated by every better king and has to get through five players. Suitedness adds a little equity, not a licence to open trouble hands early. It's a fine open from the cutoff or button — up front, let it go.",
+  "p14-co-fold-trash": "Fold. 7-2 offsuit is the worst starting hand in hold'em, and no seat opens it — not even a wide cutoff or button range. Position widens your opening range, but every range has a floor. Some hands are simply folds from everywhere; this is the clearest of them.",
   // P1.5 — playing a flop (preflop realization)
   "p15-float-call": "8-7 suited is only ~34% against this opening range, so a pot-sized call looks barely break-even on raw pot odds. But you're in position: on the roughly two-thirds of flops villain misses, a 3/4-pot c-bet takes the pot. Averaged over the representative flops, calling is worth about +2 (folding is 0) — realization is what turns a marginal price into a clear call.",
   "p15-float-fold": "Same idea, worse hand and worse price. 7-2 offsuit is ~26% and villain raised 1.5x pot. Your c-bet still folds out air, so realization helps — but not enough: the call comes out around -2.6 against a fold's 0. Realization is an edge you earn with a hand that can make something, not a reason to call any two cards into a big raise.",
