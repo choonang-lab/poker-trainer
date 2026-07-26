@@ -1121,6 +1121,29 @@ break that or need a fundamentally different solver. Logged so they aren't re-sc
     - REMAINING: a seeded deterministic dealer for endless GENERATED hands (the last piece); more authored
       hands; deeper branch hands (villainLeads so the user can face bets, raiseCap for re-raise lines).
 
+47. ~~**Seeded deterministic DEALER: endless generated branching hands**~~ — DONE 2026-07-25 (cache v68,
+    702 tests). Owner: "seeded deterministic dealer" — the last piece of the play-by-play arc. Since the
+    branching walker (#46) drives any `BranchHand`, the dealer only had to PRODUCE valid hands purely from a
+    seed. `dealBranchHand(seed)` (pure): a mulberry32 PRNG (no Math.random/Date.now — reproducible,
+    exact-test-safe) does a Fisher–Yates shuffle → hero + flop + turn + river; the villain is a fixed
+    class-expanded BB-defending range (via `combosOfClass`, excluding the dealt cards). Every dealt hand is
+    valid (7 distinct cards) and playable by branchHand.
+    - PERF tuning: the first class set expanded to ~100-140 combos ⇒ ~1.2-2.2s/walk (too slow). Cut
+      `DEALER_CLASSES` to a compact set (mostly pairs + suited, no wide offsuit) ⇒ ~30 combos, ~400ms/walk.
+    - NICE FINDING (not a bug): for a random hand, betting the river with air is EXACTLY the bet size in
+      regret — hero's high card has ~0 equity when a range of made pairs calls, so betting loses the whole
+      bet. And the flop c-bet is often optimal (villain floatPolicy folds air = fold equity), while the turn/
+      river barrels leak once the range narrows to pairs. So a dealt hand teaches real barreling discipline
+      (c-bet, then give up when called) — most random hands' best line is check-heavy, which is honest poker.
+    - WEB: a "🎲 Deal a random hand" entry in the Play tab (reuses renderBranch entirely); the recap offers
+      "Deal another hand." The UI supplies the seed (a Date.now-seeded counter, incremented per deal — its
+      own IO concern, not the pure engine). Grading each action re-walks (~400ms), snappy enough.
+    - VERIFICATION: fully test-covered (determinism: same seed → identical hand; 7 distinct cards across
+      7 seeds; live range; playable → flop check/bet; plays to a graded showdown). Live browser check was
+      pending at ship time (the classifier was temporarily down again — same as v1); shipped on the strength
+      of the tests + tsc + the already-live-verified renderBranch. **RETRY the visual check when it recovers.**
+    - The play-by-play arc is COMPLETE: v1 runner, v2 opening charts, v3 open-hand, branching, seeded dealer.
+
 ## Machine-specific notes for macOS
 
 - Requires: git, Node ≥ 23 (or 22.7+ with `--experimental-strip-types`) for

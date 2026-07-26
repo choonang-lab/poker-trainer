@@ -341,6 +341,9 @@ export interface BranchOutcome {
 // the final recap. The UI calls this with the growing action list.
 export declare function branchHand(hand: BranchHand, actions: Action[]): BranchOutcome;
 export declare const STARTER_BRANCH_HANDS: BranchHand[];
+// Deal an endless supply of GENERATED branching hands, one per seed — pure and
+// deterministic (same seed → same hand), so it's reproducible and exact-test-safe.
+export declare function dealBranchHand(seed: number): BranchHand;
 
 // Module-aware leak classification. grade() emits structural pillar tags (it has
 // no module context); gradeDrill refines them into named, curriculum-specific

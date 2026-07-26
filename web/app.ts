@@ -4,7 +4,7 @@
 // calibration + P6 leaks). Curriculum structure/progress come from curriculum.ts;
 // no engine logic lives here.
 import {
-  STARTER_DRILLS, loadSession, serializeSession, gradeDrill, gradeStep, STARTER_HANDS, branchHand, STARTER_BRANCH_HANDS,
+  STARTER_DRILLS, loadSession, serializeSession, gradeDrill, gradeStep, STARTER_HANDS, branchHand, STARTER_BRANCH_HANDS, dealBranchHand,
   buildTree, actionEVs, truth, outs, calibration, leakReport,
   rankOf, suitOf, RNAMES, score7, madeHand, drawSuit, nutCategory, comboCount,
   minDefenseFreq, bluffFrequency, icmEquity, requiredEquity, shoveEV, rangeVsRange, boardTexture, semiBluffBreakeven, spr, riskOfRuin, nutShare, multiwayEquity, openAction,
@@ -47,6 +47,13 @@ let handOutcomes: { drillId: string; result: Result }[] = [];
 // Branching (follow-your-line) hand state
 let activeBranch: BranchHand | null = null;
 let branchActions: Action[] = [];
+let dealSeed = 0;                        // the seeded dealer's cursor (from Date.now, then increment)
+function dealNewHand(): void {           // deal a fresh generated hand and play it
+  dealSeed = dealSeed ? dealSeed + 1 : (Date.now() & 0x7fffffff);
+  activeBranch = dealBranchHand(dealSeed);
+  branchActions = [];
+  renderAll();
+}
 
 // ---- rendering helpers ------------------------------------------------------
 const SUIT_SYM = ["♠", "♥", "♦", "♣"]; // s h d c
@@ -311,6 +318,14 @@ function renderPlay(): void {
       row.onclick = () => { activeBranch = h; branchActions = []; renderAll(); };
       app.append(row);
     });
+    // The seeded dealer: an endless supply of generated hands to play your line on.
+    const deal = el("div", "modrow current");
+    deal.append(el("div", "mdot", "🎲"));
+    const dtitle = el("div", "mtitle");
+    dtitle.append(el("div", "nm", `Deal a random hand <span class="live">LIVE</span>`), el("div", "sb", "A fresh generated hand every time — play your own line"));
+    deal.append(dtitle);
+    deal.onclick = () => dealNewHand();
+    app.append(deal);
     return;
   }
   const hand = activeHand;
@@ -400,9 +415,11 @@ function renderBranchRecap(hand: BranchHand, decisions: { street: string; result
   if (worstI >= 0) sec.append(el("div", "recap-worst",
     `<strong>Biggest leak — the ${decisions[worstI].street.toLowerCase()}:</strong> that was the decision that cost you the most EV. Replay and try a different line.`));
   const actions = el("div", "recap-actions");
-  const again = el("button", "primary", "Play again"); again.onclick = () => { branchActions = []; renderAll(); };
+  const dealt = hand.id.startsWith("dealt-");
+  const primary = el("button", "primary", dealt ? "Deal another hand" : "Play again");
+  primary.onclick = () => { if (dealt) dealNewHand(); else { branchActions = []; renderAll(); } };
   const back = el("button", "act", "Back to hands"); back.onclick = () => { activeBranch = null; renderAll(); };
-  actions.append(again, back); sec.append(actions);
+  actions.append(primary, back); sec.append(actions);
   app.append(sec);
 }
 

@@ -25,7 +25,7 @@ game tree (L3). Build once, configure twice.
 
 ## Working discipline
 - The test suite is the guardrail. `node engine.test.ts` must stay green
-  (currently **696 passing, 0 failing**). Run it before changing anything and after every change.
+  (currently **702 passing, 0 failing**). Run it before changing anything and after every change.
 - Types are also enforced: `npx -p typescript tsc --noEmit` must stay clean (exit 0). This uses
   npx's cache — it adds NO dependency to the repo, keeping the engine a dependency-free ES module.
   `contract.conformance.ts` proves engine.ts matches every signature in contract.ts at compile time.
@@ -149,7 +149,12 @@ test red, stop and fix the leak — do NOT edit the test to make it pass.
   grades each hero decision by regret at the node reached, returns the running narrative + pending
   decision. `BranchHand`/`BranchOutcome` + `STARTER_BRANCH_HANDS` (one hand: flop top set → bet-bet-bet
   value, checking any street leaks + the hand follows the check on). ~200ms/walk. Web: a "LIVE" hand in
-  the Play tab (story + decision buttons + a line-specific recap). NEXT: a seeded dealer for endless hands.
+  the Play tab (story + decision buttons + a line-specific recap).
+- DONE: seeded deterministic DEALER — endless GENERATED branching hands. `dealBranchHand(seed)` (pure,
+  mulberry32 PRNG — no Math.random/Date.now) deals hero + flop + turn + river from a seeded shuffle vs a
+  fixed class-expanded BB-defending range (~30 live combos, ~400ms/walk). Every hand is valid + playable by
+  branchHand. Web: a "🎲 Deal a random hand" entry in the Play tab; its recap offers "Deal another." The UI
+  supplies the seed (a Date.now-seeded counter — its own IO concern). The play-by-play arc is complete.
 - NOTE: tags are module+suffix keyed. Each preflop drill costs ~3s. Raises are pot-sized (raiseCap ≤ 4).
 - NEXT options: more drills; deploy (static host); push notifications (iOS-limited). Feature-complete.
 

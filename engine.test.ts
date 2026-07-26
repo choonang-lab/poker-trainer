@@ -8,7 +8,7 @@ import {
   fieldEquity, multiwayEquity, sidePots, allInEV, sidePotCallEV, handClass, openAction, OPENING_RANGES, representativeFlops, validateAbstraction, ABSTRACTION_LIMITS,
   actionEVs, grade,
   resultQuality, newReview, scheduleReview, dueReviews, nextReview,
-  STARTER_DRILLS, newSession, nextDrill, gradeStep, gradeDrill, gradeHand, STARTER_HANDS, branchHand, STARTER_BRANCH_HANDS, classifyLeak,
+  STARTER_DRILLS, newSession, nextDrill, gradeStep, gradeDrill, gradeHand, STARTER_HANDS, branchHand, STARTER_BRANCH_HANDS, dealBranchHand, classifyLeak,
   serializeSession, loadSession,
 } from "./engine.ts";
 import { MODULES, PRIMER, EXPLAIN, moduleDone, moduleStatus, currentStreak } from "./curriculum.ts";
@@ -1104,6 +1104,21 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
   // the value line reaches showdown, so `done` with a full three decisions is the check.
   ok("branchHand: reaching showdown records exactly the decisions the user made",
     branchHand(bh, [BET, BET]).pending !== null && !branchHand(bh, [BET, BET]).done);
+
+  // The seeded dealer: endless deterministic, valid, playable branching hands.
+  const cardsOf = (h: ReturnType<typeof dealBranchHand>): number[] => [...h.state.heroHand!, ...h.state.board, ...h.reveal];
+  ok("dealBranchHand: same seed deals an identical hand (deterministic)",
+    JSON.stringify(dealBranchHand(42)) === JSON.stringify(dealBranchHand(42)));
+  ok("dealBranchHand: different seeds deal different hands",
+    JSON.stringify(dealBranchHand(1).state.heroHand) !== JSON.stringify(dealBranchHand(2).state.heroHand));
+  ok("dealBranchHand: every dealt hand has 7 distinct cards (hero + flop + turn + river)",
+    [1, 2, 7, 42, 99, 500, 1234].every((s) => { const cs = cardsOf(dealBranchHand(s)); return cs.length === 7 && new Set(cs).size === 7; }));
+  ok("dealBranchHand: the villain range is live (a class-expanded defending range)",
+    [1, 42, 500].every((s) => dealBranchHand(s).state.villain.range.length > 10));
+  ok("dealBranchHand: each dealt hand is playable — branchHand offers a flop check/bet",
+    [3, 77, 808].every((s) => { const st = branchHand(dealBranchHand(s), []); return !st.done && st.pending!.legal.map((a) => a.kind).sort().join(",") === "bet,check"; }));
+  ok("dealBranchHand: a dealt hand plays through to a graded showdown line",
+    (() => { const o = branchHand(dealBranchHand(42), [BET, BET, BET]); return o.done && o.decisions.length === 3; })());
 
   // M4.5 combo counting: base counts and blocker removal, all hand-checkable.
   ok("comboCount: A-K unpaired, no blockers = 16", comboCount(hand("Ah", "Kh"), []) === 16);

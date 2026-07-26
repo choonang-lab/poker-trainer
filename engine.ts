@@ -1810,6 +1810,60 @@ export function branchHand(hand: BranchHand, actions: Action[]): BranchOutcome {
   return { narrative, decisions, pending, done };
 }
 
+// ---- Seeded dealer: endless GENERATED branching hands ---------------------
+// A tiny deterministic PRNG (mulberry32) — pure, no Math.random/Date.now, so the
+// same seed always deals the same hand (reproducible, exact-test-safe).
+function mulberry32(a: number): () => number {
+  return () => {
+    a |= 0; a = (a + 0x6d2b79f5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+// Every combination of a hand class ("KQs"/"AKo"/"77") that avoids the dead cards.
+function combosOfClass(cls: string, dead: Set<Card>): Combo[] {
+  const hi = RANK_CHARS.indexOf(cls[0]) + 2, lo = RANK_CHARS.indexOf(cls[1]) + 2;
+  const out: Combo[] = [];
+  const add = (a: Card, b: Card): void => { if (!dead.has(a) && !dead.has(b)) out.push([a, b]); };
+  if (cls.length === 2) for (let s1 = 0; s1 < 4; s1++) for (let s2 = s1 + 1; s2 < 4; s2++) add(card(hi, s1), card(hi, s2)); // pair
+  else if (cls[2] === "s") for (let s = 0; s < 4; s++) add(card(hi, s), card(lo, s));                                       // suited
+  else for (let s1 = 0; s1 < 4; s1++) for (let s2 = 0; s2 < 4; s2++) if (s1 !== s2) add(card(hi, s1), card(lo, s2));         // offsuit
+  return out;
+}
+// A compact big-blind defending range (as hand classes) the dealer expands to live
+// combos each hand — kept moderate so a full three-street walk stays snappy.
+const DEALER_CLASSES = [...expandRange(["88", "TT", "QQ", "AQs", "KJs", "QJs", "JTs", "T9s", "98s", "87s"])];
+
+// Deal a random-but-DETERMINISTIC branching hand from `seed`: hero + flop + turn +
+// river from a seeded shuffle, versus a fixed app-declared BB-defending range. Every
+// dealt hand is valid (no duplicate cards) and playable by branchHand — endless
+// variety, still reproducible. The UI supplies the seed (its own IO concern).
+export function dealBranchHand(seed: number): BranchHand {
+  const rng = mulberry32(seed >>> 0);
+  const deck = FULL_DECK.slice();
+  for (let i = deck.length - 1; i > 0; i--) {           // deterministic Fisher–Yates
+    const j = Math.floor(rng() * (i + 1));
+    [deck[i], deck[j]] = [deck[j], deck[i]];
+  }
+  const hero: Combo = [deck[0], deck[1]];
+  const flop: Board = [deck[2], deck[3], deck[4]];
+  const turn = deck[5], river = deck[6];
+  const dead = new Set<Card>([...hero, ...flop, turn, river]); // the villain never holds a dealt card
+  const range: Range = DEALER_CLASSES.flatMap((cls) => combosOfClass(cls, dead)).map((combo) => ({ combo, weight: 1 }));
+  return {
+    id: `dealt-${seed}`,
+    title: "Dealt hand",
+    setup: `You raise on the button with ${cardName(hero[0])} ${cardName(hero[1])}, and the big blind calls.`,
+    state: {
+      heroHand: hero, board: flop, pot: 6, toAct: "hero",
+      villain: { range, policy: floatPolicy },
+      abstraction: { sizes: [0.75], streets: ["flop", "turn", "river"], players: 2, raiseCap: 0 },
+    },
+    reveal: [turn, river],
+  };
+}
+
 // Persistence primitives (pure; the CLI does the actual file IO). A Session's
 // drills carry villain `strategy` FUNCTIONS, which aren't JSON-serializable — so
 // only the plain `reviews` data is persisted, then rehydrated against the
