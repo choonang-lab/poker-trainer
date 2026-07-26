@@ -25,7 +25,7 @@ game tree (L3). Build once, configure twice.
 
 ## Working discipline
 - The test suite is the guardrail. `node engine.test.ts` must stay green
-  (currently **672 passing, 0 failing**). Run it before changing anything and after every change.
+  (currently **679 passing, 0 failing**). Run it before changing anything and after every change.
 - Types are also enforced: `npx -p typescript tsc --noEmit` must stay clean (exit 0). This uses
   npx's cache — it adds NO dependency to the repo, keeping the engine a dependency-free ES module.
   `contract.conformance.ts` proves engine.ts matches every signature in contract.ts at compile time.
@@ -125,6 +125,13 @@ test red, stop and fix the leak — do NOT edit the test to make it pass.
   COVER, so J-J folds (79% vs the short but ~20% vs the cover's AA), 8-8 calls a weak cover, AA value-calls.
 - NOTE: FULL postflop N-player betting tree (multiway rounds + side pots through the streets) stays
   DECLINED — a core rearchitecture (~4-8× a session-feature). P4.5 is the all-in-only slice.
+- DONE: play-by-play hands (v1) — a **"Play" tab**: one hand, decision by decision, graded on every
+  street + a recap. `gradeStep(drill, response)` is the shared no-scheduling grader (factored out of
+  gradeDrill); `Hand` = an ordered list of decision spots (Drills); `gradeHand(hand, responses)` sums
+  the leak + flags the worst call. `STARTER_HANDS` has one authored hand (BB defends 8♥7♥: defend →
+  call the OESD → raise the nut straight → value-bet). Each step reuses the existing engine; the shown
+  line is on rails (v1). Web reuses `playDrill` (now takes an optional grader + defers "Checking…" for
+  multi-street trees too). NEXT (v2/v3): positional opening range charts; a seeded dealer for endless hands.
 - NOTE: tags are module+suffix keyed. Each preflop drill costs ~3s. Raises are pot-sized (raiseCap ≤ 4).
 - NEXT options: more drills; deploy (static host); push notifications (iOS-limited). Feature-complete.
 

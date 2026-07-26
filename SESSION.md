@@ -1027,6 +1027,35 @@ break that or need a fundamentally different solver. Logged so they aren't re-sc
       the streets — a core rearchitecture, ~4-8× a session-feature) + CFR/GTO solver. This is the all-in
       slice only.
 
+43. ~~**Play-by-play hand trainer (v1): a "Play" tab, one hand decision by decision**~~ — DONE 2026-07-25
+    (cache v64, 679 tests). Owner: "how would you design a play-by-play trainer" → design answer → "do v1,
+    but make it as unattended as possible." Built end-to-end autonomously.
+    - THE KEY REUSE: a hand is a PATH through the tree we already have — at each hero node the engine
+      already gives actionEVs + bestAction, so play-by-play is just "walk the steps and grade each." Design
+      decouples GRADING (each decision on its true EV) from the SHOWN line (authored, on rails for v1).
+    - ENGINE (pure, FULLY tested — no UI needed to verify): factored gradeDrill's grading into
+      `gradeStep(drill, response) → {result, truth?}` (no scheduling), the shared core so a play-by-play
+      decision grades EXACTLY like the same spot standalone. `Hand` = ordered decision spots (each a Drill);
+      `gradeHand(hand, responses)` grades each via gradeStep, sums the chips leaked, flags the worst call.
+      `STARTER_HANDS` = one authored hand "BB defends 8♥7♥": defend preflop (preflopBet) → call the OESD vs
+      a c-bet (heroFacesBet) → RAISE the turned nut straight (heroFacesBet + raiseCap 1) → value-bet the
+      river (buildStreet). Each step reuses existing machinery; verdicts calibrated crisp (call/call/raise/
+      bet). Steps carry real module tags (P1.5/M5.6/P3.5/P2) so leak names map (e.g. m56.folds_with_implied_odds).
+    - GOTCHA: `let worst = null` assigned only inside a `.forEach` closure stays narrowed to `null` at the
+      return (TS doesn't track closure assignments) → "regretBb does not exist on never". Fix: use a `for`
+      loop (same scope) so flow analysis tracks it. Runtime identical.
+    - WEB: new "Play" tab. Reuses `playDrill` ENTIRELY — refactored to take an optional grader (hand steps
+      grade via gradeStep, no SM-2) and to defer the "Checking…" note for multi-street trees too (so
+      postflop grades don't freeze). Hand list → the player → a recap (per-decision ✓/✗ + the biggest
+      leak's EXPLAIN). Hand-step EXPLAINs live in curriculum's EXPLAIN map (integrity test updated to allow
+      them). renderFeedback's "next review in Nd" line is guarded (hand steps aren't scheduled).
+    - VERIFIED LIVE end-to-end (classifier was down at ship time — shipped on the strength of the fully-
+      tested pure runner + tsc, then it recovered and I played the whole hand live): all 4 decisions grade
+      "Optimal" with explanations + made-hand highlighting, and the recap shows "Optimal on all 4 decisions"
+      with ✓✓✓✓. (Screenshots force a repaint that unsticks the hidden-pane setTimeout throttle.)
+    - NEXT (v2/v3, per the design): positional OPENING range charts (the "what do I open?" layer — a new
+      chart-lookup grader); follow-the-user's-line branching; a seeded deterministic dealer for endless hands.
+
 ## Machine-specific notes for macOS
 
 - Requires: git, Node ≥ 23 (or 22.7+ with `--experimental-strip-types`) for
