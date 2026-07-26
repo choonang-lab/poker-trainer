@@ -1770,6 +1770,11 @@ export function branchHand(hand: BranchHand, actions: Action[]): BranchOutcome {
   const facingBet = (n: TreeNode): boolean => (n.children ?? []).some((c) => c.action?.kind === "fold"); // a fold option ⇒ hero faces a bet
   const heroLine = (a: Action, facing: boolean): string =>
     a.kind === "check" ? "You check." : a.kind === "call" ? "You call." : a.kind === "fold" ? "You fold." : facing ? "You raise." : "You bet.";
+  // Hero is OUT OF POSITION (acts first) when the villain has the initiative — it bets
+  // into hero (heroFacesBet) or leads later streets (villainLeads). Then a card deal is
+  // narrated bare ("Turn: X.") and the villain's action comes AFTER hero acts. When hero
+  // is IP (the sole aggressor), the villain checks to hero first.
+  const heroOOP = !!(hand.state.abstraction.heroFacesBet || hand.state.abstraction.villainLeads);
   const narrative: string[] = [hand.setup];
   const decisions: { street: string; result: Result }[] = [];
   let reveal = 0;
@@ -1783,20 +1788,22 @@ export function branchHand(hand: BranchHand, actions: Action[]): BranchOutcome {
         const legal = (node.children ?? []).map((c) => c.action!).filter(Boolean);
         const dist = strat(node.state, legal);
         const top = dist.reduce((a, b) => (b.weight > a.weight ? b : a));
+        const lead = (node.children ?? []).some((c) => c.action?.kind === "check"); // villain acts after a hero CHECK ⇒ a lead bet
         narrative.push(top.action.kind === "fold" ? `${Cap(vill)} folds — you take it down.`
-          : top.action.kind === "bet" ? `${Cap(vill)} raises.` : `${Cap(vill)} calls.`);
+          : top.action.kind === "bet" ? `${Cap(vill)} ${lead ? "bets" : "raises"}.` : `${Cap(vill)} calls.`);
         node = (node.children ?? []).find((c) => sameAction(c.action, top.action))!.node;
       } else {
         const card = hand.reveal[reveal++];
         const child = (node.children ?? []).find((c) => dealtCard(node.state.board, c.node.state.board) === card);
         if (!child) throw new Error(`branchHand: scripted card ${cardName(card)} is not a legal deal here`);
         node = child.node;
-        narrative.push(`${streetLabel(node.state.board.length)}: ${cardName(card)}. ${Cap(vill)} checks.`);
+        narrative.push(`${streetLabel(node.state.board.length)}: ${cardName(card)}.${heroOOP ? "" : ` ${Cap(vill)} checks.`}`);
       }
     }
   };
   resolve(); // the flop root is a HERO node; this is a no-op there, but keeps the loop uniform
-  narrative.push(`Flop: ${hand.state.board.map(cardName).join(" ")}. ${Cap(vill)} ${node.kind === "HERO" && facingBet(node) ? "bets" : "checks"}.`);
+  const flopVill = node.kind === "HERO" && facingBet(node) ? ` ${Cap(vill)} bets.` : heroOOP ? "" : ` ${Cap(vill)} checks.`;
+  narrative.push(`Flop: ${hand.state.board.map(cardName).join(" ")}.${flopVill}`);
   for (const action of actions) {
     if (node.kind !== "HERO") break; // hand already ended
     const evs = actionEVs(node);
@@ -1943,6 +1950,11 @@ const raiseStrong: RangePolicy = (combo: Combo, s: NodeState, legal: Action[]) =
   const raise = cat >= 2, call = !raise && cat >= 1;
   return legal.map((a) => ({ action: a, weight: a.kind === "bet" ? (raise ? 1 : 0) : a.kind === "call" ? (call ? 1 : 0) : (!raise && !call ? 1 : 0) }));
 };
+// A leading strategy: when checked to, the villain BETS (barrels) every street. Paired
+// with a call/fold policy for hero's donks, it drives a multi-street villainLeads hand
+// where hero is out of position and must bluff-catch the barrels.
+const barrelLead: NodeStrategy = (_s: NodeState, legal: Action[]) =>
+  legal.map((a) => ({ action: a, weight: a.kind === "bet" ? 1 : 0 }));
 
 // P1.6 three-bet drills: villain OPENS this wide range; hero may fold / call / 3-bet.
 // A three-bet policy answers TWO nodes in one function (branch on board): PREFLOP it
@@ -5737,6 +5749,11 @@ const B2_CBET_RANGE: Range = ([["Qc", "Qd"], ["Kc", "Ks"], ["Ac", "Ad"], ["Ah", 
   ["3s", "3d"], ["Jh", "8s"], ["Kd", "Qd"], ["Th", "9h"]]).map(([a, b]) => ({ combo: hand(a, b), weight: 1 }));
 const B3_RAISE_RANGE: Range = ([["8h", "8d"], ["3s", "3d"], ["Jh", "8h"], ["Jc", "8d"], ["9c", "9d"], ["Kc", "Kd"],
   ["Qh", "Qd"]]).map(([a, b]) => ({ combo: hand(a, b), weight: 1 }));
+// b4: a triple-barreling range on Q♥7♣2♦ — value that beats hero's top pair (sets,
+// overpairs) plus enough BLUFFS (worse top pairs, ace-highs, missed draws) that hero's
+// A♠Q♦ has to call the barrels down. Avoids the dealt hero/board/reveal cards.
+const B4_BARREL: Range = ([["7h", "7s"], ["2c", "2s"], ["Ah", "Ad"], ["Kh", "Kd"], ["Qc", "Jc"], ["Kc", "Qs"],
+  ["Ah", "Kc"], ["Jh", "Th"], ["9h", "8h"], ["Ac", "Jd"]]).map(([a, b]) => ({ combo: hand(a, b), weight: 1 }));
 
 export const STARTER_BRANCH_HANDS: BranchHand[] = [
   {
@@ -5784,5 +5801,21 @@ export const STARTER_BRANCH_HANDS: BranchHand[] = [
       abstraction: { sizes: [0.75], streets: ["flop", "turn"], players: 2, raiseCap: 1 },
     },
     reveal: hand("2d"),
+  },
+  {
+    id: "b4-bb-bluffcatch",
+    title: "Live hand: bluff-catch a triple barrel",
+    setup: "You call a button raise from the big blind with A♠ Q♦, and flop top pair on Q♥ 7♣ 2♦.",
+    villainLabel: "the button",
+    // The DEEPEST line: villainLeads, so the button BARRELS every street you check to.
+    // You're out of position with top pair top kicker. Don't donk (let them keep
+    // bluffing); CHECK and CALL down — their barreling range has enough air (worse
+    // pairs, missed draws) that folding is far too weak. Turn 8♠, river 3♦ are blanks.
+    state: {
+      heroHand: hand("As", "Qd"), board: hand("Qh", "7c", "2d"), pot: 6, toAct: "hero",
+      villain: { range: B4_BARREL, policy: floatPolicy, strategy: barrelLead },
+      abstraction: { sizes: [0.75], streets: ["flop", "turn", "river"], players: 2, raiseCap: 0, villainLeads: true },
+    },
+    reveal: hand("8s", "3d"),
   },
 ];

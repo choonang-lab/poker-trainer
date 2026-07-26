@@ -1121,6 +1121,20 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
   ok("branchHand (raiseCap): folding to the raise ends the hand; calling it is a spew leak",
     branchHand(cbetRaise, [BET, { kind: "fold" }]).done
     && branchHand(cbetRaise, [BET, CALL]).decisions.some((d) => d.result.leakTag.endsWith("spew")));
+  // Multi-street villainLeads: the villain BARRELS every street hero checks to.
+  const barrel = byBId("b4-bb-bluffcatch");
+  const bStart = branchHand(barrel, []);
+  ok("branchHand (villainLeads): hero is OOP and acts first (check or bet)",
+    bStart.pending !== null && bStart.pending!.legal.map((a) => a.kind).sort().join(",") === "bet,check");
+  const bCatch = branchHand(barrel, [CHECK, CALL, CHECK, CALL, CHECK, CALL]);
+  ok("branchHand (villainLeads): the villain LEADS (bets) each street, not raises",
+    bCatch.narrative.filter((n) => n.includes("The button bets")).length === 3 && !bCatch.narrative.some((n) => n.includes("raises")));
+  ok("branchHand (villainLeads): check-calling three barrels is the (optimal) bluff-catch line",
+    bCatch.done && bCatch.decisions.length === 6 && bCatch.decisions.every((d) => d.result.leakTag.endsWith(".ok")));
+  ok("branchHand (villainLeads): folding top pair to a barrel is an overfold leak",
+    branchHand(barrel, [CHECK, { kind: "fold" }]).decisions.some((d) => d.result.leakTag.endsWith("overfold")));
+  ok("branchHand (villainLeads): the card deals read bare (hero is OOP, acts first)",
+    bCatch.narrative.includes("Turn: 8♠.") && bCatch.narrative.includes("River: 3♦."));
 
   // The seeded dealer: endless deterministic, valid, playable branching hands.
   const cardsOf = (h: ReturnType<typeof dealBranchHand>): number[] => [...h.state.heroHand!, ...h.state.board, ...h.reveal];
