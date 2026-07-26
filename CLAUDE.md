@@ -25,7 +25,7 @@ game tree (L3). Build once, configure twice.
 
 ## Working discipline
 - The test suite is the guardrail. `node engine.test.ts` must stay green
-  (currently **687 passing, 0 failing**). Run it before changing anything and after every change.
+  (currently **690 passing, 0 failing**). Run it before changing anything and after every change.
 - Types are also enforced: `npx -p typescript tsc --noEmit` must stay clean (exit 0). This uses
   npx's cache — it adds NO dependency to the repo, keeping the engine a dependency-free ES module.
   `contract.conformance.ts` proves engine.ts matches every signature in contract.ts at compile time.
@@ -138,7 +138,12 @@ test red, stop and fix the leak — do NOT edit the test to make it pass.
   → BTN widest, app-declared reference); `openAction(position, combo)` → open/fold. New `ask:"open"` +
   `State.position`; grade() vs the chart (opens_too_wide / folds_too_tight). 6 drills on the core lesson —
   POSITION decides: A5s folds UTG but opens BTN (same cards, opposite answer). Grades instantly (no defer).
-  NEXT (v3): a play-by-play hand that STARTS with an open; a seeded dealer for endless hands.
+- DONE: play-by-play **v3** — a 2nd authored hand that STARTS with an opening decision ("Button opens
+  A♠5♠": open → flop two pair, c-bet → turn barrel → river value), the aggressor's mirror of v1's
+  caller hand. PURE content, ZERO new engine/UI: the `ask:"open"` step grades through gradeStep like any
+  hand step, and the Play tab already renders open + action steps. The layered design just composes.
+  The play-by-play arc (v1 runner, v2 charts, v3 open→showdown) is complete. Options: follow-the-user's-
+  line branching; a seeded dealer for endless hands; more authored hands.
 - NOTE: tags are module+suffix keyed. Each preflop drill costs ~3s. Raises are pot-sized (raiseCap ≤ 4).
 - NEXT options: more drills; deploy (static host); push notifications (iOS-limited). Feature-complete.
 

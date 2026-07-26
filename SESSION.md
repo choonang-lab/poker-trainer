@@ -1076,6 +1076,27 @@ break that or need a fundamentally different solver. Logged so they aren't re-sc
     - NEXT (v3): a play-by-play HAND that starts with an open (now gradeable — `ask:"open"` slots in as a
       Hand step, the hand-runner already handles it); follow-the-user's-line branching; a seeded dealer.
 
+45. ~~**Play-by-play v3: a hand that STARTS with an opening decision**~~ — DONE 2026-07-25 (cache v66, 690
+    tests, 2 hands). Owner: "do v3" → the synthesis of v1 (hand-runner) + v2 (opening charts). PROOF of the
+    layered design: PURE content, ZERO new engine or UI code — the open step grades through gradeStep like
+    any hand step, and the Play tab already renders `ask:"open"` (v2) and `ask:"action"` (v1). It just
+    composes.
+    - STARTER_HANDS gets a 2nd hand "Button: open a suited ace, then get paid": open A♠5♠ on the button
+      (P1.4 chart) → flop two pair A♥5♦2♣, c-bet (P2) → turn 9 barrel (P3.4) → river K value (P3.5). The
+      aggressor's mirror of v1's caller hand (which was BB-defends → chase → raise). Villain = a BB-defend
+      range continuing with a pair+ (floatPolicy) so two pair gets three streets; calibrated crisp (bet >>
+      check every street, gaps 7/9/11).
+    - TESTS: the optimal line grades open,bet,bet,bet with ~0 regret; folding the button open is the worst
+      decision. gradeHand handles the MIXED open+action steps unchanged. (GOTCHA: the h2-open step's
+      bestAction can't come from buildTree — empty abstraction + position builds a check-only tree — so the
+      test builds the open response via `openAction(position, hand)` and the rest via bestAction.)
+    - VERIFIED live end-to-end: the opening decision grades "Correct — Open (raise)" INSIDE the hand, the
+      c-bet/barrel/value steps grade "Optimal" (with the two-pair highlight), and the recap shows "Optimal
+      on all 4 decisions." The full play-by-play arc (v1/v2/v3) is complete.
+    - REMAINING options (not started): follow-the-user's-line branching (the hand forks on the user's
+      choice instead of on-rails); a seeded deterministic dealer for endless generated hands; more authored
+      hands. Feature-complete otherwise.
+
 ## Machine-specific notes for macOS
 
 - Requires: git, Node ≥ 23 (or 22.7+ with `--experimental-strip-types`) for
