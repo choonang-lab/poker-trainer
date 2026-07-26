@@ -1084,7 +1084,7 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
 
   // ---- L6.6 branching: the hand walks buildTree following the USER'S line -----
   const bh = STARTER_BRANCH_HANDS[0];
-  const BET: Action = { kind: "bet", size: 0.75 }, CHECK: Action = { kind: "check" };
+  const BET: Action = { kind: "bet", size: 0.75 }, CHECK: Action = { kind: "check" }, CALL: Action = { kind: "call" };
   const start = branchHand(bh, []);
   ok("branchHand start: a pending flop decision (check or bet), not done",
     !start.done && start.pending !== null && start.pending!.legal.map((a) => a.kind).sort().join(",") === "bet,check");
@@ -1104,6 +1104,23 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
   // the value line reaches showdown, so `done` with a full three decisions is the check.
   ok("branchHand: reaching showdown records exactly the decisions the user made",
     branchHand(bh, [BET, BET]).pending !== null && !branchHand(bh, [BET, BET]).done);
+  // Deeper lines: the villain bets INTO hero, and raises hero's bet.
+  const byBId = (id: string) => STARTER_BRANCH_HANDS.find((h) => h.id === id)!;
+  const faceCbet = byBId("b2-bb-defend-draw");           // heroFacesBet: villain c-bets into hero
+  const fc0 = branchHand(faceCbet, []);
+  ok("branchHand (heroFacesBet): the villain bets into you — first decision is fold/call/raise",
+    fc0.pending !== null && fc0.pending!.legal.map((a) => a.kind).sort().join(",") === "bet,call,fold");
+  ok("branchHand (heroFacesBet): the story says the villain bets (not checks)",
+    fc0.narrative.some((n) => n.includes("The button bets")));
+  ok("branchHand (heroFacesBet): calling the c-bet continues to the turn",
+    branchHand(faceCbet, [CALL]).narrative.some((n) => n.startsWith("Turn:")));
+  const cbetRaise = byBId("b3-cbet-into-raise");         // raiseCap: villain raises hero's c-bet
+  const afterBet = branchHand(cbetRaise, [BET]);
+  ok("branchHand (raiseCap): betting draws a raise — you then face fold/call",
+    afterBet.narrative.some((n) => n.includes("raises")) && afterBet.pending!.legal.map((a) => a.kind).sort().join(",") === "call,fold");
+  ok("branchHand (raiseCap): folding to the raise ends the hand; calling it is a spew leak",
+    branchHand(cbetRaise, [BET, { kind: "fold" }]).done
+    && branchHand(cbetRaise, [BET, CALL]).decisions.some((d) => d.result.leakTag.endsWith("spew")));
 
   // The seeded dealer: endless deterministic, valid, playable branching hands.
   const cardsOf = (h: ReturnType<typeof dealBranchHand>): number[] => [...h.state.heroHand!, ...h.state.board, ...h.reveal];

@@ -967,12 +967,14 @@ function villainPolicyNode(
     { action: { kind: "fold" },
       node: { kind: "TERM", state: baseState, terminal: { type: "fold", folder: "villain", heroInvested } } },
     { action: { kind: "call" },
-      node: advance({ ...ctx, pot: pot + facing, heroInvested, villain: { range: callRange, policy } }, rest) },
+      // Preserve villain.strategy (undefined for hero-aggressor hands, so a no-op
+      // there) so a later street's villainAfterCheck can still lead into hero.
+      node: advance({ ...ctx, pot: pot + facing, heroInvested, villain: { range: callRange, policy, strategy: ctx.villain.strategy } }, rest) },
   ];
   if (raisesLeft > 0 && raiseW > 0) {
     // Villain raises (pot-sized) with the raise-narrowed range; hero faces it.
     const raisePot = pot + facing + raiseBy;
-    const heroFaces = raiseNode("hero", { ...ctx, villain: { range: raiseRange, policy } },
+    const heroFaces = raiseNode("hero", { ...ctx, villain: { range: raiseRange, policy, strategy: ctx.villain.strategy } },
       raisePot, raiseBy, heroInvested, raisesLeft - 1, rest);
     children.push({ action: { kind: "bet", size: raiseSize }, node: heroFaces });
   }
@@ -1763,11 +1765,16 @@ const dealtCard = (parentBoard: Board, childBoard: Board): Card | undefined =>
 // actually reached. Pure — the UI calls it with the growing `actions` list.
 export function branchHand(hand: BranchHand, actions: Action[]): BranchOutcome {
   let node: TreeNode = buildTree(hand.state);
-  const narrative: string[] = [hand.setup, `Flop: ${hand.state.board.map(cardName).join(" ")}. The big blind checks.`];
+  const vill = hand.villainLabel ?? "the big blind";
+  const Cap = (s: string): string => s.charAt(0).toUpperCase() + s.slice(1);
+  const facingBet = (n: TreeNode): boolean => (n.children ?? []).some((c) => c.action?.kind === "fold"); // a fold option ⇒ hero faces a bet
+  const heroLine = (a: Action, facing: boolean): string =>
+    a.kind === "check" ? "You check." : a.kind === "call" ? "You call." : a.kind === "fold" ? "You fold." : facing ? "You raise." : "You bet.";
+  const narrative: string[] = [hand.setup];
   const decisions: { street: string; result: Result }[] = [];
   let reveal = 0;
   // Resolve villain (modal action) and chance (scripted card) nodes until the next
-  // hero decision or a terminal.
+  // hero decision or a terminal, narrating each event.
   const resolve = (): void => {
     while (node.kind === "VILL" || node.kind === "CHANCE") {
       if (node.kind === "VILL") {
@@ -1776,19 +1783,20 @@ export function branchHand(hand: BranchHand, actions: Action[]): BranchOutcome {
         const legal = (node.children ?? []).map((c) => c.action!).filter(Boolean);
         const dist = strat(node.state, legal);
         const top = dist.reduce((a, b) => (b.weight > a.weight ? b : a));
-        narrative.push(top.action.kind === "fold" ? "The big blind folds — you take it down."
-          : top.action.kind === "bet" ? "The big blind raises." : "The big blind calls.");
+        narrative.push(top.action.kind === "fold" ? `${Cap(vill)} folds — you take it down.`
+          : top.action.kind === "bet" ? `${Cap(vill)} raises.` : `${Cap(vill)} calls.`);
         node = (node.children ?? []).find((c) => sameAction(c.action, top.action))!.node;
       } else {
         const card = hand.reveal[reveal++];
         const child = (node.children ?? []).find((c) => dealtCard(node.state.board, c.node.state.board) === card);
         if (!child) throw new Error(`branchHand: scripted card ${cardName(card)} is not a legal deal here`);
         node = child.node;
-        narrative.push(`${streetLabel(node.state.board.length)}: ${cardName(card)}. The big blind checks.`);
+        narrative.push(`${streetLabel(node.state.board.length)}: ${cardName(card)}. ${Cap(vill)} checks.`);
       }
     }
   };
-  resolve();
+  resolve(); // the flop root is a HERO node; this is a no-op there, but keeps the loop uniform
+  narrative.push(`Flop: ${hand.state.board.map(cardName).join(" ")}. ${Cap(vill)} ${node.kind === "HERO" && facingBet(node) ? "bets" : "checks"}.`);
   for (const action of actions) {
     if (node.kind !== "HERO") break; // hand already ended
     const evs = actionEVs(node);
@@ -1798,7 +1806,7 @@ export function branchHand(hand: BranchHand, actions: Action[]): BranchOutcome {
     const regretBb = Math.max(0, best.ev - chosen.ev);
     const leakTag = regretBb <= 1e-9 ? "p2.ok" : `p2.${actionSuffix(chosen.action, best.action)}`;
     decisions.push({ street: streetLabel(node.state.board.length), result: { regretBb, leakTag } });
-    narrative.push(action.kind === "check" ? "You check." : "You bet.");
+    narrative.push(heroLine(action, facingBet(node)));
     node = (node.children ?? []).find((c) => sameAction(c.action, action))!.node;
     resolve();
   }
@@ -1926,6 +1934,14 @@ const FLOAT_RANGE: Range = ([["Ah", "Kd"], ["Ah", "Qd"], ["Kh", "Qd"], ["Ah", "J
 const floatPolicy: RangePolicy = (combo: Combo, s: NodeState, legal: Action[]) => {
   const pairPlus = best([...combo, ...s.board])[0] >= 1; // a made pair or better continues
   return legal.map((a) => ({ action: a, weight: a.kind === (pairPlus ? "call" : "fold") ? 1 : 0 }));
+};
+// For the deeper branching hands: villain RAISES a strong made hand (two pair or
+// better), calls a made pair, folds air. Drives the "you bet, villain raises" and
+// "you c-bet, villain check-raises" lines.
+const raiseStrong: RangePolicy = (combo: Combo, s: NodeState, legal: Action[]) => {
+  const cat = best([...combo, ...s.board])[0];
+  const raise = cat >= 2, call = !raise && cat >= 1;
+  return legal.map((a) => ({ action: a, weight: a.kind === "bet" ? (raise ? 1 : 0) : a.kind === "call" ? (call ? 1 : 0) : (!raise && !call ? 1 : 0) }));
 };
 
 // P1.6 three-bet drills: villain OPENS this wide range; hero may fold / call / 3-bet.
@@ -5714,6 +5730,13 @@ export const STARTER_HANDS: Hand[] = [
 const B1_BB_DEFEND: Range = ([["Kh", "Qd"], ["Qh", "Jd"], ["Jh", "Td"], ["Kc", "Kd"], ["Qc", "Qh"], ["Jd", "Js"],
   ["Td", "Th"], ["9c", "9s"], ["7c", "7d"], ["6c", "6d"], ["Ac", "Kd"], ["Ah", "Qc"], ["Kh", "Th"], ["Jc", "Tc"],
   ["8c", "7c"], ["6h", "5h"], ["Ad", "5d"], ["Kd", "Jd"]]).map(([a, b]) => ({ combo: hand(a, b), weight: 1 }));
+// b2: the button's c-betting range on J♦8♣3♥ (overpairs, top pairs, sets, air) — hero
+// faces it OOP with an open-ender. b3: a check-raising range on the same flop (sets +
+// two pair heavy) that raises hero's c-bet. Both avoid the dealt hero/board/reveal cards.
+const B2_CBET_RANGE: Range = ([["Qc", "Qd"], ["Kc", "Ks"], ["Ac", "Ad"], ["Ah", "Jc"], ["Kh", "Jh"], ["8h", "8d"],
+  ["3s", "3d"], ["Jh", "8s"], ["Kd", "Qd"], ["Th", "9h"]]).map(([a, b]) => ({ combo: hand(a, b), weight: 1 }));
+const B3_RAISE_RANGE: Range = ([["8h", "8d"], ["3s", "3d"], ["Jh", "8h"], ["Jc", "8d"], ["9c", "9d"], ["Kc", "Kd"],
+  ["Qh", "Qd"]]).map(([a, b]) => ({ combo: hand(a, b), weight: 1 }));
 
 export const STARTER_BRANCH_HANDS: BranchHand[] = [
   {
@@ -5730,5 +5753,36 @@ export const STARTER_BRANCH_HANDS: BranchHand[] = [
       abstraction: { sizes: [0.75], streets: ["flop", "turn", "river"], players: 2, raiseCap: 0 },
     },
     reveal: hand("9d", "3s"),
+  },
+  {
+    id: "b2-bb-defend-draw",
+    title: "Live hand: defend the big blind, face a c-bet",
+    setup: "You defend the big blind with T♠ 9♠, and the button c-bets the J♦ 8♣ 3♥ flop.",
+    villainLabel: "the button",
+    // The DEEPER line: the villain BETS into you (heroFacesBet). You flop an
+    // open-ender (a 7 or a Q makes the straight) and face a c-bet — fold, call, or
+    // raise. Calling to chase is fine; the turn 7♣ COMPLETES your straight, and now
+    // you're the aggressor (the button checks) — bet for value. River 2♦ is a blank.
+    state: {
+      heroHand: hand("Ts", "9s"), board: hand("Jd", "8c", "3h"), pot: 6, toAct: "hero",
+      villain: { range: B2_CBET_RANGE, policy: raiseStrong },
+      abstraction: { sizes: [0.75], streets: ["flop", "turn", "river"], players: 2, raiseCap: 1, heroFacesBet: 0.75 },
+    },
+    reveal: hand("7c", "2d"),
+  },
+  {
+    id: "b3-cbet-into-raise",
+    title: "Live hand: c-bet top pair, then face a raise",
+    setup: "You raise the button with A♠ J♠, the big blind calls, and you flop top pair on J♦ 8♣ 3♥.",
+    // The DEEPER line the other way (raiseCap): YOU bet, and the villain RAISES. Top
+    // pair top kicker is a fine c-bet, but when a range full of sets and two pair
+    // check-raises, calling off is a trap — folding to the raise is usually right.
+    // The hand follows your line: fold and it's over, call and you play a big turn.
+    state: {
+      heroHand: hand("As", "Js"), board: hand("Jd", "8c", "3h"), pot: 6, toAct: "hero",
+      villain: { range: B3_RAISE_RANGE, policy: raiseStrong },
+      abstraction: { sizes: [0.75], streets: ["flop", "turn"], players: 2, raiseCap: 1 },
+    },
+    reveal: hand("2d"),
   },
 ];

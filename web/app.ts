@@ -382,8 +382,10 @@ function renderBranch(hand: BranchHand): void {
       p.heroHand ? el("div", "hero", `You: ${cards(p.heroHand, hl ?? undefined)}`) : el("div"),
       el("label", "prompt", "Your action:"));
     const row = el("div", "actions");
+    const facingBet = p.legal.some((a) => a.kind === "fold"); // a fold option ⇒ hero faces a bet, so a bet is a RAISE
     for (const a of p.legal) {
-      const label = a.kind === "bet" ? `Bet ${parseFloat(((a.size ?? 0) * 100).toFixed(0))}% pot` : a.kind === "check" ? "Check" : a.kind === "call" ? "Call" : "Fold";
+      const label = a.kind === "bet" ? (facingBet ? "Raise" : `Bet ${parseFloat(((a.size ?? 0) * 100).toFixed(0))}% pot`)
+        : a.kind === "check" ? "Check" : a.kind === "call" ? "Call" : "Fold";
       const b = el("button", "act", label);
       b.onclick = () => { branchActions.push(a); renderAll(); };
       row.append(b);

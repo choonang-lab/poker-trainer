@@ -327,8 +327,10 @@ export interface BranchHand {
   id: string;
   title: string;
   setup: string;                    // preflop narrative; the flop is state.board
-  state: State;                     // flop-start, hero-as-aggressor, villain {range, policy}, streets flop..river
+  state: State;                     // flop-start; hero-aggressor (bet/check), OR heroFacesBet/raiseCap for
+                                    // deeper lines where the villain bets into hero or raises hero's bet
   reveal: Card[];                   // the turn then river card, dealt as the hand advances
+  villainLabel?: string;            // how to name the villain in the story (default "the big blind")
 }
 export interface BranchOutcome {
   narrative: string[];              // the running story: setup, cards dealt, and each actor's action
