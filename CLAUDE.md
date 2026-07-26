@@ -25,7 +25,7 @@ game tree (L3). Build once, configure twice.
 
 ## Working discipline
 - The test suite is the guardrail. `node engine.test.ts` must stay green
-  (currently **690 passing, 0 failing**). Run it before changing anything and after every change.
+  (currently **696 passing, 0 failing**). Run it before changing anything and after every change.
 - Types are also enforced: `npx -p typescript tsc --noEmit` must stay clean (exit 0). This uses
   npx's cache — it adds NO dependency to the repo, keeping the engine a dependency-free ES module.
   `contract.conformance.ts` proves engine.ts matches every signature in contract.ts at compile time.
@@ -142,8 +142,14 @@ test red, stop and fix the leak — do NOT edit the test to make it pass.
   A♠5♠": open → flop two pair, c-bet → turn barrel → river value), the aggressor's mirror of v1's
   caller hand. PURE content, ZERO new engine/UI: the `ask:"open"` step grades through gradeStep like any
   hand step, and the Play tab already renders open + action steps. The layered design just composes.
-  The play-by-play arc (v1 runner, v2 charts, v3 open→showdown) is complete. Options: follow-the-user's-
-  line branching; a seeded dealer for endless hands; more authored hands.
+  The play-by-play arc (v1 runner, v2 charts, v3 open→showdown) is complete.
+- DONE: follow-the-user's-line BRANCHING — a "live" hand that walks the real `buildTree(state)` following
+  the user's line: the user's action picks the branch, the villain plays its MODAL declared action, the
+  board is the scripted `reveal`. `branchHand(hand, actions)` (pure) resolves villain/chance nodes,
+  grades each hero decision by regret at the node reached, returns the running narrative + pending
+  decision. `BranchHand`/`BranchOutcome` + `STARTER_BRANCH_HANDS` (one hand: flop top set → bet-bet-bet
+  value, checking any street leaks + the hand follows the check on). ~200ms/walk. Web: a "LIVE" hand in
+  the Play tab (story + decision buttons + a line-specific recap). NEXT: a seeded dealer for endless hands.
 - NOTE: tags are module+suffix keyed. Each preflop drill costs ~3s. Raises are pot-sized (raiseCap ≤ 4).
 - NEXT options: more drills; deploy (static host); push notifications (iOS-limited). Feature-complete.
 

@@ -1097,6 +1097,30 @@ break that or need a fundamentally different solver. Logged so they aren't re-sc
       choice instead of on-rails); a seeded deterministic dealer for endless generated hands; more authored
       hands. Feature-complete otherwise.
 
+46. ~~**Follow-the-user's-line BRANCHING: a "live" hand that walks the real tree**~~ — DONE 2026-07-25
+    (cache v67, 696 tests). Owner: "do follow-the-user's-line branching" — the play-by-play no longer runs
+    on rails. THE realization (from the original design): a hand is a PATH through the tree we already have.
+    - ENGINE (pure, tested, FAST): `branchHand(hand, actions)` walks `buildTree(state)` following the
+      user's line — the user's action picks the hero branch, the villain plays its MODAL declared action
+      (max-weight from the VILL node's strategy, which villainPolicyNode already builds from the policy),
+      and each chance deal is the next scripted `reveal` card (matched by the single card the child board
+      adds). Each hero decision is graded by regret via `actionEVs` AT THE NODE REACHED — so a wrong choice
+      leads somewhere and you're graded there. Returns a running narrative (setup, cards, each actor's
+      action) + the pending decision (or done). ~200ms for a full 3-street walk (showdown leaves are cheap
+      range compares — my earlier ~2s worry was wrong). `BranchHand`/`BranchOutcome` types +
+      `STARTER_BRANCH_HANDS` (one hand: flop top set 8♠8♥ on 8♦5♣2♥; bet-bet-bet = value line regret 0;
+      checking any street leaks and the hand follows the check onward).
+    - WEB: a "LIVE" hand in the Play tab — a running story (`.branch-story`) + the current decision's
+      board/hero/pot + action buttons; clicking re-walks (pure re-replay of `branchActions`) and advances.
+      A line-specific recap: per-street ✓/✗ for the line YOU played + the costliest decision. (Kept the
+      recap qualitative — the model's postflop EVs run optimistic, so an inflated bb figure would mislead.)
+    - VERIFIED live end-to-end: played bet → CHECK → bet; the story tracked the line (villain calls, turn
+      9♦, river 3♠, showdown), and the recap flagged ✗ Turn (my check) with ✓ Flop / ✓ River — grading the
+      line I actually played, not a fixed one. The full play-by-play arc (v1 runner, v2 charts, v3 open-hand,
+      branching) is complete.
+    - REMAINING: a seeded deterministic dealer for endless GENERATED hands (the last piece); more authored
+      hands; deeper branch hands (villainLeads so the user can face bets, raiseCap for re-raise lines).
+
 ## Machine-specific notes for macOS
 
 - Requires: git, Node ≥ 23 (or 22.7+ with `--experimental-strip-types`) for
