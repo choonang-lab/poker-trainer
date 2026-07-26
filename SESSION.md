@@ -1056,6 +1056,26 @@ break that or need a fundamentally different solver. Logged so they aren't re-sc
     - NEXT (v2/v3, per the design): positional OPENING range charts (the "what do I open?" layer — a new
       chart-lookup grader); follow-the-user's-line branching; a seeded deterministic dealer for endless hands.
 
+44. ~~**Opening range charts (play-by-play v2): new module P1.4 "Opening ranges"**~~ — DONE 2026-07-25
+    (cache v65, 687 tests, 222 drills, 30 modules). Owner: "do v2" → the opening-chart layer from the
+    play-by-play design (the "what do I open?" decision v1 couldn't grade). This is a CHART lookup, a
+    different grading kind from the EV tree — like combos/outs/mdf grade against a computed target.
+    - ENGINE (pure, exactly testable): `handClass(combo)` → "AKs"/"AKo"/"77" (chart notation). `expandRange`
+      expands tokens ("22+" = all pairs; "ATs+" = ATs..AKs; "K7o+" = K7o..KQo; bare "T9s" = itself) into
+      hand classes. `OPENING_RANGES` = 6-max ~100bb RFI by seat (UTG 29 classes → CO 54 → BTN 83; widen
+      strictly). App-DECLARED reference (like any villain strategy — invariant 3 holds). `openAction(pos,
+      combo)` → open/fold. New `ask:"open"` response kind + `State.position` (a `Position` union). grade()
+      compares to the chart: correct → ok, else opens_too_wide / folds_too_tight (LEAK_TABLE p14.*).
+    - THE LESSON: POSITION, not the cards, decides. 6 drills, the anchor being the SAME hand flipping:
+      A5s FOLDS under the gun but OPENS on the button. Plus AJo opens UTG, K8o opens BTN, K9s folds UTG,
+      72o folds everywhere (every range has a floor).
+    - WEB: an opening drill renders the seat + hand + "Open (raise) / Fold"; grades INSTANTLY (chart
+      lookup) — added `openAsk` to the mathAsk (no-defer) set so there's no "Checking…" flash. Feedback
+      states the chart's verdict; EXPLAIN carries the teaching. VERIFIED live: A5s UTG → "Correct — Fold",
+      the same A5s on the button → "Correct — Open (raise)".
+    - NEXT (v3): a play-by-play HAND that starts with an open (now gradeable — `ask:"open"` slots in as a
+      Hand step, the hand-runner already handles it); follow-the-user's-line branching; a seeded dealer.
+
 ## Machine-specific notes for macOS
 
 - Requires: git, Node ≥ 23 (or 22.7+ with `--experimental-strip-types`) for
