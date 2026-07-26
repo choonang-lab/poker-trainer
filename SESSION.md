@@ -998,6 +998,35 @@ break that or need a fundamentally different solver. Logged so they aren't re-sc
     - STILL DECLINED: true N-player betting tree (real multiway side pots — the squeeze approximates the
       caller as dead money instead) + CFR/GTO solver.
 
+42. ~~**3-way all-in with REAL side pots: new module P4.5 "All-in side pots"**~~ — DONE 2026-07-25 (cache
+    v63, 672 tests, 216 drills, 29 modules). Owner: "do preflop-only 3-way all-in with real side pots" —
+    the tractable, exactly-testable slice I scoped (#estimate answer) out of the declined full N-player
+    tree. It IS side pots for real, just without a postflop betting tree.
+    - ENGINE (a pure resolver, ZERO betting-tree rearchitecture): `sidePots(commits)` splits per-player
+      commitments into main + side pots — [100,60,40] → main 40·3=120 {all}, side 20·2=40 {the two ≥60},
+      top 40·1=40 {big only, RETURNED}. Chip-conserving, exactly hand-checkable. `allInEV(hands, commits,
+      deadPot, board)` = hero's chip EV over the full runout, awarding each pot to the best ELIGIBLE hand
+      (ties split), hands[0]=hero. FALSIFIABLE LINK to L2 (keeps "one engine" honest): with EQUAL stacks,
+      allInEV == multiwayEquity·pot − commit exactly (tested to 1e-9).
+    - ROUTING: `sidePotCallEV(state)` + `isSidePotSpot` (detected by `stacks` + `opponents` on an empty
+      abstraction — ICM has stacks but no opponents; the P4 estimate drills have opponents but no stacks;
+      neither collides). `truth()` and `decisionEVs()` route to it, so it grades as an ordinary call/fold
+      by REGRET — no new response kind, no new State fields (reused stacks[0..2] with hero at 0 + opponents).
+    - THE LESSON (the whole point of side pots): the side pot is contested ONLY against the covering stack,
+      so your equity THERE drives the decision, not your equity vs the short shove. 3 drills, same stacks
+      100/100/20: `p45-sidepot-fold` J-J is 79% vs the short but FOLDS (~−57) because the 160-chip side pot
+      is vs the cover's AA where it's ~20%; `p45-sidepot-call` 8-8 CALLS (~+13) when the cover is A-J (side
+      pot +EV) — SAME stacks, opposite answer, flipped by the covering hand; `p45-sidepot-value` AA CALLS
+      (~+71), favorite in both pots.
+    - WEB: new render branch for `stacks && opponents` shows each opponent WITH its stack ("You (100): J♥J♦
+      vs A♣A♠ (100) · 7♦6♦ (20)") so the side-pot structure is visible. Same empty-board "Checking…" defer
+      (~0.7s preflop enum). VERIFIED live: the fold-trap grades "Optimal" with the side-pot explanation;
+      screenshotted the render (both opponents + stacks).
+    - COST: each grade is a C(46,5) preflop runout (~0.7s); suite 659→672 tests, ~65s→~76s. Fine.
+    - STILL DECLINED: the FULL postflop N-player betting tree (multiway betting rounds + side pots through
+      the streets — a core rearchitecture, ~4-8× a session-feature) + CFR/GTO solver. This is the all-in
+      slice only.
+
 ## Machine-specific notes for macOS
 
 - Requires: git, Node ≥ 23 (or 22.7+ with `--experimental-strip-types`) for

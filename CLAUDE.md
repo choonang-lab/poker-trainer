@@ -25,7 +25,7 @@ game tree (L3). Build once, configure twice.
 
 ## Working discipline
 - The test suite is the guardrail. `node engine.test.ts` must stay green
-  (currently **659 passing, 0 failing**). Run it before changing anything and after every change.
+  (currently **672 passing, 0 failing**). Run it before changing anything and after every change.
 - Types are also enforced: `npx -p typescript tsc --noEmit` must stay clean (exit 0). This uses
   npx's cache — it adds NO dependency to the repo, keeping the engine a dependency-free ES module.
   `contract.conformance.ts` proves engine.ts matches every signature in contract.ts at compile time.
@@ -116,6 +116,15 @@ test red, stop and fix the leak — do NOT edit the test to make it pass.
   `pot0`. 5 drills (AA value-4-bet, QQ flat, A5s 4-bet-bluff; A5s + 8-7s squeezes). The 5-bet-shove leaf,
   once a full C(48,5) preflop enumeration (~4s), is now approximated over rep flops (`repFlopShowdown`,
   ~14x cheaper) — so the suite runs 659 tests in ~65s, faster than at P1.6.
+- DONE: 3-way all-in side pots (**P4.5** "All-in side pots") — the tractable slice of a true N-player
+  tree, built as a PURE resolver (no betting-tree rearchitecture). `sidePots(commits)` splits commitments
+  into main + side pots; `allInEV(hands, commits, deadPot, board)` = hero's chip EV over the runout,
+  awarding each pot to the best ELIGIBLE hand (equal stacks == `multiwayEquity`·pot − commit, the
+  falsifiable L2 link). Detected by `stacks`+`opponents` on an empty abstraction; `truth`/`decisionEVs`
+  route to it ⇒ graded as call/fold by regret (no new response kind). 3 drills: the side pot is vs the
+  COVER, so J-J folds (79% vs the short but ~20% vs the cover's AA), 8-8 calls a weak cover, AA value-calls.
+- NOTE: FULL postflop N-player betting tree (multiway rounds + side pots through the streets) stays
+  DECLINED — a core rearchitecture (~4-8× a session-feature). P4.5 is the all-in-only slice.
 - NOTE: tags are module+suffix keyed. Each preflop drill costs ~3s. Raises are pot-sized (raiseCap ≤ 4).
 - NEXT options: more drills; deploy (static host); push notifications (iOS-limited). Feature-complete.
 
