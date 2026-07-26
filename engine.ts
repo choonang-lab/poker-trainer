@@ -631,6 +631,77 @@ export function multiwayEquity(hero: Combo, opponents: Combo[], board: Board): n
   return total === 0 ? 0 : winShare / total;
 }
 
+// ---- Side pots (P4.5: 3-way all-in) --------------------------------------
+// Split a set of per-player commitments into a main pot + side pots. When players
+// are all-in for different amounts, each "layer" of matched chips forms its own
+// pot, contested only by the players who put into that layer. Pure and EXACTLY
+// hand-checkable: commits [100,60,40] -> main 40*3=120 {all}, side 20*2=40 {the
+// two ≥60}, and the top 40 is a lone-eligible pot returned to the big stack.
+// `eligible` are the contributors to that layer (for a preflop all-in nobody has
+// folded, so contributors = the players who can win it). Chips are conserved:
+// the pots sum to the total committed.
+export function sidePots(commits: number[]): { amount: number; eligible: number[] }[] {
+  const levels = [...new Set(commits.filter((c) => c > 0))].sort((a, b) => a - b);
+  const pots: { amount: number; eligible: number[] }[] = [];
+  let prev = 0;
+  for (const L of levels) {
+    const eligible = commits.map((c, i) => (c >= L ? i : -1)).filter((i) => i >= 0);
+    pots.push({ amount: (L - prev) * eligible.length, eligible });
+    prev = L;
+  }
+  return pots;
+}
+
+// Hero's chip EV in a preflop all-in showdown vs specific opponent hands, awarding
+// each side pot to the best ELIGIBLE hand over the full runout (ties split). `hands`
+// = [hero, ...opponents]; `commits[i]` = player i's committed chips (hero = 0);
+// `deadPot` = dead money (blinds), added to the main pot. The lesson side pots teach:
+// hero's equity is not one number — a pot hero can only win vs the short stack pays
+// differently from a side pot contested against the big stack.
+export function allInEV(hands: Combo[], commits: number[], deadPot: number, board: Board): number {
+  const pots = sidePots(commits);
+  if (pots.length) pots[0].amount += deadPot;      // dead money rides in the main pot
+  const dead = new Set<Card>([...hands.flat(), ...board]);
+  const deck = FULL_DECK.filter((c) => !dead.has(c));
+  const need = 5 - board.length;
+  let heroWinnings = 0, total = 0;
+  const rec = (start: number, chosen: Card[]): void => {
+    if (chosen.length === need) {
+      const full = [...board, ...chosen];
+      const scores = hands.map((h) => score7([...h, ...full]));
+      total++;
+      for (const pot of pots) {
+        let best: Score | null = null, winners = 0, heroWins = false;
+        for (const i of pot.eligible) {
+          const cmp = best === null ? 1 : cmpScore(scores[i], best);
+          if (cmp > 0) { best = scores[i]; winners = 1; heroWins = i === 0; }
+          else if (cmp === 0) { winners++; if (i === 0) heroWins = true; }
+        }
+        if (heroWins) heroWinnings += pot.amount / winners;
+      }
+      return;
+    }
+    for (let i = start; i < deck.length; i++) rec(i + 1, [...chosen, deck[i]]);
+  };
+  rec(0, []);
+  return total === 0 ? 0 : heroWinnings / total - commits[0];
+}
+
+// A preflop all-in call/fold with side pots (P4.5): hero (heroHand, committing
+// stacks[0]) decides whether to call off against `opponents`, each all-in for
+// stacks[1..]. Call EV = hero's side-pot chip EV; the caller compares it to fold=0.
+// Detected by `stacks` + `opponents` on an empty abstraction (ICM has stacks but no
+// opponents; the P4 estimate drills have opponents but no stacks — neither collides).
+export function sidePotCallEV(state: State): number {
+  if (!state.heroHand || !state.opponents || !state.stacks)
+    throw new Error("sidePotCallEV: requires heroHand, opponents, and stacks");
+  return allInEV([state.heroHand, ...state.opponents], state.stacks, state.pot, state.board);
+}
+function isSidePotSpot(state: State): boolean {
+  return state.abstraction.sizes.length === 0 && !!state.stacks && !!state.opponents && state.opponents.length >= 1
+    && state.heroHand !== undefined;
+}
+
 // Two Actions are the same legal option (bet sizes must match).
 function sameAction(a: Action | undefined, b: Action | undefined): boolean {
   if (!a || !b) return a === b;
@@ -1171,6 +1242,8 @@ export function buildTree(state: State): TreeNode {
 //   empty abstraction -> equity()/equityVsRange() leaf  (pillar 1, no tree)
 //   otherwise         -> bestResponseEV(buildTree(state)) (pillar 2)
 export function truth(state: State): number {
+  // 3-way all-in with side pots (P4.5): the ground truth is hero's call EV.
+  if (isSidePotSpot(state)) return sidePotCallEV(state);
   // Degeneracy guard (both pillars): no villain combo possible ⇒ malformed drill.
   // Fail loud at the entry point rather than propagating a null into grading/UI.
   // fieldEquity is the leaf (reduces to heads-up equity for players <= 2, and is
@@ -1226,6 +1299,8 @@ export function actionEVs(heroNode: TreeNode): { action: Action; ev: number }[] 
 // The legal actions + EVs for a decision drill. Pillar 1 (empty abstraction) is
 // a call/fold facing state.toCall; pillar 2 reads them off the built tree's root.
 function decisionEVs(state: State): { action: Action; ev: number }[] {
+  if (isSidePotSpot(state)) // 3-way all-in: call = hero's side-pot chip EV, fold = 0
+    return [{ action: { kind: "fold" }, ev: 0 }, { action: { kind: "call" }, ev: sidePotCallEV(state) }];
   if (state.abstraction.sizes.length === 0) {
     const eq = fieldEquity(state); // field-aware (reduces to heads-up equity at players=2)
     if (eq === null) throw new Error("grade: no valid villain combo for this spot");
@@ -3366,6 +3441,60 @@ export const STARTER_DRILLS: Drill[] = [
       heroHand: hand("Ks", "Kd"), board: hand("Qh", "Jh", "5c"), pot: 1, toAct: "hero",
       opponents: [hand("Ah", "Th"), hand("9c", "8c")],
       villain: { range: [{ combo: hand("Ah", "Th"), weight: 1 }] },
+      abstraction: { sizes: [], streets: [], players: 3 },
+    },
+  },
+  {
+    id: "p45-sidepot-fold",
+    module: "P4.5",
+    title: "Side pots: don't stack off into the cover, even crushing the short",
+    ask: "action",
+    // Hero JJ, big stack AA (covers, commit 100), short stack 76s (commit 20), dead 3.
+    // stacks[0]=hero. commits [100,100,20] -> main 60+3 {all}, side 160 {hero,big}.
+    read: "Three-way preflop, all-in for stacks of 100/100/20. You have J♠J♥ (100). The big stack has A♣A♠ (covers you); the short has 7♦6♦ (all-in for 20). Call off your 100, or fold?",
+    // Naively JJ crushes the short (79%) and screams snap-call. But the 160-chip SIDE
+    // pot is contested only against the big stack's aces, where JJ is ~20% — and that
+    // pot dwarfs the small main pot. Calling is about -57. When a big stack covers you,
+    // your equity in the SIDE pot (vs the cover) is what matters, not vs the shove.
+    state: {
+      heroHand: hand("Jh", "Jd"), board: [], pot: 3, toAct: "hero",
+      opponents: [hand("Ac", "As"), hand("7d", "6d")],
+      stacks: [100, 100, 20],
+      villain: { range: [{ combo: hand("Ac", "As"), weight: 1 }] },
+      abstraction: { sizes: [], streets: [], players: 3 },
+    },
+  },
+  {
+    id: "p45-sidepot-call",
+    module: "P4.5",
+    title: "Side pots: call when the covering stack is weak",
+    ask: "action",
+    read: "Same shape (stacks 100/100/20). You have 8♣8♦ (100). The big stack has A♣J♦ (covers you); the short has 7♦6♦ (all-in for 20). Call off your 100, or fold?",
+    // Now the side pot is FAVORABLE: 88 is ~55% against the big stack's A-J, so the
+    // 160-chip side pot is +EV, and you also beat the short. Calling is about +13. Same
+    // stacks, opposite answer — the covering hand flipped the decision, not the short's.
+    state: {
+      heroHand: hand("8c", "8d"), board: [], pot: 3, toAct: "hero",
+      opponents: [hand("Ac", "Jd"), hand("7d", "6d")],
+      stacks: [100, 100, 20],
+      villain: { range: [{ combo: hand("Ac", "Jd"), weight: 1 }] },
+      abstraction: { sizes: [], streets: [], players: 3 },
+    },
+  },
+  {
+    id: "p45-sidepot-value",
+    module: "P4.5",
+    title: "Side pots: get it in when you crush the whole field",
+    ask: "action",
+    read: "Three-way all-in, stacks 100/100/20. You have A♥A♠ (100). The big stack has K♣K♦ (covers you); the short has Q♦Q♥ (all-in for 20). Call off your 100, or fold?",
+    // The easy case for calibration: aces are a favorite in BOTH pots — ~81% in the
+    // side pot vs kings and ~82% vs the short's queens — so every chip goes in happily
+    // (about +71). When you're ahead of the cover, the side pot is your friend.
+    state: {
+      heroHand: hand("Ah", "As"), board: [], pot: 3, toAct: "hero",
+      opponents: [hand("Kc", "Kd"), hand("Qd", "Qh")],
+      stacks: [100, 100, 20],
+      villain: { range: [{ combo: hand("Kc", "Kd"), weight: 1 }] },
       abstraction: { sizes: [], streets: [], players: 3 },
     },
   },

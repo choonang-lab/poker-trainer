@@ -181,6 +181,9 @@ export interface TreeNode {
 export declare function equityLeaf(state: NodeState): number | null;
 export declare function fieldEquity(state: NodeState): number | null;
 export declare function multiwayEquity(hero: Combo, opponents: Combo[], board: Board): number; // EXACT N-way equity vs specific hands by enumeration (splits ties); no independence approximation
+export declare function sidePots(commits: number[]): { amount: number; eligible: number[] }[]; // split per-player commitments into main + side pots (P4.5); exact
+export declare function allInEV(hands: Combo[], commits: number[], deadPot: number, board: Board): number; // hero's chip EV in an all-in showdown with side pots (hands[0] = hero)
+export declare function sidePotCallEV(state: State): number; // hero's call EV for a 3-way all-in decision (stacks + opponents on an empty abstraction)
 
 // Best-response EV via expectimax (villain fixed). The leaf evaluator IS L2 equity.
 //   HERO   node: max over children

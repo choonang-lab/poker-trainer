@@ -353,6 +353,13 @@ function playDrill(drill: Drill, tagText: string, contLabel: string, onCont: () 
       el("div", "meta", `${s.abstraction.players}-way all-in`),
       s.heroHand ? el("div", "hero", `You: ${cards(s.heroHand)}`) : el("div"),
       el("div", "vill", `vs ${opps}`));
+  } else if (s.stacks && s.opponents) { // P4.5 side-pot all-in decision: show each stack
+    const opps = (s.opponents ?? []).map((o, i) => `${cards(o)} (${s.stacks![i + 1]})`).join("&nbsp; · &nbsp;");
+    sec.append(el("div", "tag", tagText), el("h2", "title", drill.title),
+      el("div", "board", s.board.length ? cards(s.board) : "<em>(preflop)</em>"),
+      el("div", "meta", `${s.abstraction.players}-way all-in · dead pot ${s.pot}`),
+      s.heroHand ? el("div", "hero", `You (${s.stacks![0]}): ${cards(s.heroHand)}`) : el("div"),
+      el("div", "vill", `vs ${opps}`));
   } else sec.append(
     el("div", "tag", tagText),
     el("h2", "title", drill.title),

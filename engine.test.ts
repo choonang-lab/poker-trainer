@@ -5,7 +5,7 @@ import {
   hand, parseCard, card, rankOf, suitOf, FULL_DECK, madeHand, drawSuit, nutCategory, comboCount,
   minDefenseFreq, bluffFrequency, icmEquity, requiredEquity, shoveEV, rangeVsRange, boardTexture, semiBluffBreakeven, spr, riskOfRuin, nutShare,
   equityLeaf, bestResponseEV, bestAction, truth, buildTree, realizationFactor,
-  fieldEquity, multiwayEquity, representativeFlops, validateAbstraction, ABSTRACTION_LIMITS,
+  fieldEquity, multiwayEquity, sidePots, allInEV, sidePotCallEV, representativeFlops, validateAbstraction, ABSTRACTION_LIMITS,
   actionEVs, grade,
   resultQuality, newReview, scheduleReview, dueReviews, nextReview,
   STARTER_DRILLS, newSession, nextDrill, gradeDrill, classifyLeak,
@@ -887,9 +887,9 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
   ok("M4 check regret == 3 bb", approx(m4check.result.regretBb, 3), `got ${m4check.result.regretBb}`);
   ok("M4 check -> m4.misses_street_sequence", m4check.result.leakTag === "m4.misses_street_sequence");
 
-  ok("STARTER_DRILLS now spans 213 drills incl M0/M3.5/M4/M4.5/M5.6/M5.7/M5.8/M5.9/M5.10/P0/P1/P1.5/P1.6/P1.7/P1.8/P2/P2.5/P3/P3.4/P3.5/P4/P5/T1/T2",
-    STARTER_DRILLS.length === 213 &&
-    ["M0", "M3.5", "M4", "M4.5", "M5.6", "M5.7", "P0", "P1", "P1.5", "P1.6", "P1.7", "P1.8", "P3", "P4", "P5"].every((m) => STARTER_DRILLS.some((d) => d.module === m)));
+  ok("STARTER_DRILLS now spans 216 drills incl M0/M3.5/M4/M4.5/M5.6/M5.7/M5.8/M5.9/M5.10/P0/P1/P1.5/P1.6/P1.7/P1.8/P2/P2.5/P3/P3.4/P3.5/P4/P4.5/P5/T1/T2",
+    STARTER_DRILLS.length === 216 &&
+    ["M0", "M3.5", "M4", "M4.5", "M5.6", "M5.7", "P0", "P1", "P1.5", "P1.6", "P1.7", "P1.8", "P4", "P4.5", "P5"].every((m) => STARTER_DRILLS.some((d) => d.module === m)));
 
   // ---- Preflop -> postflop via representative flops (P1.5) ----------------
   // The representative-flop set is a deterministic, fixed sample (no RNG) of
@@ -990,6 +990,34 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
   ok("P1.7 flat: graded flat is correct (regret 0)", approx(flatOk.result.regretBb, 0));
   const flatBad = gradeDrill(session, "p17-4bet-flat", { kind: "action", action: { kind: "bet", size: 24 / 1.5 } }, 0);
   ok("P1.7 flat: 4-betting queens into a 5-bettor is a regretful leak", flatBad.result.regretBb > 1);
+
+  // ---- P4.5 side pots (3-way all-in) ---------------------------------------
+  // The side-pot split is EXACT and hand-checkable: commits [100,60,40] ->
+  // main 40*3=120 {all}, side 20*2=40 {two ≥60}, top 40*1=40 {big only, returned}.
+  const sp = sidePots([100, 60, 40]);
+  ok("sidePots [100,60,40]: main 120, all eligible", sp[0].amount === 120 && sp[0].eligible.length === 3);
+  ok("sidePots [100,60,40]: side 40, two eligible", sp[1].amount === 40 && sp[1].eligible.join(",") === "0,1");
+  ok("sidePots [100,60,40]: top 40, lone eligible (returned)", sp[2].amount === 40 && sp[2].eligible.join(",") === "0");
+  ok("sidePots conserves chips (sum of pots == total committed)", sp.reduce((a, p) => a + p.amount, 0) === 200);
+  ok("sidePots [50,50,50]: a single pot, no side pot", sidePots([50, 50, 50]).length === 1);
+  // Falsifiable link to L2: equal stacks reduce the side-pot EV to multiwayEquity.
+  const AA = hand("Ac", "Ad"), KK = hand("Kc", "Kd"), QQ = hand("Qc", "Qd");
+  const eqEqual = multiwayEquity(AA, [KK, QQ], []);
+  ok("allInEV equal stacks == multiwayEquity*pot - commit (one engine)",
+    approx(allInEV([AA, KK, QQ], [100, 100, 100], 0, []), eqEqual * 300 - 100, 1e-9));
+  // Drill verdicts: the side pot vs the COVER drives the call/fold, not the shove.
+  const spFold = byId("p45-sidepot-fold"), spCall = byId("p45-sidepot-call"), spValue = byId("p45-sidepot-value");
+  ok("P4.5 fold: JJ folds — crushes the short but the side pot vs AA sinks it", sidePotCallEV(spFold.state) < 0);
+  ok("P4.5 call: 88 calls — the covering A-J makes the side pot +EV", sidePotCallEV(spCall.state) > 0);
+  ok("P4.5 value: aces call — favorite in both pots", sidePotCallEV(spValue.state) > 50);
+  ok("P4.5 truth() routes to the side-pot call EV", truth(spFold.state) === sidePotCallEV(spFold.state));
+  // Grading: folding the trap is optimal; calling it is a regretful spew.
+  const spFoldOk = gradeDrill(session, spFold.id, { kind: "action", action: { kind: "fold" } }, 0);
+  ok("P4.5 fold: graded fold is correct (regret 0)", approx(spFoldOk.result.regretBb, 0));
+  const spFoldBad = gradeDrill(session, spFold.id, { kind: "action", action: { kind: "call" } }, 0);
+  ok("P4.5 fold: calling off into the cover is a big regretful leak", spFoldBad.result.regretBb > 20);
+  const spCallOk = gradeDrill(session, spCall.id, { kind: "action", action: { kind: "call" } }, 0);
+  ok("P4.5 call: graded call is correct (regret 0)", approx(spCallOk.result.regretBb, 0));
 
   // M4.5 combo counting: base counts and blocker removal, all hand-checkable.
   ok("comboCount: A-K unpaired, no blockers = 16", comboCount(hand("Ah", "Kh"), []) === 16);

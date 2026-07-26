@@ -471,6 +471,20 @@ export const MODULES: Module[] = [
       "p4-exact-cooler", "p4-exact-set-vs-draws", "p4-exact-overpair-diluted"],
   },
   {
+    id: "P4.5", track: "P2", title: "All-in side pots",
+    preface: "When three players are all-in for DIFFERENT stacks, the money splits into a main pot (everyone) and a side pot (only the two deeper stacks). That changes calling decisions: a big stack that covers you contests the side pot alone, so your equity THERE — heads-up against the cover — often matters more than your equity against the short shove. You can crush the short stack and still have a clear fold.",
+    concepts: [
+      { term: "Main pot", def: "the pot every all-in player is eligible for — capped at the shortest stack's contribution." },
+      { term: "Side pot", def: "chips beyond the short stack's all-in, contested only by the players who have them." },
+      { term: "Cover", def: "having more chips than an opponent — you can win their whole stack, and they contest your side pot." },
+      { term: "Effective stack", def: "the most you can win or lose against a given player — the smaller of the two stacks." },
+      { term: "Isolation vs the field", def: "your equity is split across pots; weigh each pot against the players eligible for it, not the table as a whole." },
+    ],
+    objectives: ["Split a multiway all-in into main and side pots", "Judge the side pot on your equity vs the covering stack", "Fold hands that beat the short but lose the side pot"],
+    example: "J-J is 79% vs a short shove but only ~20% vs the big stack's aces — and the side pot vs those aces is the bigger pot, so it's a fold.",
+    drillIds: ["p45-sidepot-fold", "p45-sidepot-call", "p45-sidepot-value"],
+  },
+  {
     id: "P5", track: "P2", title: "Exploit vs balance",
     preface: "The biggest profits come from exploiting how your specific opponent deviates — over-folding, calling too wide, raising only monsters. Read the leak, then attack it.",
     concepts: [
@@ -733,6 +747,10 @@ export const EXPLAIN: Record<string, string> = {
   "p4-exact-cooler": "Exactly 67.7%. Aces are 82.6% heads-up against kings, but a third player (queens) doesn't just take a slice — the two of them combine to outdraw you more often than one could. This is the exact number, not an approximation: even the best starting hand bleeds equity to every extra opponent.",
   "p4-exact-set-vs-draws": "About 36% — your set is an UNDERDOG. Against one flush draw a set is a big favorite, but on a monotone board two flush draws give roughly twice the chance that SOMEONE completes a flush and beats you. It's the classic multiway trap: a hand that's great heads-up is a dog three-way. Sets want the pot small and heads-up.",
   "p4-exact-overpair-diluted": "About 38%. Your kings are ~51% against the single big draw heads-up, but adding a second drawing hand drops you to an underdog — the two draws rarely share outs, so together they get there far more often than either alone. Every opponent you add shaves your equity; a coin flip heads-up becomes a loser three-way.",
+  // P4.5 — all-in side pots
+  "p45-sidepot-fold": "Fold. The trap is that J-J is 79% against the short stack's 7-6s, so it feels like a snap-call. But calling puts 100 in for two pots: a small main pot (60 + blinds, three-way) and a 160-chip SIDE pot contested only against the big stack's aces — where J-J is about 20%. The side pot is far bigger than the main pot, so your aces-facing equity dominates: calling is worth roughly -57. When a big stack covers you, look at the side pot first.",
+  "p45-sidepot-call": "Call. Same stacks, but the covering hand is now A-J, and 8-8 is about 55% against it — so the 160-chip side pot is +EV, not a disaster, and you also beat the short stack most of the time. Calling is worth about +13. Nothing about the short shove changed; the decision flipped entirely on your equity versus the stack that covers you. Judge the side pot by the cover, not the shove.",
+  "p45-sidepot-value": "Call — the easy one. Aces are ahead in both pots: ~81% in the side pot against the big stack's kings and ~82% against the short's queens. Every chip goes in as a favorite, worth about +71. This is the flip side of the trap: when you crush the covering stack, the side pot is exactly where you want your money. Side pots only hurt you when you're behind the cover.",
   // P5 — exploit vs balance
   "p5-exploit-overfolder": "A hand with no showdown value only wins by making villain fold — and this villain folds often. Bet as a bluff; checking just gives up.",
   "p5-exploit-maniac": "Third pair is a hand you'd normally muck on the river. But this villain is a maniac who bets far more busted hands than real ones — so your weak pair actually beats most of what he's betting. Against a wild over-bluffer, don't fold: call and let him bluff off his chips. The read beats the strength of your hand.",
