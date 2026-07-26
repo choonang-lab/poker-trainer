@@ -4,13 +4,13 @@
 // calibration + P6 leaks). Curriculum structure/progress come from curriculum.ts;
 // no engine logic lives here.
 import {
-  STARTER_DRILLS, loadSession, serializeSession, gradeDrill, gradeStep, STARTER_HANDS,
+  STARTER_DRILLS, loadSession, serializeSession, gradeDrill, gradeStep, STARTER_HANDS, branchHand, STARTER_BRANCH_HANDS,
   buildTree, actionEVs, truth, outs, calibration, leakReport,
   rankOf, suitOf, RNAMES, score7, madeHand, drawSuit, nutCategory, comboCount,
   minDefenseFreq, bluffFrequency, icmEquity, requiredEquity, shoveEV, rangeVsRange, boardTexture, semiBluffBreakeven, spr, riskOfRuin, nutShare, multiwayEquity, openAction,
 } from "../engine.ts";
 import { MODULES, PRIMER, EXPLAIN, moduleStatus, currentStreak } from "../curriculum.ts";
-import type { Drill, Response, Action, State, Module, Result, Review, Hand } from "../contract.ts";
+import type { Drill, Response, Action, State, Module, Result, Review, Hand, BranchHand } from "../contract.ts";
 
 // ---- persistence (localStorage; the IO boundary, like cli.ts's fs) ----------
 const REVIEWS_KEY = "pt-reviews";
@@ -41,9 +41,12 @@ let lScreen: LScreen = "map";
 let activeModule: Module | null = null;
 let lessonIndex = 0;
 // Play-by-play state
-let activeHand: Hand | null = null;      // null => the hand list; set => playing that hand
+let activeHand: Hand | null = null;      // null => the hand list; set => playing that on-rails hand
 let handStepIndex = 0;
 let handOutcomes: { drillId: string; result: Result }[] = [];
+// Branching (follow-your-line) hand state
+let activeBranch: BranchHand | null = null;
+let branchActions: Action[] = [];
 
 // ---- rendering helpers ------------------------------------------------------
 const SUIT_SYM = ["♠", "♥", "♦", "♣"]; // s h d c
@@ -127,7 +130,7 @@ function backLink(label: string, fn: () => void): HTMLElement {
 function setView(v: View): void {
   view = v;
   if (v === "learn") lScreen = "map";
-  if (v === "play") { activeHand = null; handStepIndex = 0; handOutcomes = []; }
+  if (v === "play") { activeHand = null; handStepIndex = 0; handOutcomes = []; activeBranch = null; branchActions = []; }
   renderAll();
 }
 
@@ -285,6 +288,7 @@ function renderReview(): void {
 
 // ---- Play: one hand, decision by decision -----------------------------------
 function renderPlay(): void {
+  if (activeBranch) { renderBranch(activeBranch); return; }
   if (!activeHand) { // the hand list
     app.append(el("h2", "screen-title", "Play a hand"),
       el("p", "muted", "Play one hand from the first decision to the last. You're graded on every street, then shown where you leaked."));
@@ -295,6 +299,16 @@ function renderPlay(): void {
       title.append(el("div", "nm", h.title), el("div", "sb", `${h.setup} · ${h.steps.length} decisions`));
       row.append(title);
       row.onclick = () => { activeHand = h; handStepIndex = 0; handOutcomes = []; renderAll(); };
+      app.append(row);
+    });
+    // Branching ("live") hands: the hand follows YOUR line, decision by decision.
+    STARTER_BRANCH_HANDS.forEach((h) => {
+      const row = el("div", "modrow current");
+      row.append(el("div", "mdot", "◆"));
+      const title = el("div", "mtitle");
+      title.append(el("div", "nm", `${h.title} <span class="live">LIVE</span>`), el("div", "sb", `${h.setup} · the hand follows your line`));
+      row.append(title);
+      row.onclick = () => { activeBranch = h; branchActions = []; renderAll(); };
       app.append(row);
     });
     return;
@@ -332,6 +346,62 @@ function renderHandRecap(hand: Hand): void {
   const actions = el("div", "recap-actions");
   const again = el("button", "primary", "Play again"); again.onclick = () => { handStepIndex = 0; handOutcomes = []; renderAll(); };
   const back = el("button", "act", "Back to hands"); back.onclick = () => { activeHand = null; renderAll(); };
+  actions.append(again, back); sec.append(actions);
+  app.append(sec);
+}
+
+// ---- Branching ("live") hand: the hand walks buildTree following YOUR line ---
+function renderBranch(hand: BranchHand): void {
+  const o = branchHand(hand, branchActions);
+  app.append(el("div", "hand-head", hand.title));
+  // the running story (setup, cards dealt, each actor's action)
+  const story = el("div", "branch-story");
+  o.narrative.forEach((line) => story.append(el("div", "story-line", line)));
+  app.append(story);
+  if (o.pending) {
+    const p = o.pending;
+    const sec = el("section", "drill");
+    const hl = p.heroHand && p.board.length >= 3 ? highlightFor({ state: { heroHand: p.heroHand, board: p.board } } as Drill) : null;
+    sec.append(el("div", "board", p.board.length ? cards(p.board, hl ?? undefined) : "<em>(preflop)</em>"),
+      el("div", "meta", `Pot ${p.pot}`),
+      p.heroHand ? el("div", "hero", `You: ${cards(p.heroHand, hl ?? undefined)}`) : el("div"),
+      el("label", "prompt", "Your action:"));
+    const row = el("div", "actions");
+    for (const a of p.legal) {
+      const label = a.kind === "bet" ? `Bet ${parseFloat(((a.size ?? 0) * 100).toFixed(0))}% pot` : a.kind === "check" ? "Check" : a.kind === "call" ? "Call" : "Fold";
+      const b = el("button", "act", label);
+      b.onclick = () => { branchActions.push(a); renderAll(); };
+      row.append(b);
+    }
+    sec.append(row);
+    if (hl) sec.append(highlightLegend(hl));
+    app.append(sec);
+  } else {
+    renderBranchRecap(hand, o.decisions);
+  }
+}
+
+function renderBranchRecap(hand: BranchHand, decisions: { street: string; result: Result }[]): void {
+  const n = decisions.length;
+  const leaks = decisions.filter((d) => !d.result.leakTag.endsWith(".ok")).length;
+  let worstI = -1, worstR = 1e-9;
+  decisions.forEach((d, i) => { if (d.result.regretBb > worstR) { worstR = d.result.regretBb; worstI = i; } });
+  const sec = el("section", "drill");
+  sec.append(el("div", "tag", "Hand recap"), el("h2", "title", hand.title),
+    el("div", `feedback ${leaks === 0 ? "good" : "bad"}`,
+      leaks === 0 ? `Optimal on all ${n} decisions — you played your line perfectly.`
+                  : `You made the best play on ${n - leaks} of ${n} decisions.`));
+  const list = el("div", "recap-list");
+  decisions.forEach((d) => {
+    const good = d.result.leakTag.endsWith(".ok");
+    list.append(el("div", "recap-row", `<span class="rk ${good ? "ok" : "no"}">${good ? "✓" : "✗"}</span> ${d.street}`));
+  });
+  sec.append(list);
+  if (worstI >= 0) sec.append(el("div", "recap-worst",
+    `<strong>Biggest leak — the ${decisions[worstI].street.toLowerCase()}:</strong> that was the decision that cost you the most EV. Replay and try a different line.`));
+  const actions = el("div", "recap-actions");
+  const again = el("button", "primary", "Play again"); again.onclick = () => { branchActions = []; renderAll(); };
+  const back = el("button", "act", "Back to hands"); back.onclick = () => { activeBranch = null; renderAll(); };
   actions.append(again, back); sec.append(actions);
   app.append(sec);
 }

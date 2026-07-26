@@ -10,7 +10,7 @@ import type {
   Card, Score, Board, Combo, Range, Villain, Abstraction, State,
   Action, NodeState, NodeStrategy, Terminal, TreeNode, Response, Result, Review,
   Drill, Session, GradeOutcome, CalibrationBucket, CalibrationReport, LeakStat, LeakReport,
-  RangePolicy, Hand, HandStepOutcome, HandRecap, Position,
+  RangePolicy, Hand, HandStepOutcome, HandRecap, Position, BranchHand, BranchOutcome,
 } from "./contract.ts";
 
 export const RANKS = [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14];
@@ -1747,6 +1747,67 @@ export function gradeHand(hand: Hand, responses: Response[]): HandRecap {
       worst = { index, drillId: step.id, leakTag: result.leakTag, regretBb: result.regretBb };
   }
   return { outcomes, totalRegretBb, worst: worst && worst.regretBb > 1e-9 ? worst : null };
+}
+
+// ---- L6.6 branching play-by-play: walk the real tree, following the user ------
+const SUIT_SYM = ["♠", "♥", "♦", "♣"]; // ♠ ♥ ♦ ♣
+const cardName = (c: Card): string => `${rankChar(rankOf(c))}${SUIT_SYM[suitOf(c)]}`;
+const streetLabel = (boardLen: number): string => boardLen === 3 ? "Flop" : boardLen === 4 ? "Turn" : "River";
+// The single card childBoard adds over parentBoard (a CHANCE deal is exactly one card).
+const dealtCard = (parentBoard: Board, childBoard: Board): Card | undefined =>
+  childBoard.find((c) => !parentBoard.includes(c));
+
+// Replay the user's line through buildTree(hand.state): the user's action picks the
+// hero branch, the villain plays its MODAL declared action, and each chance deal is
+// the next scripted `reveal` card. Grade each hero decision by regret at the node
+// actually reached. Pure — the UI calls it with the growing `actions` list.
+export function branchHand(hand: BranchHand, actions: Action[]): BranchOutcome {
+  let node: TreeNode = buildTree(hand.state);
+  const narrative: string[] = [hand.setup, `Flop: ${hand.state.board.map(cardName).join(" ")}. The big blind checks.`];
+  const decisions: { street: string; result: Result }[] = [];
+  let reveal = 0;
+  // Resolve villain (modal action) and chance (scripted card) nodes until the next
+  // hero decision or a terminal.
+  const resolve = (): void => {
+    while (node.kind === "VILL" || node.kind === "CHANCE") {
+      if (node.kind === "VILL") {
+        const strat = node.state.villain.strategy;
+        if (!strat) throw new Error("branchHand: villain node has no strategy");
+        const legal = (node.children ?? []).map((c) => c.action!).filter(Boolean);
+        const dist = strat(node.state, legal);
+        const top = dist.reduce((a, b) => (b.weight > a.weight ? b : a));
+        narrative.push(top.action.kind === "fold" ? "The big blind folds — you take it down."
+          : top.action.kind === "bet" ? "The big blind raises." : "The big blind calls.");
+        node = (node.children ?? []).find((c) => sameAction(c.action, top.action))!.node;
+      } else {
+        const card = hand.reveal[reveal++];
+        const child = (node.children ?? []).find((c) => dealtCard(node.state.board, c.node.state.board) === card);
+        if (!child) throw new Error(`branchHand: scripted card ${cardName(card)} is not a legal deal here`);
+        node = child.node;
+        narrative.push(`${streetLabel(node.state.board.length)}: ${cardName(card)}. The big blind checks.`);
+      }
+    }
+  };
+  resolve();
+  for (const action of actions) {
+    if (node.kind !== "HERO") break; // hand already ended
+    const evs = actionEVs(node);
+    const chosen = evs.find((e) => sameAction(e.action, action));
+    if (!chosen) break;              // not a legal action at this node
+    const best = evs.reduce((a, b) => (b.ev > a.ev ? b : a));
+    const regretBb = Math.max(0, best.ev - chosen.ev);
+    const leakTag = regretBb <= 1e-9 ? "p2.ok" : `p2.${actionSuffix(chosen.action, best.action)}`;
+    decisions.push({ street: streetLabel(node.state.board.length), result: { regretBb, leakTag } });
+    narrative.push(action.kind === "check" ? "You check." : "You bet.");
+    node = (node.children ?? []).find((c) => sameAction(c.action, action))!.node;
+    resolve();
+  }
+  const done = node.kind === "TERM";
+  if (done && node.terminal?.type === "showdown") narrative.push("You get to showdown — the hand is graded on EV, not the river card.");
+  const pending = node.kind === "HERO"
+    ? { board: node.state.board, heroHand: node.state.heroHand, pot: node.state.pot, legal: (node.children ?? []).map((c) => c.action!) }
+    : null;
+  return { narrative, decisions, pending, done };
 }
 
 // Persistence primitives (pure; the CLI does the actual file IO). A Session's
@@ -5590,5 +5651,30 @@ export const STARTER_HANDS: Hand[] = [
         },
       },
     ],
+  },
+];
+
+// A big-blind defending range for the BRANCHING hand — it continues (floatPolicy)
+// with a made pair or better, so hero's flopped set gets value on every street it
+// bets. The user's actual line drives the hand; checking anywhere leaks that value.
+const B1_BB_DEFEND: Range = ([["Kh", "Qd"], ["Qh", "Jd"], ["Jh", "Td"], ["Kc", "Kd"], ["Qc", "Qh"], ["Jd", "Js"],
+  ["Td", "Th"], ["9c", "9s"], ["7c", "7d"], ["6c", "6d"], ["Ac", "Kd"], ["Ah", "Qc"], ["Kh", "Th"], ["Jc", "Tc"],
+  ["8c", "7c"], ["6h", "5h"], ["Ad", "5d"], ["Kd", "Jd"]]).map(([a, b]) => ({ combo: hand(a, b), weight: 1 }));
+
+export const STARTER_BRANCH_HANDS: BranchHand[] = [
+  {
+    id: "b1-btn-set-value",
+    title: "Live hand: play your own line to showdown",
+    setup: "You raise on the button with 8♠ 8♥, and the big blind calls.",
+    // Hero flops top set on 8♦5♣2♥ vs a BB defending range that continues with a
+    // pair+. Betting all three streets is the value line (regret 0); checking any
+    // street misses value — and the hand FOLLOWS your choice, so you keep playing
+    // from wherever your line leads. Turn 9♦, river 3♠ are blanks; the set stays best.
+    state: {
+      heroHand: hand("8s", "8h"), board: hand("8d", "5c", "2h"), pot: 6, toAct: "hero",
+      villain: { range: B1_BB_DEFEND, policy: floatPolicy },
+      abstraction: { sizes: [0.75], streets: ["flop", "turn", "river"], players: 2, raiseCap: 0 },
+    },
+    reveal: hand("9d", "3s"),
   },
 ];

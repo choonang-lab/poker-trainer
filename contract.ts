@@ -318,6 +318,30 @@ export interface HandRecap {
 export declare function gradeHand(hand: Hand, responses: Response[]): HandRecap;
 export declare const STARTER_HANDS: Hand[];
 
+// L6.6 BRANCHING play-by-play: a hand that follows the USER'S line. Instead of
+// authored on-rails steps, it walks the real buildTree(state): the user's action
+// picks the branch, the villain plays its MODAL declared action, and the board is
+// the scripted `reveal`. Each decision is graded (by regret) at the node actually
+// reached — so a wrong choice leads somewhere, and you're graded there.
+export interface BranchHand {
+  id: string;
+  title: string;
+  setup: string;                    // preflop narrative; the flop is state.board
+  state: State;                     // flop-start, hero-as-aggressor, villain {range, policy}, streets flop..river
+  reveal: Card[];                   // the turn then river card, dealt as the hand advances
+}
+export interface BranchOutcome {
+  narrative: string[];              // the running story: setup, cards dealt, and each actor's action
+  decisions: { street: string; result: Result }[]; // the user's graded decisions so far (regret at the node reached)
+  pending: { board: Board; heroHand?: Combo; pot: number; legal: Action[] } | null; // the current decision (null if the hand is over)
+  done: boolean;                    // true once the hand has reached a terminal
+}
+// Replay the walk for the user's `actions` so far (pure): resolve villain/chance
+// nodes automatically, grade each hero decision, and return the pending decision or
+// the final recap. The UI calls this with the growing action list.
+export declare function branchHand(hand: BranchHand, actions: Action[]): BranchOutcome;
+export declare const STARTER_BRANCH_HANDS: BranchHand[];
+
 // Module-aware leak classification. grade() emits structural pillar tags (it has
 // no module context); gradeDrill refines them into named, curriculum-specific
 // leaks via this, falling back to a module-scoped structural tag when unmapped.

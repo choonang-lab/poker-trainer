@@ -8,7 +8,7 @@ import {
   fieldEquity, multiwayEquity, sidePots, allInEV, sidePotCallEV, handClass, openAction, OPENING_RANGES, representativeFlops, validateAbstraction, ABSTRACTION_LIMITS,
   actionEVs, grade,
   resultQuality, newReview, scheduleReview, dueReviews, nextReview,
-  STARTER_DRILLS, newSession, nextDrill, gradeStep, gradeDrill, gradeHand, STARTER_HANDS, classifyLeak,
+  STARTER_DRILLS, newSession, nextDrill, gradeStep, gradeDrill, gradeHand, STARTER_HANDS, branchHand, STARTER_BRANCH_HANDS, classifyLeak,
   serializeSession, loadSession,
 } from "./engine.ts";
 import { MODULES, PRIMER, EXPLAIN, moduleDone, moduleStatus, currentStreak } from "./curriculum.ts";
@@ -1081,6 +1081,29 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
   const h2wrong = h2opt.slice(); h2wrong[0] = { kind: "open", action: "fold" };
   ok("gradeHand: folding the button open is a leak (worst decision)",
     gradeHand(hand2, h2wrong).worst?.index === 0);
+
+  // ---- L6.6 branching: the hand walks buildTree following the USER'S line -----
+  const bh = STARTER_BRANCH_HANDS[0];
+  const BET: Action = { kind: "bet", size: 0.75 }, CHECK: Action = { kind: "check" };
+  const start = branchHand(bh, []);
+  ok("branchHand start: a pending flop decision (check or bet), not done",
+    !start.done && start.pending !== null && start.pending!.legal.map((a) => a.kind).sort().join(",") === "bet,check");
+  const value = branchHand(bh, [BET, BET, BET]);
+  ok("branchHand: bet-bet-bet is the value line — all three graded optimal, hand done",
+    value.done && value.decisions.length === 3 && value.decisions.every((d) => d.result.leakTag.endsWith(".ok")));
+  ok("branchHand: the streets are flop, turn, river in order",
+    value.decisions.map((d) => d.street).join(",") === "Flop,Turn,River");
+  ok("branchHand: the scripted board is dealt into the narrative",
+    value.narrative.some((n) => n.includes("9♦")) && value.narrative.some((n) => n.includes("3♠")));
+  // Follow-the-line: checking the flop is a leak AND the hand continues from there.
+  const checked = branchHand(bh, [CHECK]);
+  ok("branchHand: checking the set on the flop is a missed-value leak, and play continues to the turn",
+    !checked.done && checked.pending !== null && checked.decisions.length === 1
+    && checked.decisions[0].result.regretBb > 1 && checked.decisions[0].result.leakTag.endsWith("missed_bet"));
+  // Villain folds end the hand: a big enough over-fold range would terminate — here
+  // the value line reaches showdown, so `done` with a full three decisions is the check.
+  ok("branchHand: reaching showdown records exactly the decisions the user made",
+    branchHand(bh, [BET, BET]).pending !== null && !branchHand(bh, [BET, BET]).done);
 
   // M4.5 combo counting: base counts and blocker removal, all hand-checkable.
   ok("comboCount: A-K unpaired, no blockers = 16", comboCount(hand("Ah", "Kh"), []) === 16);
