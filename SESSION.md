@@ -1169,6 +1169,28 @@ break that or need a fundamentally different solver. Logged so they aren't re-sc
       continues to the turn ("You raise. The button calls. Turn: 7♣"); b3 shows "You bet. The big blind
       raises." with Fold/Call. Both deeper mechanics work end-to-end.
 
+49. ~~**Multi-street villainLeads hand: bluff-catch a triple barrel**~~ — DONE 2026-07-25 (cache v70, 712
+    tests). Owner: "add multi-street villainLeads branch hands" — the deepest line, the villain BARRELS
+    every street hero checks to (hero OOP bluff-catches). This is what I'd dropped in #48; now diagnosed +
+    done.
+    - ROOT CAUSE of the earlier "no weight" error (finally pinned): `raiseStrong` wants to RAISE, but with
+      `raiseCap 0` the villainPolicyNode has NO raise child — so the policy's raise weight is lost and
+      fold/call both get weight 0 ⇒ "strategy assigns no weight". FIX (content, not core): the villainLeads
+      hand uses `floatPolicy` (call/fold only) for hero's donks — no raise weight to lose. Combined with the
+      #48 strategy-preservation fix, later-street `villainAfterCheck` nodes keep their lead strategy.
+    - NARRATIVE made position-aware: `heroOOP = heroFacesBet || villainLeads`. When hero is OOP a card deals
+      BARE ("Turn: 8♠.") and the villain acts AFTER hero; when hero is IP the villain checks to hero first.
+      A villain bet after a hero CHECK is a LEAD ("bets"), detected by the node having a check-back child,
+      vs a raise (villainPolicyNode, fold/call children). This also cleaned up b1/b2/b3 (still green).
+    - `barrelLead` NodeStrategy (bet 100% when checked to) + `B4_BARREL` range (value that beats hero's top
+      pair + enough bluffs that calling is the value line). `b4-bb-bluffcatch`: button triple-barrels
+      Q♥7♣2♦; hero A♠Q♦ (TPTK) OOP. check-CALL all three barrels = optimal (6 decisions, all ok); folding a
+      barrel = overfold (~9.6); donking = overbet (~8.8, folds out the bluffs you beat).
+    - VERIFIED LIVE: b4 shows "Flop: Q♥ 7♣ 2♦." (no villain pre-action — hero first, OOP), then "You check.
+      The button bets. You call. Turn: 8♠." — the barrel line, positionally correct.
+    - Play tab now: 4 branching LIVE hands (aggressor / defend-vs-cbet / cbet-into-raise / bluff-catch-barrel)
+      + 2 on-rails hands + the seeded dealer. Play-by-play is thoroughly feature-complete.
+
 ## Machine-specific notes for macOS
 
 - Requires: git, Node ≥ 23 (or 22.7+ with `--experimental-strip-types`) for

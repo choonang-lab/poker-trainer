@@ -25,7 +25,7 @@ game tree (L3). Build once, configure twice.
 
 ## Working discipline
 - The test suite is the guardrail. `node engine.test.ts` must stay green
-  (currently **707 passing, 0 failing**). Run it before changing anything and after every change.
+  (currently **712 passing, 0 failing**). Run it before changing anything and after every change.
 - Types are also enforced: `npx -p typescript tsc --noEmit` must stay clean (exit 0). This uses
   npx's cache — it adds NO dependency to the repo, keeping the engine a dependency-free ES module.
   `contract.conformance.ts` proves engine.ts matches every signature in contract.ts at compile time.
@@ -161,6 +161,12 @@ test red, stop and fix the leak — do NOT edit the test to make it pass.
   hero move = check/bet/call/fold/raise). Core: villainPolicyNode now PRESERVES villain.strategy through
   narrowing (no-op for hero-aggressor hands) so later-street villainAfterCheck can lead. 2 new live hands
   (b2 defend-face-cbet, b3 cbet-into-raise) + `raiseStrong` policy. Web labels a bet as "Raise" when facing one.
+- DONE: multi-street `villainLeads` branch hand — the villain BARRELS every street hero checks to (hero
+  OOP bluff-catches). `barrelLead` NodeStrategy (bet when checked to) + `floatPolicy` for hero's donks
+  (avoids the "no weight" bug: a raise-wanting policy with raiseCap 0 has no raise child). Narrative made
+  position-aware (`heroOOP` = heroFacesBet||villainLeads): cards deal bare and the villain acts AFTER hero;
+  a villain bet after a hero check is a "lead" ("bets") not a "raise". `b4-bb-bluffcatch`: check-call the
+  triple barrel down with A♠Q♦ top pair (optimal); folding is an overfold, donking an overbet.
 - NOTE: tags are module+suffix keyed. Each preflop drill costs ~3s. Raises are pot-sized (raiseCap ≤ 4).
 - NEXT options: more drills; deploy (static host); push notifications (iOS-limited). Feature-complete.
 
