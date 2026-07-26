@@ -184,3 +184,15 @@ body { padding-bottom: 78px; }
 .term { margin: 7px 0; font-size: 14px; line-height: 1.5; }
 .term .tm { font-weight: 700; color: var(--text); }
 .term .df { color: var(--muted); }
+
+/* Play-by-play: hand header + recap */
+.hand-head { color: var(--muted); font-size: 13px; margin: 2px 0 8px; }
+.recap-list { display: flex; flex-direction: column; gap: 6px; margin: 6px 0; }
+.recap-row { font-size: 14px; }
+.recap-row .rk { display: inline-block; width: 20px; font-weight: 700; }
+.recap-row .rk.ok { color: var(--good); }
+.recap-row .rk.no { color: var(--bad); }
+.recap-worst { font-size: 14px; line-height: 1.5; color: var(--muted); margin-top: 4px; }
+.recap-worst strong { color: var(--text); }
+.recap-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px; }
+.recap-actions .primary { flex: 1; }

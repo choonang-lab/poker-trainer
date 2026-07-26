@@ -290,7 +290,27 @@ export interface GradeOutcome {
 }
 export declare function newSession(drills: Drill[]): Session;
 export declare function nextDrill(session: Session, now: number): Drill | null;
+export declare function gradeStep(drill: Drill, response: Response): { result: Result; truth?: number }; // grade one spot, no scheduling
 export declare function gradeDrill(session: Session, drillId: string, response: Response, now: number): GradeOutcome;
+
+// L6.5 play-by-play: a Hand is one hand played decision by decision. Each step is a
+// gradeable spot (a Drill); the shown line is authored (on rails for v1), but every
+// decision is still graded on its true EV. gradeHand sums the chips leaked and flags
+// the worst call.
+export interface Hand {
+  id: string;
+  title: string;
+  setup: string;                    // one-line table context, e.g. "6-max · 100bb · you're in the big blind"
+  steps: Drill[];                   // ordered decisions; each step's `read` carries the play-by-play narrative
+}
+export interface HandStepOutcome { index: number; drillId: string; result: Result; truth?: number; }
+export interface HandRecap {
+  outcomes: HandStepOutcome[];
+  totalRegretBb: number;            // total chips leaked across the hand (sum of per-decision regret)
+  worst: { index: number; drillId: string; leakTag: string; regretBb: number } | null; // the single biggest leak (null if clean)
+}
+export declare function gradeHand(hand: Hand, responses: Response[]): HandRecap;
+export declare const STARTER_HANDS: Hand[];
 
 // Module-aware leak classification. grade() emits structural pillar tags (it has
 // no module context); gradeDrill refines them into named, curriculum-specific

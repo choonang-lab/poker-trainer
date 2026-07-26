@@ -4,13 +4,13 @@
 // calibration + P6 leaks). Curriculum structure/progress come from curriculum.ts;
 // no engine logic lives here.
 import {
-  STARTER_DRILLS, loadSession, serializeSession, gradeDrill,
+  STARTER_DRILLS, loadSession, serializeSession, gradeDrill, gradeStep, STARTER_HANDS,
   buildTree, actionEVs, truth, outs, calibration, leakReport,
   rankOf, suitOf, RNAMES, score7, madeHand, drawSuit, nutCategory, comboCount,
   minDefenseFreq, bluffFrequency, icmEquity, requiredEquity, shoveEV, rangeVsRange, boardTexture, semiBluffBreakeven, spr, riskOfRuin, nutShare, multiwayEquity,
 } from "../engine.ts";
 import { MODULES, PRIMER, EXPLAIN, moduleStatus, currentStreak } from "../curriculum.ts";
-import type { Drill, Response, Action, State, Module } from "../contract.ts";
+import type { Drill, Response, Action, State, Module, Result, Review, Hand } from "../contract.ts";
 
 // ---- persistence (localStorage; the IO boundary, like cli.ts's fs) ----------
 const REVIEWS_KEY = "pt-reviews";
@@ -34,12 +34,16 @@ function persist(): void {
 }
 
 // ---- UI state ---------------------------------------------------------------
-type View = "learn" | "review" | "stats";
+type View = "learn" | "play" | "review" | "stats";
 type LScreen = "map" | "primer" | "intro" | "drill" | "recap";
 let view: View = "learn";
 let lScreen: LScreen = "map";
 let activeModule: Module | null = null;
 let lessonIndex = 0;
+// Play-by-play state
+let activeHand: Hand | null = null;      // null => the hand list; set => playing that hand
+let handStepIndex = 0;
+let handOutcomes: { drillId: string; result: Result }[] = [];
 
 // ---- rendering helpers ------------------------------------------------------
 const SUIT_SYM = ["♠", "♥", "♦", "♣"]; // s h d c
@@ -120,11 +124,17 @@ function backLink(label: string, fn: () => void): HTMLElement {
 }
 
 // ---- top-level shell --------------------------------------------------------
-function setView(v: View): void { view = v; if (v === "learn") lScreen = "map"; renderAll(); }
+function setView(v: View): void {
+  view = v;
+  if (v === "learn") lScreen = "map";
+  if (v === "play") { activeHand = null; handStepIndex = 0; handOutcomes = []; }
+  renderAll();
+}
 
 function renderAll(): void {
   app.innerHTML = "";
   if (view === "learn") renderLearn();
+  else if (view === "play") renderPlay();
   else if (view === "review") renderReview();
   else renderStatsView();
   renderNav();
@@ -134,7 +144,7 @@ function renderNav(): void {
   const nav = el("nav"); nav.id = "nav";
   const inner = el("div", "navinner");
   const due = dueDrills().length;
-  ([["learn", "Learn"], ["review", "Review"], ["stats", "Stats"]] as [View, string][]).forEach(([v, label]) => {
+  ([["learn", "Learn"], ["play", "Play"], ["review", "Review"], ["stats", "Stats"]] as [View, string][]).forEach(([v, label]) => {
     const b = el("button", "navbtn" + (view === v ? " on" : ""),
       label + (v === "review" && due ? ` <span class="badge">${due}</span>` : ""));
     b.onclick = () => setView(v);
@@ -273,6 +283,59 @@ function renderReview(): void {
   playDrill(queue[0], `${queue[0].module} · review`, "Next →", () => renderAll());
 }
 
+// ---- Play: one hand, decision by decision -----------------------------------
+function renderPlay(): void {
+  if (!activeHand) { // the hand list
+    app.append(el("h2", "screen-title", "Play a hand"),
+      el("p", "muted", "Play one hand from the first decision to the last. You're graded on every street, then shown where you leaked."));
+    STARTER_HANDS.forEach((h) => {
+      const row = el("div", "modrow current");
+      row.append(el("div", "mdot", "▶"));
+      const title = el("div", "mtitle");
+      title.append(el("div", "nm", h.title), el("div", "sb", `${h.setup} · ${h.steps.length} decisions`));
+      row.append(title);
+      row.onclick = () => { activeHand = h; handStepIndex = 0; handOutcomes = []; renderAll(); };
+      app.append(row);
+    });
+    return;
+  }
+  const hand = activeHand;
+  if (handStepIndex >= hand.steps.length) { renderHandRecap(hand); return; }
+  const step = hand.steps[handStepIndex];
+  const last = handStepIndex === hand.steps.length - 1;
+  app.append(el("div", "hand-head", `${hand.setup} &nbsp;·&nbsp; decision ${handStepIndex + 1} of ${hand.steps.length}`));
+  // Reuse the drill player, but grade WITHOUT scheduling (a hand step isn't a
+  // review item) and advance to the next decision instead of the review queue.
+  playDrill(step, `Hand · ${step.title.replace(/:.*/, "")}`, last ? "See how you played →" : "Next decision →",
+    () => { handStepIndex++; renderAll(); },
+    (d, r) => { const out = gradeStep(d, r); handOutcomes.push({ drillId: d.id, result: out.result }); return out; });
+}
+
+function renderHandRecap(hand: Hand): void {
+  const n = hand.steps.length;
+  const leaks = handOutcomes.filter((o) => !o.result.leakTag.endsWith(".ok")).length;
+  let worstI = -1, worstR = 1e-9;
+  handOutcomes.forEach((o, i) => { if (o.result.regretBb > worstR) { worstR = o.result.regretBb; worstI = i; } });
+  const sec = el("section", "drill");
+  sec.append(el("div", "tag", "Hand recap"), el("h2", "title", hand.title),
+    el("div", `feedback ${leaks === 0 ? "good" : "bad"}`,
+      leaks === 0 ? `Optimal on all ${n} decisions — you played this hand perfectly.`
+                  : `You made the best play on ${n - leaks} of ${n} decisions.`));
+  const list = el("div", "recap-list");
+  hand.steps.forEach((step, i) => {
+    const good = handOutcomes[i].result.leakTag.endsWith(".ok");
+    list.append(el("div", "recap-row", `<span class="rk ${good ? "ok" : "no"}">${good ? "✓" : "✗"}</span> ${step.title.replace(/:.*/, "")}`));
+  });
+  sec.append(list);
+  if (worstI >= 0) sec.append(el("div", "recap-worst",
+    `<strong>Biggest leak — ${hand.steps[worstI].title.replace(/^[^:]*:\s*/, "")}:</strong> ${EXPLAIN[hand.steps[worstI].id] ?? ""}`));
+  const actions = el("div", "recap-actions");
+  const again = el("button", "primary", "Play again"); again.onclick = () => { handStepIndex = 0; handOutcomes = []; renderAll(); };
+  const back = el("button", "act", "Back to hands"); back.onclick = () => { activeHand = null; renderAll(); };
+  actions.append(again, back); sec.append(actions);
+  app.append(sec);
+}
+
 // After answering, work out what to highlight: the made hand's five cards (only
 // when it's a pair or better — highlighting "high card" isn't instructive) and a
 // flush draw's suit. Null before the flop or when there's nothing worth marking.
@@ -303,7 +366,9 @@ function highlightLegend(hl: Highlight): HTMLElement {
 }
 
 // ---- shared drill player ----------------------------------------------------
-function playDrill(drill: Drill, tagText: string, contLabel: string, onCont: () => void): void {
+type StepGrade = { result: Result; truth?: number; review?: Review }; // review present for scheduled drills, absent for hand steps
+function playDrill(drill: Drill, tagText: string, contLabel: string, onCont: () => void,
+                   grade: (d: Drill, r: Response) => StepGrade = gradeAndRecord): void {
   const s = drill.state;
   const sec = el("section", "drill");
   // Balance-math drills (mdf/bluffs) are pure pot/bet arithmetic — no board, hero
@@ -375,8 +440,8 @@ function playDrill(drill: Drill, tagText: string, contLabel: string, onCont: () 
   const controls = el("div", "controls");
   buildControls(controls, drill, (resp) => {
     const finish = (): void => {
-      let out: ReturnType<typeof gradeDrill>;
-      try { out = gradeAndRecord(drill, resp); } catch { return; }
+      let out: StepGrade;
+      try { out = grade(drill, resp); } catch { return; }
       sec.querySelector(".controls")?.remove();
       const fb = renderFeedback(drill, out, contLabel, onCont);
       const hl = highlightFor(drill);
@@ -388,10 +453,10 @@ function playDrill(drill: Drill, tagText: string, contLabel: string, onCont: () 
       sec.append(fb);
       (sec.querySelector(".feedback button") as HTMLButtonElement | null)?.focus();
     };
-    // A preflop grade enumerates a full 5-card runout (seconds on some devices).
-    // Swap the controls for a "Checking…" note and defer, so the UI repaints
-    // before the synchronous enumeration blocks the main thread.
-    if (drill.state.board.length === 0 && !mathAsk) {
+    // A preflop or multi-street grade enumerates a big tree (seconds on some
+    // devices). Swap the controls for a "Checking…" note and defer, so the UI
+    // repaints before the synchronous work blocks the main thread.
+    if ((drill.state.board.length === 0 || drill.state.abstraction.streets.length >= 2) && !mathAsk) {
       (sec.querySelector(".controls") as HTMLElement | null)?.replaceChildren(el("div", "calc", "Checking…"));
       setTimeout(finish, 30);
     } else finish();
@@ -621,7 +686,7 @@ function gradeAndRecord(drill: Drill, response: Response): ReturnType<typeof gra
   return out;
 }
 
-function renderFeedback(drill: Drill, out: ReturnType<typeof gradeDrill>, contLabel: string, onCont: () => void): HTMLElement {
+function renderFeedback(drill: Drill, out: StepGrade, contLabel: string, onCont: () => void): HTMLElement {
   const r = out.result;
   const ok = r.leakTag.endsWith(".ok");
   const fb = el("div", `feedback ${ok ? "good" : "bad"}`);
@@ -725,7 +790,7 @@ function renderFeedback(drill: Drill, out: ReturnType<typeof gradeDrill>, contLa
   fb.append(el("div", "fb-line", line));
   const why = EXPLAIN[drill.id];
   if (why) fb.append(el("div", "explain", withCardTiles(why)));
-  fb.append(el("div", "next-review", `next review in ${out.review.intervalDays}d`));
+  if (out.review) fb.append(el("div", "next-review", `next review in ${out.review.intervalDays}d`)); // scheduled drills only, not hand steps
   const next = el("button", "primary", contLabel);
   next.onclick = onCont;
   fb.append(next);

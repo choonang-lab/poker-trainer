@@ -10,7 +10,7 @@ import type {
   Card, Score, Board, Combo, Range, Villain, Abstraction, State,
   Action, NodeState, NodeStrategy, Terminal, TreeNode, Response, Result, Review,
   Drill, Session, GradeOutcome, CalibrationBucket, CalibrationReport, LeakStat, LeakReport,
-  RangePolicy,
+  RangePolicy, Hand, HandStepOutcome, HandRecap,
 } from "./contract.ts";
 
 export const RANKS = [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14];
@@ -1640,29 +1640,54 @@ export function classifyLeak(drill: Drill, result: Result): string {
 // Grade a response to a drill and reschedule it. Returns a NEW session (pure).
 // The Result's leakTag is the module-aware (L6) classification, not grade()'s
 // raw structural tag — gradeDrill has the Drill, so it knows the module.
+// Grade ONE drill's response into a curriculum Result (+ the ground truth for
+// estimates), WITHOUT scheduling. The shared core of gradeDrill (which adds SM-2)
+// and gradeHand (which chains steps) — so a play-by-play decision grades exactly
+// like the same spot as a standalone drill.
+export function gradeStep(drill: Drill, response: Response): { result: Result; truth?: number } {
+  // For estimates, compute the ground truth ONCE (preflop is ~3s) and reuse it for
+  // both the Result and the returned truth. Actions go through grade().
+  if (response.kind === "estimate") {
+    const t = truth(drill.state);
+    const base: Result = { regretBb: 0, estimateError: Math.abs(response.value - t), leakTag: estimateLeak(response.value - t) };
+    return { result: { ...base, leakTag: classifyLeak(drill, base) }, truth: t };
+  }
+  const base = grade(drill.state, response);
+  return { result: { ...base, leakTag: classifyLeak(drill, base) } };
+}
+
 export function gradeDrill(session: Session, drillId: string, response: Response, now: number): GradeOutcome {
   const drill = session.drills.find((d) => d.id === drillId);
   if (!drill) throw new Error(`gradeDrill: unknown drill ${drillId}`);
-  // For estimates, compute the ground truth ONCE (preflop is ~3s) and reuse it
-  // for both the Result and GradeOutcome.truth (so callers can build calibration
-  // sets without re-enumerating). Actions go through the standard grade() path.
-  let base: Result;
-  let truthValue: number | undefined;
-  if (response.kind === "estimate") {
-    const t = truth(drill.state);
-    truthValue = t;
-    const error = response.value - t;
-    base = { regretBb: 0, estimateError: Math.abs(error), leakTag: estimateLeak(error) };
-  } else {
-    base = grade(drill.state, response);
-  }
-  const result: Result = { ...base, leakTag: classifyLeak(drill, base) };
+  const { result, truth: truthValue } = gradeStep(drill, response);
   const prior = session.reviews[drillId] ?? newReview(drillId, now);
   const review = scheduleReview(prior, result, now);
   return {
     result, review, truth: truthValue,
     session: { ...session, reviews: { ...session.reviews, [drillId]: review } },
   };
+}
+
+// ---- L6.5 play-by-play: grade a whole hand, decision by decision --------------
+// A Hand is an ordered list of decision spots (each a Drill) that tell one hand's
+// story. gradeHand grades each step with the SAME engine (gradeStep), then sums the
+// chips leaked across the hand and flags the single worst decision. The shown line
+// is authored (on rails for v1); each decision is still graded on its true EV.
+export function gradeHand(hand: Hand, responses: Response[]): HandRecap {
+  if (responses.length !== hand.steps.length)
+    throw new Error(`gradeHand: ${hand.steps.length} steps but ${responses.length} responses`);
+  const outcomes: HandStepOutcome[] = [];
+  let totalRegretBb = 0;
+  let worst: { index: number; drillId: string; leakTag: string; regretBb: number } | null = null;
+  for (let index = 0; index < hand.steps.length; index++) {
+    const step = hand.steps[index];
+    const { result, truth: truthValue } = gradeStep(step, responses[index]);
+    outcomes.push({ index, drillId: step.id, result, truth: truthValue });
+    totalRegretBb += result.regretBb;
+    if (!worst || result.regretBb > worst.regretBb)
+      worst = { index, drillId: step.id, leakTag: result.leakTag, regretBb: result.regretBb };
+  }
+  return { outcomes, totalRegretBb, worst: worst && worst.regretBb > 1e-9 ? worst : null };
 }
 
 // Persistence primitives (pure; the CLI does the actual file IO). A Session's
@@ -5320,5 +5345,73 @@ export const STARTER_DRILLS: Drill[] = [
       villain: { range: [{ combo: hand("Qh", "Th"), weight: 1 }] },
       abstraction: { sizes: [], streets: [], players: 2 },
     },
+  },
+];
+
+// ---- L6.5 play-by-play hands (one hand, played decision by decision) -----------
+// Each step is a standalone gradeable spot (a Drill) reusing the existing engine;
+// the `read`s narrate one authored line. Villains continue with a made pair+
+// (floatPolicy). The shown line is on rails (v1); every decision is graded on its
+// true EV. Verdicts are calibrated crisp — defend, chase the draw, raise the nuts,
+// value bet. (The postflop model treats hero as able to keep betting, so the EVs
+// run optimistic, but the best ACTION at each node is what's graded.)
+const H1_BTN_OPEN: Range = ([["Ac", "Kd"], ["Ah", "Qd"], ["Kh", "Qd"], ["Ah", "Jd"], ["Qh", "Jd"], ["Ac", "Ad"],
+  ["Kc", "Ks"], ["Qc", "Qs"], ["Jd", "Js"], ["Td", "Th"], ["9d", "9h"], ["8d", "8s"], ["7c", "7s"], ["Ah", "Th"],
+  ["Kh", "Jh"], ["Qc", "Tc"], ["Js", "9s"], ["Ad", "5d"], ["Kd", "Td"], ["Ah", "9h"], ["Qd", "9d"], ["Jc", "Tc"],
+  ["Th", "9c"], ["Ac", "Jc"]]).map(([a, b]) => ({ combo: hand(a, b), weight: 1 }));
+const H1_CBET: Range = ([["Ac", "Ad"], ["Kc", "Ks"], ["Qc", "Qs"], ["Ah", "9s"], ["Kd", "9h"], ["Ac", "Jc"],
+  ["Ah", "Kh"], ["Qh", "Jh"], ["Td", "Tc"], ["Ah", "Qh"]]).map(([a, b]) => ({ combo: hand(a, b), weight: 1 }));
+const H1_BARREL: Range = ([["9c", "9d"], ["6c", "6h"], ["2d", "2h"], ["9s", "8s"], ["Ah", "9d"], ["Kd", "9h"],
+  ["Ac", "Ad"], ["Kc", "Ks"], ["Qh", "Qd"], ["Ah", "Kh"], ["Ah", "Qh"]]).map(([a, b]) => ({ combo: hand(a, b), weight: 1 }));
+const H1_RIVER: Range = ([["9c", "9d"], ["6c", "6h"], ["9s", "8s"], ["Ah", "9d"], ["Kd", "9h"], ["Qh", "Qd"],
+  ["Th", "Tc"], ["Ah", "Kh"], ["Ac", "Jc"], ["Kh", "Qh"]]).map(([a, b]) => ({ combo: hand(a, b), weight: 1 }));
+
+export const STARTER_HANDS: Hand[] = [
+  {
+    id: "h1-bb-defend-87s",
+    title: "Big blind: a suited connector, flop to river",
+    setup: "6-max · 100bb · you're in the big blind with 8♥ 7♥",
+    steps: [
+      {
+        id: "h1-preflop", module: "P1.5", ask: "action",
+        title: "Preflop: the button opens, you're in the big blind",
+        read: "It folds to the button, who opens. The small blind folds. You're in the big blind with 8♥7♥, closing the action at a good price. Call or fold?",
+        state: {
+          heroHand: hand("8h", "7h"), board: [], pot: 2, toAct: "hero",
+          villain: { range: H1_BTN_OPEN, policy: floatPolicy },
+          abstraction: { sizes: [0.75], streets: ["flop"], players: 2, raiseCap: 0, preflopBet: 1.0 },
+        },
+      },
+      {
+        id: "h1-flop", module: "M5.6", ask: "action",
+        title: "Flop: an open-ender, facing a continuation bet",
+        read: "You call. Flop: 9♠ 6♦ 2♣. You have 8-7 — an open-ended straight draw (a 5 or a T makes it), no pair yet. You check, the button c-bets. Call or fold?",
+        state: {
+          heroHand: hand("8h", "7h"), board: hand("9s", "6d", "2c"), pot: 6.5, toAct: "hero",
+          villain: { range: H1_CBET, policy: floatPolicy },
+          abstraction: { sizes: [0.75], streets: ["flop", "turn"], players: 2, raiseCap: 0, heroFacesBet: 0.75 },
+        },
+      },
+      {
+        id: "h1-turn", module: "P3.5", ask: "action",
+        title: "Turn: you make the nut straight, facing a barrel",
+        read: "You call. Turn: 5♥ — you make 5-6-7-8-9, the nut straight. You check, the button barrels again. Call, or raise for value?",
+        state: {
+          heroHand: hand("8h", "7h"), board: hand("9s", "6d", "2c", "5h"), pot: 14, toAct: "hero",
+          villain: { range: H1_BARREL, policy: floatPolicy },
+          abstraction: { sizes: [1.0], streets: ["turn", "river"], players: 2, raiseCap: 1, heroFacesBet: 1.0 },
+        },
+      },
+      {
+        id: "h1-river", module: "P2", ask: "action",
+        title: "River: the nuts, checked to you",
+        read: "You raise, the button calls. River: J♦ — a blank; you still have the nut straight. The button checks to you. Check back, or bet for value?",
+        state: {
+          heroHand: hand("8h", "7h"), board: hand("9s", "6d", "2c", "5h", "Jd"), pot: 30, toAct: "hero",
+          villain: { range: H1_RIVER, policy: floatPolicy },
+          abstraction: { sizes: [0.75], streets: ["river"], players: 2, raiseCap: 0 },
+        },
+      },
+    ],
   },
 ];

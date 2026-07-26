@@ -8,7 +8,7 @@ import {
   fieldEquity, multiwayEquity, sidePots, allInEV, sidePotCallEV, representativeFlops, validateAbstraction, ABSTRACTION_LIMITS,
   actionEVs, grade,
   resultQuality, newReview, scheduleReview, dueReviews, nextReview,
-  STARTER_DRILLS, newSession, nextDrill, gradeDrill, classifyLeak,
+  STARTER_DRILLS, newSession, nextDrill, gradeStep, gradeDrill, gradeHand, STARTER_HANDS, classifyLeak,
   serializeSession, loadSession,
 } from "./engine.ts";
 import { MODULES, PRIMER, EXPLAIN, moduleDone, moduleStatus, currentStreak } from "./curriculum.ts";
@@ -1018,6 +1018,31 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
   ok("P4.5 fold: calling off into the cover is a big regretful leak", spFoldBad.result.regretBb > 20);
   const spCallOk = gradeDrill(session, spCall.id, { kind: "action", action: { kind: "call" } }, 0);
   ok("P4.5 call: graded call is correct (regret 0)", approx(spCallOk.result.regretBb, 0));
+
+  // ---- L6.5 play-by-play hands ---------------------------------------------
+  // gradeStep is the shared grader — it must match gradeDrill's Result exactly.
+  const someDrill = byId("p0-ip-realize-equity");
+  const stepR = gradeStep(someDrill, { kind: "action", action: { kind: "check" } });
+  const drillR = gradeDrill(session, someDrill.id, { kind: "action", action: { kind: "check" } }, 0);
+  ok("gradeStep matches gradeDrill's Result (shared grader)",
+    approx(stepR.result.regretBb, drillR.result.regretBb) && stepR.result.leakTag === drillR.result.leakTag);
+
+  ok("STARTER_HANDS has a hand with steps", STARTER_HANDS.length >= 1 && STARTER_HANDS[0].steps.length >= 3);
+  ok("every hand step has an EXPLAIN entry", STARTER_HANDS.every((h) => h.steps.every((s) => !!EXPLAIN[s.id])));
+  const hand1 = STARTER_HANDS[0];
+  // Build each step's tree ONCE; the authored line is defend / chase / raise / value-bet.
+  const h1Best = hand1.steps.map((s) => bestAction(buildTree(s.state)));
+  ok("H1 optimal line is call, call, raise, bet", h1Best.map((a) => a.kind).join(",") === "call,call,bet,bet");
+  const optimal: Response[] = h1Best.map((a) => ({ kind: "action", action: a }));
+  const recapOpt = gradeHand(hand1, optimal);
+  ok("gradeHand: the optimal line leaks ~0 and flags no worst decision",
+    approx(recapOpt.totalRegretBb, 0) && recapOpt.worst === null && recapOpt.outcomes.length === 4);
+  // Fold the defend (step 0): it becomes the worst leak and the hand total rises.
+  const wrong = optimal.slice(); wrong[0] = { kind: "action", action: { kind: "fold" } };
+  const recapBad = gradeHand(hand1, wrong);
+  ok("gradeHand: folding the defend is the worst decision of the hand",
+    recapBad.worst !== null && recapBad.worst.index === 0 && recapBad.totalRegretBb > recapOpt.totalRegretBb);
+  ok("gradeHand: rejects a response-count mismatch", (() => { try { gradeHand(hand1, [optimal[0]]); return false; } catch { return true; } })());
 
   // M4.5 combo counting: base counts and blocker removal, all hand-checkable.
   ok("comboCount: A-K unpaired, no blockers = 16", comboCount(hand("Ah", "Kh"), []) === 16);
@@ -2060,8 +2085,9 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
   ok("every drill has an EXPLAIN entry",
     STARTER_DRILLS.every((d) => (EXPLAIN[d.id] ?? "").length > 0),
     STARTER_DRILLS.filter((d) => !(EXPLAIN[d.id] ?? "").length).map((d) => d.id).join(","));
-  ok("no EXPLAIN entry points at a missing drill",
-    Object.keys(EXPLAIN).every((id) => STARTER_DRILLS.some((d) => d.id === id)));
+  ok("no EXPLAIN entry points at a missing drill or hand step",
+    Object.keys(EXPLAIN).every((id) =>
+      STARTER_DRILLS.some((d) => d.id === id) || STARTER_HANDS.some((h) => h.steps.some((s) => s.id === id))));
   // A Pillar-2 action drill's best line depends on the villain's hidden strategy,
   // so each must carry a read that surfaces that tendency to the player.
   const p2ActionIds = MODULES.filter((m) => m.track === "P2").flatMap((m) => m.drillIds)
