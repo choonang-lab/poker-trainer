@@ -797,8 +797,17 @@ export function bestResponseEV(node: TreeNode): number {
         const child = kids.find((ch) => sameAction(ch.action, action));
         if (child) { ev += weight * bestResponseEV(child.node); total += weight; }
       }
-      if (total === 0)
-        throw new Error("VILL node: villain.strategy assigns no weight to any legal action");
+      // No weight on any legal action. If the villain's (narrowed) range is fully
+      // card-blocked here, this is an IMPOSSIBLE, measure-zero runout the CHANCE
+      // enumeration reached anyway (it deals cards the villain "holds") — contribute a
+      // neutral 0 rather than crashing. But if the range is still LIVE, the strategy
+      // itself is malformed (assigns no weight to a legal action) — fail loud.
+      if (total === 0) {
+        const blocked = new Set<Card>([...(node.state.heroHand ?? []), ...node.state.board]);
+        const live = (node.state.villain.range ?? []).some(({ combo }) => !combo.some((c) => blocked.has(c)));
+        if (live) throw new Error("VILL node: villain.strategy assigns no weight to any legal action");
+        return 0;
+      }
       return ev / total;
     }
     default:
@@ -1854,6 +1863,12 @@ const DEALER_CLASSES = [...expandRange(["88", "TT", "QQ", "AQs", "KJs", "QJs", "
 // river from a seeded shuffle, versus a fixed app-declared BB-defending range. Every
 // dealt hand is valid (no duplicate cards) and playable by branchHand — endless
 // variety, still reproducible. The UI supplies the seed (its own IO concern).
+//
+// The SCENARIO (seed % 3) varies the betting structure so the hand isn't always just
+// check/bet: sometimes the villain BARRELS into you (you're OOP: check → face a bet →
+// fold/call), sometimes it can RAISE your c-bet (you bet → face a raise → fold/call),
+// sometimes it just calls/folds (you're the sole aggressor). Every scenario still
+// starts with hero acting first (check/bet), then the extra options appear downstream.
 export function dealBranchHand(seed: number): BranchHand {
   const rng = mulberry32(seed >>> 0);
   const deck = FULL_DECK.slice();
@@ -1866,17 +1881,28 @@ export function dealBranchHand(seed: number): BranchHand {
   const turn = deck[5], river = deck[6];
   const dead = new Set<Card>([...hero, ...flop, turn, river]); // the villain never holds a dealt card
   const range: Range = DEALER_CLASSES.flatMap((cls) => combosOfClass(cls, dead)).map((combo) => ({ combo, weight: 1 }));
-  return {
-    id: `dealt-${seed}`,
-    title: "Dealt hand",
-    setup: `You raise on the button with ${cardName(hero[0])} ${cardName(hero[1])}, and the big blind calls.`,
-    state: {
-      heroHand: hero, board: flop, pot: 6, toAct: "hero",
-      villain: { range, policy: floatPolicy },
-      abstraction: { sizes: [0.75], streets: ["flop", "turn", "river"], players: 2, raiseCap: 0 },
-    },
-    reveal: [turn, river],
-  };
+  const heroName = `${cardName(hero[0])} ${cardName(hero[1])}`;
+  const streets: ("flop" | "turn" | "river")[] = ["flop", "turn", "river"];
+  const base = { heroHand: hero, board: flop, pot: 6, toAct: "hero" as const };
+  const scenario = seed % 3;
+  const spot = scenario === 1
+    ? { // villain BARRELS into you — you're OOP and must bluff-catch
+        villainLabel: "the button",
+        setup: `You call a button raise from the big blind with ${heroName}.`,
+        state: { ...base, villain: { range, policy: floatPolicy, strategy: barrelLead },
+          abstraction: { sizes: [0.75], streets, players: 2, raiseCap: 0, villainLeads: true } } }
+    : scenario === 2
+    ? { // you're the aggressor, but the villain can RAISE your bet
+        villainLabel: "the big blind",
+        setup: `You raise on the button with ${heroName}, and the big blind calls.`,
+        state: { ...base, villain: { range, policy: raiseStrong },
+          abstraction: { sizes: [0.75], streets, players: 2, raiseCap: 1 } } }
+    : { // you're the sole aggressor; the villain calls or folds
+        villainLabel: "the big blind",
+        setup: `You raise on the button with ${heroName}, and the big blind calls.`,
+        state: { ...base, villain: { range, policy: floatPolicy },
+          abstraction: { sizes: [0.75], streets, players: 2, raiseCap: 0 } } };
+  return { id: `dealt-${seed}`, title: "Dealt hand", setup: spot.setup, villainLabel: spot.villainLabel, state: spot.state, reveal: [turn, river] };
 }
 
 // Persistence primitives (pure; the CLI does the actual file IO). A Session's

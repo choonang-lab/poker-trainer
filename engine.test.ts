@@ -1150,6 +1150,14 @@ const foldStrat = (_s: NodeState, legal: Action[]) => legal.map((a) => ({ action
     [3, 77, 808].every((s) => { const st = branchHand(dealBranchHand(s), []); return !st.done && st.pending!.legal.map((a) => a.kind).sort().join(",") === "bet,check"; }));
   ok("dealBranchHand: a dealt hand plays through to a graded showdown line",
     (() => { const o = branchHand(dealBranchHand(42), [BET, BET, BET]); return o.done && o.decisions.length === 3; })());
+  // Dealt hands aren't all check/bet: the villain scenario varies (seed % 3), so on
+  // some hands the villain BARRELS into you — after a check you face fold/call.
+  ok("dealBranchHand: some dealt hands have the villain bet into you (fold/call, not just check/bet)",
+    [1, 4, 7, 10, 13].some((s) => { const o = branchHand(dealBranchHand(s), [{ kind: "check" }]); return !!o.pending && o.pending.legal.some((a) => a.kind === "fold"); }));
+  // Robustness: no dealt seed crashes when graded, even when a narrowed villain range
+  // gets fully card-blocked on a later street (a measure-zero runout returns a neutral 0).
+  ok("dealBranchHand: a batch of seeds all grade a check-call line without error",
+    (() => { for (let s = 1; s <= 24; s++) branchHand(dealBranchHand(s), [{ kind: "check" }, CALL, { kind: "check" }, CALL, { kind: "check" }, CALL]); return true; })());
 
   // M4.5 combo counting: base counts and blocker removal, all hand-checkable.
   ok("comboCount: A-K unpaired, no blockers = 16", comboCount(hand("Ah", "Kh"), []) === 16);
